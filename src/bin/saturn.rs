@@ -28,11 +28,14 @@ enum Command {
         #[arg(short = 't', long, default_value = "10s")]
         timeout: Option<String>,
     },
-    #[command(about = "Enter a new entry into the calendar")]
+    #[command(alias = "e", about = "Enter a new entry into the calendar")]
     Entry { args: Vec<String> },
     #[command(alias = "t", about = "Also `t`. Show today's calendar")]
     Today {},
-    #[command(about = "List today's calendar by default, or --all to show the full calendar")]
+    #[command(
+        alias = "l",
+        about = "List today's calendar by default, or --all to show the full calendar"
+    )]
     List {
         #[arg(short = 'a', long)]
         all: bool,
