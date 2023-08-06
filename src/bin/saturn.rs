@@ -41,20 +41,18 @@ fn main() -> Result<(), anyhow::Error> {
                 chrono::Duration::seconds(60)
             };
 
+            let timeout = timeout.map_or(std::time::Duration::new(60, 0), |t| {
+                fancy_duration::FancyDuration::<std::time::Duration>::parse(&t)
+                    .expect("Invalid Duration")
+                    .duration()
+            });
+
             for entry in events_now(duration)? {
                 if let Some(at) = entry.at() {
                     notify_rust::Notification::new()
                         .summary("Calendar Event")
                         .body(&format!("{} at {}: {}", entry.date(), at, entry.detail()))
-                        .timeout(
-                            timeout
-                                .clone()
-                                .map_or(std::time::Duration::new(60, 0), |t| {
-                                    fancy_duration::FancyDuration::<std::time::Duration>::parse(&t)
-                                        .expect("Invalid Duration")
-                                        .duration()
-                                }),
-                        )
+                        .timeout(timeout)
                         .show()?;
                 } else if let Some(schedule) = entry.scheduled() {
                     notify_rust::Notification::new()
@@ -66,15 +64,7 @@ fn main() -> Result<(), anyhow::Error> {
                             schedule.1,
                             entry.detail()
                         ))
-                        .timeout(
-                            timeout
-                                .clone()
-                                .map_or(std::time::Duration::new(60, 0), |t| {
-                                    fancy_duration::FancyDuration::<std::time::Duration>::parse(&t)
-                                        .expect("Invalid Duration")
-                                        .duration()
-                                }),
-                        )
+                        .timeout(timeout)
                         .show()?;
                 }
             }
