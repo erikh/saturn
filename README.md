@@ -23,7 +23,7 @@ saturn entry tomorrow at 8pm Take a Shower
 ```
 
 This will schedule a shower tomorrow at 8pm with a notification at the time of
-the appointment.
+the appointment. You can also use `saturn e`.
 
 ## Querying
 
@@ -32,7 +32,8 @@ saturn list [--all]
 ```
 
 Will list the database for today, or if `--all` is passed, will list the entire
-db. Note that `saturn today` and `saturn t` are synonyms for `saturn list`.
+db. Note that `saturn today` and `saturn t`, and `saturn l` are synonyms for
+`saturn list`.
 
 ```
 saturn now [--well=<duration>]
