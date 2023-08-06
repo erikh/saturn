@@ -289,10 +289,24 @@ fn parse_time(s: String) -> Result<chrono::NaiveTime, anyhow::Error> {
                     Err(anyhow!("Cannot parse time"))
                 }
             } else {
-                Ok(
-                    chrono::NaiveTime::from_hms_opt(parts[0].parse()?, parts[1].parse()?, 0)
-                        .expect("Invalid Time"),
-                )
+                let hour = parts[0].parse()?;
+                let minute = parts[1].parse()?;
+
+                if chrono::Local::now().hour() >= 12 {
+                    Ok(chrono::NaiveTime::from_hms_opt(
+                        if hour == 12 { 12 } else { hour + 12 },
+                        minute,
+                        0,
+                    )
+                    .expect("Invalid Time"))
+                } else {
+                    Ok(chrono::NaiveTime::from_hms_opt(
+                        if hour == 12 { 0 } else { hour },
+                        minute,
+                        0,
+                    )
+                    .expect("Invalid Time"))
+                }
             }
         }
         1 => {
@@ -319,7 +333,7 @@ fn parse_time(s: String) -> Result<chrono::NaiveTime, anyhow::Error> {
                         )
                         .expect("Invalid Time")),
                         "" => {
-                            if chrono::Local::now().hour() > 12 {
+                            if chrono::Local::now().hour() >= 12 {
                                 Ok(chrono::NaiveTime::from_hms_opt(
                                     if hour == 12 { 12 } else { hour + 12 },
                                     0,
@@ -401,7 +415,7 @@ mod tests {
         use super::parse_time;
         use chrono::Timelike;
 
-        let pm = chrono::Local::now().hour() > 12;
+        let pm = chrono::Local::now().hour() >= 12;
 
         let table = vec![
             ("12am", chrono::NaiveTime::from_hms_opt(0, 0, 0).unwrap()),
@@ -411,7 +425,10 @@ mod tests {
                 "8:12:56",
                 chrono::NaiveTime::from_hms_opt(8, 12, 56).unwrap(),
             ),
-            ("8:00", chrono::NaiveTime::from_hms_opt(8, 0, 0).unwrap()),
+            (
+                "8:00",
+                chrono::NaiveTime::from_hms_opt(if pm { 20 } else { 8 }, 0, 0).unwrap(),
+            ),
             ("8am", chrono::NaiveTime::from_hms_opt(8, 0, 0).unwrap()),
             ("8:00pm", chrono::NaiveTime::from_hms_opt(20, 0, 0).unwrap()),
             ("8pm", chrono::NaiveTime::from_hms_opt(20, 0, 0).unwrap()),
@@ -430,7 +447,7 @@ mod tests {
         ];
 
         for (to_parse, t) in table {
-            assert_eq!(parse_time(to_parse.to_string()).unwrap(), t)
+            assert_eq!(parse_time(to_parse.to_string()).unwrap(), t, "{}", to_parse)
         }
     }
 
@@ -441,7 +458,7 @@ mod tests {
         use chrono::{Datelike, Timelike};
 
         let now = chrono::Local::now();
-        let pm = now.hour() > 12;
+        let pm = now.hour() >= 12;
 
         let record = Record::build();
 
