@@ -1,0 +1,18 @@
+[package]
+name = "saturn"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+notify-rust = "*"
+anyhow = "*"
+time = { version = "*", features = [ "serde-human-readable", "local-offset", "rand" ] }
+rand = "*"
+serde = "*"
+serde_derive = "*"
+ciborium = "*"
+
+[dev-dependencies]
+tempfile = "*"
