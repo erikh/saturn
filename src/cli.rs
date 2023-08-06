@@ -429,6 +429,15 @@ mod tests {
             .set_at(Some(chrono::NaiveTime::from_hms_opt(0, 0, 0).unwrap()))
             .set_detail("Happy new year!".to_string());
 
+        let mut christmas = record.clone();
+        christmas
+            .set_date(chrono::NaiveDate::from_ymd_opt(now.year(), 12, 25).unwrap())
+            .set_scheduled(Some((
+                chrono::NaiveTime::from_hms_opt(7, 0, 0).unwrap(),
+                chrono::NaiveTime::from_hms_opt(12, 0, 0).unwrap(),
+            )))
+            .set_detail("Christmas Morning".to_string());
+
         let table = vec![
             (
                 "08/05 at 8 notify me 5m Get a Soda"
@@ -457,6 +466,13 @@ mod tests {
                     .map(|s| s.to_string())
                     .collect::<Vec<String>>(),
                 new_year,
+            ),
+            (
+                "12/25 from 7am to 12pm Christmas Morning"
+                    .split(" ")
+                    .map(|s| s.to_string())
+                    .collect::<Vec<String>>(),
+                christmas,
             ),
         ];
 
