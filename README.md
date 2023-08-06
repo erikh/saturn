@@ -4,6 +4,8 @@ This is all still very new and should be treated as such.
 
 saturn provides you with a CLI interface to calendaring much in the way [timewarrior](https://github.com/GothenburgBitFactory/timewarrior) does with tasks. It also provides you with several methods to query and notify yourself of important appointments.
 
+[Here](https://asciinema.org/a/XkRCXcgucQCRYassutGLMlWqq) is a demo of it in action.
+
 ## Entry language
 
 Entry language is basically:
@@ -48,6 +50,12 @@ Likewise,
 ```
 saturn notify [--well=<duration>] [--timeout=<duration>]
 ```
+
+This is what a notification looks like in `dunst`, which the notification
+system for `i3`. GNOME, KDE, MacOS, Windows will look different, but have the
+same text.
+
+<center><img src="notification.png" /></center>
 
 Will display a notification to the screen for every item that must be addressed
 immediately. `--well` is similar to `now`'s functionality, and `--timeout`
