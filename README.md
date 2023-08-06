@@ -2,7 +2,7 @@
 
 This is all still very new and should be treated as such.
 
-saturn provides you with a CLI interface to calendaring much in the way [timewarrior](https://github.com/GothenburgBitFactory/timewarrior) does with tasks. It also provides you with several methods to query and notify yourself of important appointments.
+saturn provides you with a CLI interface to calendaring much in the way [taskwarrior](https://github.com/GothenburgBitFactory/taskwarrior) does with tasks. It also provides you with several methods to query and notify yourself of important appointments.
 
 [Here](https://asciinema.org/a/XkRCXcgucQCRYassutGLMlWqq) is a demo of it in action.
 
