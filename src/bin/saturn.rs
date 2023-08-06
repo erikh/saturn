@@ -1,4 +1,5 @@
 use clap::{Parser, Subcommand};
+use console::style;
 use saturn::{
     cli::{events_now, list_entries, EntryParser},
     record::{Record, Schedule},
@@ -63,15 +64,22 @@ fn format_scheduled(entry: Record, schedule: Schedule) -> String {
     )
 }
 
-fn print(line: String) {
-    println!("{}", line)
+fn print(line: String, shade: bool) {
+    if shade {
+        println!(
+            "{}",
+            style(line).white().on_bright().bg(console::Color::Black),
+        )
+    } else {
+        println!("{}", style(line).white(),)
+    }
 }
 
-fn print_entry(entry: Record) {
+fn print_entry(entry: Record, shade: bool) {
     if let Some(at) = entry.at() {
-        print(format_at(entry, at))
+        print(format_at(entry, at), shade)
     } else if let Some(schedule) = entry.scheduled() {
-        print(format_scheduled(entry, schedule))
+        print(format_scheduled(entry, schedule), shade)
     }
 }
 
@@ -100,18 +108,24 @@ fn main() -> Result<(), anyhow::Error> {
             }
         }
         Command::Now { well } => {
+            let mut shade = false;
             for entry in events_now(get_well(well)?)? {
-                print_entry(entry)
+                print_entry(entry, shade);
+                shade = !shade;
             }
         }
         Command::List { all } => {
+            let mut shade = false;
             for entry in list_entries(all)? {
-                print_entry(entry)
+                print_entry(entry, shade);
+                shade = !shade;
             }
         }
         Command::Today {} => {
+            let mut shade = false;
             for entry in list_entries(false)? {
-                print_entry(entry)
+                print_entry(entry, shade);
+                shade = !shade;
             }
         }
         Command::Entry { args } => {
