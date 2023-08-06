@@ -66,12 +66,9 @@ fn format_scheduled(entry: Record, schedule: Schedule) -> String {
 
 fn print(line: String, shade: bool) {
     if shade {
-        println!(
-            "{}",
-            style(line).white().on_bright().bg(console::Color::Black),
-        )
+        println!("{}", style(line).dim().white())
     } else {
-        println!("{}", style(line).white(),)
+        println!("{}", style(line).white())
     }
 }
 
