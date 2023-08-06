@@ -5,7 +5,11 @@ use saturn::{
 };
 
 #[derive(Parser, Debug)]
-#[command(author, version, about, long_about)]
+#[command(
+    author = "Erik Hollensbe <erik+github@hollensbe.org>",
+    version,
+    about = "Control calendars with the CLI"
+)]
 #[command(propagate_version = true)]
 struct ArgParser {
     #[command(subcommand)]
@@ -14,20 +18,23 @@ struct ArgParser {
 
 #[derive(Debug, Subcommand)]
 enum Command {
+    #[command(about = "Send a visual notification when your appointment has arrived")]
     Notify {
         #[arg(short, long)]
         well: Option<String>,
         #[arg(short, long)]
         timeout: Option<String>,
     },
-    Entry {
-        args: Vec<String>,
-    },
+    #[command(about = "Enter a new entry into the calendar")]
+    Entry { args: Vec<String> },
+    #[command(about = "Show today's calendar")]
     Today {},
+    #[command(about = "List today's calendar by default, or --all to show the full calendar")]
     List {
         #[arg(short, long)]
         all: bool,
     },
+    #[command(about = "Show the tasks that are important now, including notifications")]
     Now {
         #[arg(short, long)]
         well: Option<String>,
