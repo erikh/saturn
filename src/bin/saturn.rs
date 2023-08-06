@@ -56,10 +56,14 @@ fn get_well(well: Option<String>) -> Result<chrono::Duration, anyhow::Error> {
 fn grid_at(grid: &mut ttygrid::TTYGrid, entry: Record, at: chrono::NaiveTime) {
     add_line!(
         grid,
-        entry.primary_key().to_string(),
-        entry.date().to_string(),
         at.to_string(),
-        entry.detail()
+        format!(
+            "{0:.20}{1}",
+            entry.detail(),
+            if entry.detail().len() > 20 { "..." } else { "" }
+        ),
+        entry.primary_key().to_string(),
+        entry.date().to_string()
     )
     .unwrap()
 }
@@ -67,11 +71,14 @@ fn grid_at(grid: &mut ttygrid::TTYGrid, entry: Record, at: chrono::NaiveTime) {
 fn grid_scheduled(grid: &mut ttygrid::TTYGrid, entry: Record, schedule: Schedule) {
     add_line!(
         grid,
+        format!("{} to {}", schedule.0, schedule.1),
+        format!(
+            "{0:.20}{1}",
+            entry.detail(),
+            if entry.detail().len() > 20 { "..." } else { "" }
+        ),
         entry.primary_key().to_string(),
-        entry.date().to_string(),
-        schedule.0.to_string(),
-        schedule.1.to_string(),
-        entry.detail()
+        entry.date().to_string()
     )
     .unwrap()
 }
@@ -96,10 +103,10 @@ fn print_entries(entries: Vec<Record>) {
     }
 
     let mut grid = grid!(
-        header!("ID"),
-        header!("DATE"),
-        header!("TIME"),
-        header!("DETAIL")
+        header!("TIME", 2),
+        header!("DETAIL", 3),
+        header!("ID", 0),
+        header!("DATE", 1)
     );
 
     for entry in entries {
