@@ -410,6 +410,12 @@ mod tests {
             )
             .set_detail("Get a Soda".to_string());
 
+        let mut relax = record.clone();
+        relax
+            .set_date((chrono::Local::now() + chrono::Duration::days(1)).date_naive())
+            .set_at(Some(chrono::NaiveTime::from_hms_opt(16, 0, 0).unwrap()))
+            .set_detail("Relax".to_string());
+
         let mut birthday = record.clone();
         birthday
             .set_date(chrono::NaiveDate::from_ymd_opt(now.year(), 10, 23).unwrap())
@@ -430,6 +436,13 @@ mod tests {
                     .map(|s| s.to_string())
                     .collect::<Vec<String>>(),
                 soda,
+            ),
+            (
+                "tomorrow at 4pm Relax"
+                    .split(" ")
+                    .map(|s| s.to_string())
+                    .collect::<Vec<String>>(),
+                relax,
             ),
             (
                 "10/23 at 7:30am notify 1h Tell my daughter 'happy birthday'"
