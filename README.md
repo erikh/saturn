@@ -51,6 +51,12 @@ Will display a notification to the screen for every item that must be addressed
 immediately. `--well` is similar to `now`'s functionality, and `--timeout`
 configures how long to keep the notification up on the screen.
 
+```
+saturn delete <id>
+```
+
+Will delete a calendar record by ID, which is listed with the listing tools.
+
 ## Database
 
 Saturn keeps a CBOR database in ~/.saturn.db. Locking is not in use and you've
