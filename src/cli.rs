@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 use crate::{db::DB, record::Record};
 use anyhow::anyhow;
 use chrono::{Datelike, Timelike};
@@ -17,7 +16,6 @@ pub fn saturn_db() -> PathBuf {
 }
 
 pub struct EntryParser {
-    #[allow(dead_code)]
     args: Vec<String>,
     filename: PathBuf,
 }
