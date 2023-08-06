@@ -1,5 +1,5 @@
 use clap::{Parser, Subcommand};
-use saturn::cli::{list_entries, EntryParser};
+use saturn::cli::{events_now, list_entries, EntryParser};
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about)]
@@ -13,17 +13,48 @@ struct ArgParser {
 enum Command {
     Notify {},
     ShellStatus {},
-    Entry { args: Vec<String> },
-    List {},
+    Entry {
+        args: Vec<String>,
+    },
+    List {
+        #[arg(short, long)]
+        all: bool,
+    },
+    Now {
+        #[arg(short, long)]
+        well: Option<String>,
+    },
 }
 
 fn main() -> Result<(), anyhow::Error> {
     let cli = ArgParser::parse();
     match cli.command {
-        Command::Notify {} => eprintln!("Notify command"),
+        Command::Notify {} => {}
+        Command::Now { well } => {
+            let duration = if let Some(well) = well {
+                let duration = fancy_duration::FancyDuration::<chrono::Duration>::parse(&well)?;
+                duration.duration()
+            } else {
+                chrono::Duration::seconds(60)
+            };
+
+            for entry in events_now(duration)? {
+                if let Some(at) = entry.at() {
+                    println!("{} at {}: {}", entry.date(), at, entry.detail());
+                } else if let Some(schedule) = entry.scheduled() {
+                    println!(
+                        "{} at {} - {}: {}",
+                        entry.date(),
+                        schedule.0,
+                        schedule.1,
+                        entry.detail()
+                    );
+                }
+            }
+        }
         Command::ShellStatus {} => eprintln!("ShellStatus command"),
-        Command::List {} => {
-            for entry in list_entries(false)? {
+        Command::List { all } => {
+            for entry in list_entries(all)? {
                 if let Some(at) = entry.at() {
                     println!("{} at {}: {}", entry.date(), at, entry.detail());
                 } else if let Some(schedule) = entry.scheduled() {

@@ -45,6 +45,24 @@ impl DB {
             .flat_map(|(_, v)| v.clone())
             .collect::<Vec<Record>>()
     }
+
+    pub fn events_now(&self, last: chrono::Duration) -> Vec<Record> {
+        let mut ret = Vec::new();
+        let now = chrono::Local::now();
+        for item in self.list_today() {
+            if let Some(at) = item.at() {
+                if at - now.time() < last {
+                    ret.push(item);
+                }
+            } else if let Some(schedule) = item.scheduled() {
+                if (schedule.0 - last) < now.time() && (schedule.1 + last) > now.time() {
+                    ret.push(item)
+                }
+            }
+        }
+
+        ret
+    }
 }
 
 #[cfg(test)]
