@@ -30,7 +30,7 @@ saturn list [--all]
 ```
 
 Will list the database for today, or if `--all` is passed, will list the entire
-db. Note that `saturn today` is a synonym for `saturn list`.
+db. Note that `saturn today` and `saturn t` are synonyms for `saturn list`.
 
 ```
 saturn now [--well=<duration>]
@@ -40,6 +40,8 @@ Will list the items that need to be addressed immediately. To configure how
 much of a time to wrap around what "now" means, use the `--well` option.
 Durations are specified in
 [fancy-duration](https://github.com/erikh/fancy-duration) format.
+
+`saturn n` is an alias for `saturn now`.
 
 Likewise,
 
