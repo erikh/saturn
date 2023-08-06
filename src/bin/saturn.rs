@@ -14,6 +14,8 @@ enum Command {
     Notify {
         #[arg(short, long)]
         well: Option<String>,
+        #[arg(short, long)]
+        timeout: Option<String>,
     },
     Entry {
         args: Vec<String>,
@@ -31,7 +33,7 @@ enum Command {
 fn main() -> Result<(), anyhow::Error> {
     let cli = ArgParser::parse();
     match cli.command {
-        Command::Notify { well } => {
+        Command::Notify { well, timeout } => {
             let duration = if let Some(well) = well {
                 let duration = fancy_duration::FancyDuration::<chrono::Duration>::parse(&well)?;
                 duration.duration()
@@ -42,10 +44,21 @@ fn main() -> Result<(), anyhow::Error> {
             for entry in events_now(duration)? {
                 if let Some(at) = entry.at() {
                     notify_rust::Notification::new()
+                        .summary("Calendar Event")
                         .body(&format!("{} at {}: {}", entry.date(), at, entry.detail()))
+                        .timeout(
+                            timeout
+                                .clone()
+                                .map_or(std::time::Duration::new(60, 0), |t| {
+                                    fancy_duration::FancyDuration::<std::time::Duration>::parse(&t)
+                                        .expect("Invalid Duration")
+                                        .duration()
+                                }),
+                        )
                         .show()?;
                 } else if let Some(schedule) = entry.scheduled() {
                     notify_rust::Notification::new()
+                        .summary("Calendar Event")
                         .body(&format!(
                             "{} at {} - {}: {}",
                             entry.date(),
@@ -53,6 +66,15 @@ fn main() -> Result<(), anyhow::Error> {
                             schedule.1,
                             entry.detail()
                         ))
+                        .timeout(
+                            timeout
+                                .clone()
+                                .map_or(std::time::Duration::new(60, 0), |t| {
+                                    fancy_duration::FancyDuration::<std::time::Duration>::parse(&t)
+                                        .expect("Invalid Duration")
+                                        .duration()
+                                }),
+                        )
                         .show()?;
                 }
             }
