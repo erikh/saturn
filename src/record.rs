@@ -7,6 +7,7 @@ pub type Notifications = Vec<chrono::NaiveTime>;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Record {
+    primary_key: u64,
     date: chrono::NaiveDate,
     at: Option<chrono::NaiveTime>,
     scheduled: Option<Schedule>,
@@ -19,6 +20,7 @@ impl Default for Record {
     fn default() -> Self {
         let now = chrono::Local::now();
         Self {
+            primary_key: 0,
             date: now.date_naive(),
             at: None,
             scheduled: None,
@@ -30,6 +32,10 @@ impl Default for Record {
 }
 
 impl Record {
+    pub fn primary_key(&self) -> u64 {
+        self.primary_key
+    }
+
     pub fn date(&self) -> chrono::NaiveDate {
         self.date
     }
@@ -60,6 +66,11 @@ impl Record {
 
     pub fn record(&self, mut db: crate::db::DB) {
         db.record(self.clone())
+    }
+
+    pub fn set_primary_key(&mut self, primary_key: u64) -> &mut Self {
+        self.primary_key = primary_key;
+        self
     }
 
     pub fn set_date(&mut self, date: chrono::NaiveDate) -> &mut Self {

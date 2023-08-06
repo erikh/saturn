@@ -1,9 +1,9 @@
 use clap::{Parser, Subcommand};
-use console::style;
 use saturn::{
     cli::{events_now, list_entries, EntryParser},
     record::{Record, Schedule},
 };
+use ttygrid::{add_line, grid, header};
 
 #[derive(Parser, Debug)]
 #[command(
@@ -53,13 +53,36 @@ fn get_well(well: Option<String>) -> Result<chrono::Duration, anyhow::Error> {
     }
 }
 
+fn grid_at(grid: &mut ttygrid::TTYGrid, entry: Record, at: chrono::NaiveTime) {
+    add_line!(
+        grid,
+        entry.primary_key().to_string(),
+        entry.date().to_string(),
+        at.to_string(),
+        entry.detail()
+    )
+    .unwrap()
+}
+
+fn grid_scheduled(grid: &mut ttygrid::TTYGrid, entry: Record, schedule: Schedule) {
+    add_line!(
+        grid,
+        entry.primary_key().to_string(),
+        entry.date().to_string(),
+        schedule.0.to_string(),
+        schedule.1.to_string(),
+        entry.detail()
+    )
+    .unwrap()
+}
+
 fn format_at(entry: Record, at: chrono::NaiveTime) -> String {
     format!("{} at {}: {}", entry.date(), at, entry.detail())
 }
 
 fn format_scheduled(entry: Record, schedule: Schedule) -> String {
     format!(
-        "{} at {} - {}: {}",
+        "{} at {} to {}: {}",
         entry.date(),
         schedule.0,
         schedule.1,
@@ -67,25 +90,27 @@ fn format_scheduled(entry: Record, schedule: Schedule) -> String {
     )
 }
 
-fn print(line: String, shade: bool) {
-    if shade {
-        println!("{}", style(line).dim().white())
-    } else {
-        println!("{}", style(line).white())
-    }
-}
-
 fn print_entries(entries: Vec<Record>) {
-    let mut shade = false;
+    if entries.is_empty() {
+        return;
+    }
+
+    let mut grid = grid!(
+        header!("ID"),
+        header!("DATE"),
+        header!("TIME"),
+        header!("DETAIL")
+    );
 
     for entry in entries {
         if let Some(at) = entry.at() {
-            print(format_at(entry, at), shade)
+            grid_at(&mut grid, entry, at);
         } else if let Some(schedule) = entry.scheduled() {
-            print(format_scheduled(entry, schedule), shade)
+            grid_scheduled(&mut grid, entry, schedule);
         }
-        shade = !shade;
     }
+
+    println!("{}", grid.display().unwrap());
 }
 
 fn main() -> Result<(), anyhow::Error> {

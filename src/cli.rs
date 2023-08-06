@@ -35,7 +35,10 @@ impl EntryParser {
             DB::default()
         };
 
-        db.record(self.to_record()?);
+        let mut record = self.to_record()?;
+        record.set_primary_key(db.next_key());
+
+        db.record(record);
         db.dump(self.filename.clone())?;
 
         Ok(())

@@ -3,7 +3,10 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
-pub struct DB(BTreeMap<chrono::NaiveDate, Vec<Record>>);
+pub struct DB {
+    primary_key: u64,
+    records: BTreeMap<chrono::NaiveDate, Vec<Record>>,
+}
 
 impl DB {
     pub fn load(filename: std::path::PathBuf) -> Result<Self, anyhow::Error> {
@@ -25,22 +28,28 @@ impl DB {
     }
 
     pub fn record(&mut self, record: Record) {
-        if let Some(item) = self.0.get_mut(&record.date()) {
+        if let Some(item) = self.records.get_mut(&record.date()) {
             item.push(record);
         } else {
-            self.0.insert(record.date(), vec![record]);
+            self.records.insert(record.date(), vec![record]);
         }
     }
 
+    pub fn next_key(&mut self) -> u64 {
+        let key = self.primary_key;
+        self.primary_key += 1;
+        key
+    }
+
     pub fn list_today(&self) -> Vec<Record> {
-        self.0
+        self.records
             .get(&chrono::Local::now().date_naive())
             .unwrap_or(&Vec::new())
             .clone()
     }
 
     pub fn list_all(&self) -> Vec<Record> {
-        self.0
+        self.records
             .iter()
             .flat_map(|(_, v)| v.clone())
             .collect::<Vec<Record>>()
@@ -51,7 +60,7 @@ impl DB {
         let now = chrono::Local::now();
 
         for item in self
-            .0
+            .records
             .get_mut(&chrono::Local::now().date_naive())
             .unwrap_or(&mut Vec::new())
         {
@@ -108,9 +117,10 @@ mod tests {
 
         let mut db = DB::default();
 
-        for _ in 0..(rand::random::<usize>() % 50) + 1 {
+        for x in 0..(rand::random::<u64>() % 50) + 1 {
             db.record(
                 Record::build()
+                    .set_primary_key(x)
                     .set_date(
                         chrono::NaiveDate::from_ymd_opt(
                             rand::random::<i32>() % 5 + 2023,
@@ -138,6 +148,7 @@ mod tests {
         assert!(res.is_ok());
 
         let db2 = res.unwrap();
-        assert_eq!(db.0, db2.0);
+        assert_eq!(db.primary_key, db2.primary_key);
+        assert_eq!(db.records, db2.records);
     }
 }
