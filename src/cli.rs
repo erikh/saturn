@@ -199,7 +199,11 @@ fn parse_time(s: String) -> Result<time::Time, anyhow::Error> {
 
                 if let Some(designation) = captures.get(2) {
                     match designation.as_str() {
-                        "pm" | "PM" => Ok(time::Time::from_hms(hour + 12, minute, 0)?),
+                        "pm" | "PM" => Ok(time::Time::from_hms(
+                            if hour == 12 { 12 } else { hour + 12 },
+                            minute,
+                            0,
+                        )?),
                         "am" | "AM" => Ok(time::Time::from_hms(
                             if hour == 12 { 0 } else { hour },
                             minute,
@@ -229,7 +233,11 @@ fn parse_time(s: String) -> Result<time::Time, anyhow::Error> {
 
                 if let Some(designation) = captures.get(2) {
                     match designation.as_str() {
-                        "pm" | "PM" => Ok(time::Time::from_hms(hour + 12, 0, 0)?),
+                        "pm" | "PM" => Ok(time::Time::from_hms(
+                            if hour == 12 { 12 } else { hour + 12 },
+                            0,
+                            0,
+                        )?),
                         "am" | "AM" => Ok(time::Time::from_hms(
                             if hour == 12 { 0 } else { hour },
                             0,
@@ -237,7 +245,11 @@ fn parse_time(s: String) -> Result<time::Time, anyhow::Error> {
                         )?),
                         "" => {
                             if time::OffsetDateTime::now_utc().hour() > 12 {
-                                Ok(time::Time::from_hms(hour + 12, 0, 0)?)
+                                Ok(time::Time::from_hms(
+                                    if hour == 12 { 12 } else { hour + 12 },
+                                    0,
+                                    0,
+                                )?)
                             } else {
                                 Ok(time::Time::from_hms(
                                     if hour == 12 { 0 } else { hour },
