@@ -23,7 +23,7 @@ enum Command {
     Notify {
         #[arg(short = 'w', long)]
         well: Option<String>,
-        #[arg(short = 't', long)]
+        #[arg(short = 't', long, default_value = "10s")]
         timeout: Option<String>,
     },
     #[command(about = "Enter a new entry into the calendar")]
