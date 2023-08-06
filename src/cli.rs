@@ -440,45 +440,27 @@ mod tests {
             .set_detail("Christmas Morning".to_string());
 
         let table = vec![
+            ("08/05 at 8 notify me 5m Get a Soda", soda),
+            ("tomorrow at 4pm Relax", relax),
             (
-                "08/05 at 8 notify me 5m Get a Soda"
-                    .split(" ")
-                    .map(|s| s.to_string())
-                    .collect::<Vec<String>>(),
-                soda,
-            ),
-            (
-                "tomorrow at 4pm Relax"
-                    .split(" ")
-                    .map(|s| s.to_string())
-                    .collect::<Vec<String>>(),
-                relax,
-            ),
-            (
-                "10/23 at 7:30am notify 1h Tell my daughter 'happy birthday'"
-                    .split(" ")
-                    .map(|s| s.to_string())
-                    .collect::<Vec<String>>(),
+                "10/23 at 7:30am notify 1h Tell my daughter 'happy birthday'",
                 birthday,
             ),
-            (
-                "1/1 at 12am Happy new year!"
-                    .split(" ")
-                    .map(|s| s.to_string())
-                    .collect::<Vec<String>>(),
-                new_year,
-            ),
-            (
-                "12/25 from 7am to 12pm Christmas Morning"
-                    .split(" ")
-                    .map(|s| s.to_string())
-                    .collect::<Vec<String>>(),
-                christmas,
-            ),
+            ("1/1 at 12am Happy new year!", new_year),
+            ("12/25 from 7am to 12pm Christmas Morning", christmas),
         ];
 
         for (to_parse, t) in table {
-            assert_eq!(parse_entry(to_parse).unwrap(), t)
+            assert_eq!(
+                parse_entry(
+                    to_parse
+                        .split(" ")
+                        .map(|s| s.to_string())
+                        .collect::<Vec<String>>()
+                )
+                .unwrap(),
+                t,
+            )
         }
     }
 }
