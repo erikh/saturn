@@ -73,6 +73,20 @@ Will delete a calendar record by ID, which is listed with the listing tools.
 Saturn keeps a CBOR database in ~/.saturn.db. Locking is not in use and you've
 been warned. We'll get there.
 
+## Leveraging the well features with a periodic scheduler
+
+The `--well` options take a duration. This duration is intended to roughly
+match the frequency at which you run the program, so that there is little to no
+overlay. This flag is provided for `saturn now` and `saturn notify`.
+
+Notifications (specified by a `notify` entry stanza) are only fired once in any
+event. Events, on the other hand, are shown every time they fall into the
+window, which is the current time, +/- the `--well` duration.
+
+I hope this clears things up; I was trying to figure out a good way to run this
+in `cron` etc without spamming myself with notifications for a long period of
+time.
+
 ## Future Plans
 
 -   google calendar support (maybe proton too)
