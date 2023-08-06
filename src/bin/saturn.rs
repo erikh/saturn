@@ -61,6 +61,14 @@ fn print(line: String) {
     println!("{}", line)
 }
 
+fn print_entry(entry: Record) {
+    if let Some(at) = entry.at() {
+        print(format_at(entry, at))
+    } else if let Some(schedule) = entry.scheduled() {
+        print(format_scheduled(entry, schedule))
+    }
+}
+
 fn main() -> Result<(), anyhow::Error> {
     let cli = ArgParser::parse();
     match cli.command {
@@ -90,29 +98,17 @@ fn main() -> Result<(), anyhow::Error> {
             let duration = get_well(well)?;
 
             for entry in events_now(duration)? {
-                if let Some(at) = entry.at() {
-                    print(format_at(entry, at))
-                } else if let Some(schedule) = entry.scheduled() {
-                    print(format_scheduled(entry, schedule))
-                }
+                print_entry(entry)
             }
         }
         Command::List { all } => {
             for entry in list_entries(all)? {
-                if let Some(at) = entry.at() {
-                    print(format_at(entry, at))
-                } else if let Some(schedule) = entry.scheduled() {
-                    print(format_scheduled(entry, schedule))
-                }
+                print_entry(entry)
             }
         }
         Command::Today {} => {
             for entry in list_entries(false)? {
-                if let Some(at) = entry.at() {
-                    print(format_at(entry, at))
-                } else if let Some(schedule) = entry.scheduled() {
-                    print(format_scheduled(entry, schedule))
-                }
+                print_entry(entry)
             }
         }
         Command::Entry { args } => {
