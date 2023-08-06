@@ -54,19 +54,26 @@ fn sort_events(a: &Record, b: &Record) -> std::cmp::Ordering {
     if cmp == std::cmp::Ordering::Equal {
         if let Some(a_at) = a.at() {
             if let Some(b_at) = b.at() {
-                return a_at.cmp(&b_at);
+                a_at.cmp(&b_at)
             } else if let Some(b_schedule) = b.scheduled() {
-                return a_at.cmp(&b_schedule.0);
+                a_at.cmp(&b_schedule.0)
+            } else {
+                std::cmp::Ordering::Equal
             }
         } else if let Some(a_schedule) = a.scheduled() {
             if let Some(b_schedule) = b.scheduled() {
-                return a_schedule.0.cmp(&b_schedule.0);
+                a_schedule.0.cmp(&b_schedule.0)
             } else if let Some(b_at) = b.at() {
-                return a_schedule.0.cmp(&b_at);
+                a_schedule.0.cmp(&b_at)
+            } else {
+                std::cmp::Ordering::Equal
             }
+        } else {
+            std::cmp::Ordering::Equal
         }
+    } else {
+        cmp
     }
-    cmp
 }
 
 pub fn delete_event(primary_key: u64) -> Result<(), anyhow::Error> {
