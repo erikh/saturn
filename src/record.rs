@@ -1,9 +1,9 @@
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
-type Fields = BTreeMap<String, String>;
-type Schedule = (time::Time, time::Time);
-type Notifications = Vec<time::Time>;
+pub type Fields = BTreeMap<String, String>;
+pub type Schedule = (time::Time, time::Time);
+pub type Notifications = Vec<time::Time>;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Record {

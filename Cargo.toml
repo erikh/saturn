@@ -15,6 +15,7 @@ serde_derive = "*"
 ciborium = "*"
 clap = { version = "*", features = [ "derive" ] }
 regex = "*"
+fancy-duration = "*"
 
 [dev-dependencies]
 tempfile = "*"

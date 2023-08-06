@@ -39,8 +39,90 @@ impl EntryParser {
     }
 
     pub fn to_record(&self) -> Result<Record, anyhow::Error> {
-        Ok(Record::random())
+        parse_entry(self.args.clone())
     }
+}
+
+enum EntryState {
+    Date,
+    Time,
+    TimeAt,
+    TimeScheduled,
+    TimeScheduledHalf,
+    Notify,
+    NotifyTime,
+    Detail,
+}
+
+fn parse_entry(args: Vec<String>) -> Result<Record, anyhow::Error> {
+    let mut record = Record::build();
+    let mut state = EntryState::Date;
+
+    let mut scheduled_first: Option<time::Time> = None;
+
+    for arg in &args {
+        match state {
+            EntryState::Date => {
+                record.set_date(parse_date(arg.to_string())?);
+                state = EntryState::Time;
+            }
+            EntryState::Time => match arg.as_str() {
+                "at" => state = EntryState::TimeAt,
+                "from" => state = EntryState::TimeScheduled,
+                _ => return Err(anyhow!("Time must be 'from' or 'at'")),
+            },
+            EntryState::TimeAt => {
+                record.set_at(Some(parse_time(arg.to_string())?));
+                state = EntryState::Notify;
+            }
+            EntryState::TimeScheduled => {
+                scheduled_first = Some(parse_time(arg.to_string())?);
+                state = EntryState::TimeScheduledHalf;
+            }
+            EntryState::TimeScheduledHalf => match arg.as_str() {
+                "to" | "until" => {}
+                _ => {
+                    record.set_scheduled(Some((
+                        scheduled_first.unwrap(),
+                        parse_time(arg.to_string())?,
+                    )));
+                    state = EntryState::Notify;
+                }
+            },
+            EntryState::Notify => match arg.as_str() {
+                "notify" => state = EntryState::NotifyTime,
+                _ => {
+                    record.set_detail(arg.to_string());
+                    state = EntryState::Detail;
+                }
+            },
+            EntryState::NotifyTime => match arg.as_str() {
+                "me" => {}
+                _ => {
+                    let duration = fancy_duration::FancyDuration::<time::Duration>::parse(arg)?;
+                    if let Some(at) = record.at() {
+                        record.add_notification(at - duration.duration());
+                    } else if let Some(scheduled) = record.scheduled() {
+                        record.add_notification(scheduled.0 - duration.duration());
+                    } else {
+                        return Err(anyhow!(
+                            "No time was scheduled to base this notification off of"
+                        ));
+                    }
+                    state = EntryState::Detail;
+                }
+            },
+            EntryState::Detail => {
+                if record.detail().is_empty() {
+                    record.set_detail(arg.to_string());
+                } else {
+                    record.set_detail(format!("{} {}", record.detail(), arg));
+                }
+            }
+        }
+    }
+
+    Ok(record)
 }
 
 fn parse_date(s: String) -> Result<time::Date, anyhow::Error> {
@@ -102,7 +184,11 @@ fn parse_time(s: String) -> Result<time::Time, anyhow::Error> {
                 if let Some(designation) = captures.get(2) {
                     match designation.as_str() {
                         "pm" | "PM" => Ok(time::Time::from_hms(hour + 12, minute, 0)?),
-                        "am" | "AM" => Ok(time::Time::from_hms(hour, minute, 0)?),
+                        "am" | "AM" => Ok(time::Time::from_hms(
+                            if hour == 12 { 0 } else { hour },
+                            minute,
+                            0,
+                        )?),
                         _ => Err(anyhow!("Cannot parse time")),
                     }
                 } else {
@@ -128,12 +214,20 @@ fn parse_time(s: String) -> Result<time::Time, anyhow::Error> {
                 if let Some(designation) = captures.get(2) {
                     match designation.as_str() {
                         "pm" | "PM" => Ok(time::Time::from_hms(hour + 12, 0, 0)?),
-                        "am" | "AM" => Ok(time::Time::from_hms(hour, 0, 0)?),
+                        "am" | "AM" => Ok(time::Time::from_hms(
+                            if hour == 12 { 0 } else { hour },
+                            0,
+                            0,
+                        )?),
                         "" => {
                             if time::OffsetDateTime::now_utc().hour() > 12 {
                                 Ok(time::Time::from_hms(hour + 12, 0, 0)?)
                             } else {
-                                Ok(time::Time::from_hms(hour, 0, 0)?)
+                                Ok(time::Time::from_hms(
+                                    if hour == 12 { 0 } else { hour },
+                                    0,
+                                    0,
+                                )?)
                             }
                         }
                         _ => Err(anyhow!("Cannot parse time")),
@@ -237,6 +331,66 @@ mod tests {
 
         for (to_parse, t) in table {
             assert_eq!(parse_time(to_parse.to_string()).unwrap(), t)
+        }
+    }
+
+    #[test]
+    fn test_parse_entry() {
+        use super::parse_entry;
+        use crate::record::Record;
+
+        let now = time::OffsetDateTime::now_utc();
+        let pm = now.hour() > 12;
+
+        let record = Record::build();
+
+        let mut soda = record.clone();
+        soda.set_date(time::Date::from_calendar_date(now.year(), time::Month::August, 5).unwrap())
+            .set_at(Some(
+                time::Time::from_hms(if pm { 20 } else { 8 }, 0, 0).unwrap(),
+            ))
+            .add_notification(time::Time::from_hms(if pm { 19 } else { 7 }, 55, 0).unwrap())
+            .set_detail("Get a Soda".to_string());
+
+        let mut birthday = record.clone();
+        birthday
+            .set_date(time::Date::from_calendar_date(now.year(), time::Month::October, 23).unwrap())
+            .set_at(Some(time::Time::from_hms(7, 30, 0).unwrap()))
+            .add_notification(time::Time::from_hms(6, 30, 0).unwrap())
+            .set_detail("Tell my daughter 'happy birthday'".to_string());
+
+        let mut new_year = record.clone();
+        new_year
+            .set_date(time::Date::from_calendar_date(now.year(), time::Month::January, 1).unwrap())
+            .set_at(Some(time::Time::from_hms(0, 0, 0).unwrap()))
+            .set_detail("Happy new year!".to_string());
+
+        let table = vec![
+            (
+                "08/05 at 8 notify me 5m Get a Soda"
+                    .split(" ")
+                    .map(|s| s.to_string())
+                    .collect::<Vec<String>>(),
+                soda,
+            ),
+            (
+                "10/23 at 7:30am notify 1h Tell my daughter 'happy birthday'"
+                    .split(" ")
+                    .map(|s| s.to_string())
+                    .collect::<Vec<String>>(),
+                birthday,
+            ),
+            (
+                "1/1 at 12am Happy new year!"
+                    .split(" ")
+                    .map(|s| s.to_string())
+                    .collect::<Vec<String>>(),
+                new_year,
+            ),
+        ];
+
+        for (to_parse, t) in table {
+            assert_eq!(parse_entry(to_parse).unwrap(), t)
         }
     }
 }
