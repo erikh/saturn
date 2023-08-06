@@ -57,6 +57,10 @@ fn format_scheduled(entry: Record, schedule: Schedule) -> String {
     )
 }
 
+fn print(line: String) {
+    println!("{}", line)
+}
+
 fn main() -> Result<(), anyhow::Error> {
     let cli = ArgParser::parse();
     match cli.command {
@@ -87,27 +91,27 @@ fn main() -> Result<(), anyhow::Error> {
 
             for entry in events_now(duration)? {
                 if let Some(at) = entry.at() {
-                    println!("{}", format_at(entry, at))
+                    print(format_at(entry, at))
                 } else if let Some(schedule) = entry.scheduled() {
-                    println!("{}", format_scheduled(entry, schedule))
+                    print(format_scheduled(entry, schedule))
                 }
             }
         }
         Command::List { all } => {
             for entry in list_entries(all)? {
                 if let Some(at) = entry.at() {
-                    println!("{}", format_at(entry, at))
+                    print(format_at(entry, at))
                 } else if let Some(schedule) = entry.scheduled() {
-                    println!("{}", format_scheduled(entry, schedule))
+                    print(format_scheduled(entry, schedule))
                 }
             }
         }
         Command::Today {} => {
             for entry in list_entries(false)? {
                 if let Some(at) = entry.at() {
-                    println!("{}", format_at(entry, at))
+                    print(format_at(entry, at))
                 } else if let Some(schedule) = entry.scheduled() {
-                    println!("{}", format_scheduled(entry, schedule))
+                    print(format_scheduled(entry, schedule))
                 }
             }
         }
