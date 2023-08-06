@@ -28,7 +28,7 @@ enum Command {
     },
     #[command(about = "Enter a new entry into the calendar")]
     Entry { args: Vec<String> },
-    #[command(alias = "t", about = "Show today's calendar")]
+    #[command(alias = "t", about = "Also `t`. Show today's calendar")]
     Today {},
     #[command(about = "List today's calendar by default, or --all to show the full calendar")]
     List {
@@ -37,7 +37,7 @@ enum Command {
     },
     #[command(
         alias = "n",
-        about = "Show the tasks that are important now, including notifications"
+        about = "Also `n`. Show the tasks that are important now, including notifications"
     )]
     Now {
         #[arg(short = 'w', long)]
