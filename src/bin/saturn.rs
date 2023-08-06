@@ -43,8 +43,7 @@ enum Command {
 
 fn get_well(well: Option<String>) -> Result<chrono::Duration, anyhow::Error> {
     if let Some(well) = well {
-        let duration = fancy_duration::FancyDuration::<chrono::Duration>::parse(&well)?;
-        Ok(duration.duration())
+        Ok(fancy_duration::FancyDuration::<chrono::Duration>::parse(&well)?.duration())
     } else {
         Ok(chrono::Duration::seconds(60))
     }
