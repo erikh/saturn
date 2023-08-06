@@ -3,6 +3,18 @@ use crate::{db::DB, record::Record};
 use anyhow::anyhow;
 use std::{env::var, path::PathBuf};
 
+pub fn saturn_db() -> PathBuf {
+    PathBuf::from(
+        var("SATURN_DB").unwrap_or(
+            PathBuf::from(var("HOME").unwrap_or("/".to_string()))
+                .join(".saturn.db")
+                .to_str()
+                .unwrap()
+                .to_string(),
+        ),
+    )
+}
+
 pub struct EntryParser {
     #[allow(dead_code)]
     args: Vec<String>,
@@ -13,15 +25,7 @@ impl EntryParser {
     pub fn new(args: Vec<String>) -> Self {
         Self {
             args,
-            filename: PathBuf::from(
-                var("SATURN_DB").unwrap_or(
-                    PathBuf::from(var("HOME").unwrap_or("/".to_string()))
-                        .join(".saturn.db")
-                        .to_str()
-                        .unwrap()
-                        .to_string(),
-                ),
-            ),
+            filename: saturn_db(),
         }
     }
 
@@ -41,6 +45,18 @@ impl EntryParser {
     pub fn to_record(&self) -> Result<Record, anyhow::Error> {
         parse_entry(self.args.clone())
     }
+}
+
+pub fn list_entries() -> Result<Vec<Record>, anyhow::Error> {
+    let filename = saturn_db();
+
+    let db = if std::fs::metadata(&filename).is_ok() {
+        DB::load(filename.clone())?
+    } else {
+        DB::default()
+    };
+
+    Ok(db.list_all())
 }
 
 enum EntryState {

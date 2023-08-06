@@ -31,6 +31,20 @@ impl DB {
             self.0.insert(record.date(), vec![record]);
         }
     }
+
+    pub fn list_today(&self) -> Vec<Record> {
+        self.0
+            .get(&time::OffsetDateTime::now_utc().date())
+            .unwrap_or(&Vec::new())
+            .clone()
+    }
+
+    pub fn list_all(&self) -> Vec<Record> {
+        self.0
+            .iter()
+            .flat_map(|(_, v)| v.clone())
+            .collect::<Vec<Record>>()
+    }
 }
 
 #[cfg(test)]
