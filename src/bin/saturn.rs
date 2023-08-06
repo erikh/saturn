@@ -1,5 +1,5 @@
 use clap::{Parser, Subcommand};
-// use saturn::cli::CLI;
+use saturn::cli::EntryParser;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about)]
@@ -13,11 +13,20 @@ struct ArgParser {
 enum Command {
     Notify {},
     ShellStatus {},
-    Entry {},
+    Entry { args: Vec<String> },
+    List {},
 }
 
 fn main() -> Result<(), anyhow::Error> {
     let cli = ArgParser::parse();
-    eprintln!("{:?}", cli);
+    match cli.command {
+        Command::Notify {} => eprintln!("Notify command"),
+        Command::ShellStatus {} => eprintln!("ShellStatus command"),
+        Command::List {} => eprintln!("List command"),
+        Command::Entry { args } => {
+            let ep = EntryParser::new(args);
+            ep.entry()?
+        }
+    }
     Ok(())
 }

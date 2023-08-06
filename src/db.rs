@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 use crate::record::Record;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -19,6 +18,7 @@ impl DB {
         let mut io = std::fs::OpenOptions::new();
         io.truncate(true);
         io.write(true);
+        io.create(true);
         let io = io.open(filename)?;
 
         Ok(ciborium::into_writer(self, io)?)

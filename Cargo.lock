@@ -990,6 +990,7 @@ dependencies = [
  "clap",
  "notify-rust",
  "rand",
+ "regex",
  "serde",
  "serde_derive",
  "tempfile",
