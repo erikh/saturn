@@ -72,11 +72,16 @@ fn print(line: String, shade: bool) {
     }
 }
 
-fn print_entry(entry: Record, shade: bool) {
-    if let Some(at) = entry.at() {
-        print(format_at(entry, at), shade)
-    } else if let Some(schedule) = entry.scheduled() {
-        print(format_scheduled(entry, schedule), shade)
+fn print_entries(entries: Vec<Record>) {
+    let mut shade = false;
+
+    for entry in entries {
+        if let Some(at) = entry.at() {
+            print(format_at(entry, at), shade)
+        } else if let Some(schedule) = entry.scheduled() {
+            print(format_scheduled(entry, schedule), shade)
+        }
+        shade = !shade;
     }
 }
 
@@ -105,25 +110,13 @@ fn main() -> Result<(), anyhow::Error> {
             }
         }
         Command::Now { well } => {
-            let mut shade = false;
-            for entry in events_now(get_well(well)?)? {
-                print_entry(entry, shade);
-                shade = !shade;
-            }
+            print_entries(events_now(get_well(well)?)?);
         }
         Command::List { all } => {
-            let mut shade = false;
-            for entry in list_entries(all)? {
-                print_entry(entry, shade);
-                shade = !shade;
-            }
+            print_entries(list_entries(all)?);
         }
         Command::Today {} => {
-            let mut shade = false;
-            for entry in list_entries(false)? {
-                print_entry(entry, shade);
-                shade = !shade;
-            }
+            print_entries(list_entries(false)?);
         }
         Command::Entry { args } => {
             EntryParser::new(args).entry()?;
