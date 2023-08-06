@@ -1,5 +1,8 @@
 use clap::{Parser, Subcommand};
-use saturn::cli::{events_now, list_entries, EntryParser};
+use saturn::{
+    cli::{events_now, list_entries, EntryParser},
+    record::{Record, Schedule},
+};
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about)]
@@ -20,6 +23,7 @@ enum Command {
     Entry {
         args: Vec<String>,
     },
+    Today {},
     List {
         #[arg(short, long)]
         all: bool,
@@ -30,17 +34,34 @@ enum Command {
     },
 }
 
+fn get_well(well: Option<String>) -> Result<chrono::Duration, anyhow::Error> {
+    if let Some(well) = well {
+        let duration = fancy_duration::FancyDuration::<chrono::Duration>::parse(&well)?;
+        Ok(duration.duration())
+    } else {
+        Ok(chrono::Duration::seconds(60))
+    }
+}
+
+fn format_at(entry: Record, at: chrono::NaiveTime) -> String {
+    format!("{} at {}: {}", entry.date(), at, entry.detail())
+}
+
+fn format_scheduled(entry: Record, schedule: Schedule) -> String {
+    format!(
+        "{} at {} - {}: {}",
+        entry.date(),
+        schedule.0,
+        schedule.1,
+        entry.detail()
+    )
+}
+
 fn main() -> Result<(), anyhow::Error> {
     let cli = ArgParser::parse();
     match cli.command {
         Command::Notify { well, timeout } => {
-            let duration = if let Some(well) = well {
-                let duration = fancy_duration::FancyDuration::<chrono::Duration>::parse(&well)?;
-                duration.duration()
-            } else {
-                chrono::Duration::seconds(60)
-            };
-
+            let duration = get_well(well)?;
             let timeout = timeout.map_or(std::time::Duration::new(60, 0), |t| {
                 fancy_duration::FancyDuration::<std::time::Duration>::parse(&t)
                     .expect("Invalid Duration")
@@ -53,56 +74,40 @@ fn main() -> Result<(), anyhow::Error> {
 
             for entry in events_now(duration)? {
                 if let Some(at) = entry.at() {
-                    notification
-                        .body(&format!("{} at {}: {}", entry.date(), at, entry.detail()))
-                        .show()?;
+                    notification.body(&format_at(entry, at)).show()?;
                 } else if let Some(schedule) = entry.scheduled() {
                     notification
-                        .body(&format!(
-                            "{} at {} - {}: {}",
-                            entry.date(),
-                            schedule.0,
-                            schedule.1,
-                            entry.detail()
-                        ))
+                        .body(&format_scheduled(entry, schedule))
                         .show()?;
                 }
             }
         }
         Command::Now { well } => {
-            let duration = if let Some(well) = well {
-                let duration = fancy_duration::FancyDuration::<chrono::Duration>::parse(&well)?;
-                duration.duration()
-            } else {
-                chrono::Duration::seconds(60)
-            };
+            let duration = get_well(well)?;
 
             for entry in events_now(duration)? {
                 if let Some(at) = entry.at() {
-                    println!("{} at {}: {}", entry.date(), at, entry.detail());
+                    println!("{}", format_at(entry, at))
                 } else if let Some(schedule) = entry.scheduled() {
-                    println!(
-                        "{} at {} - {}: {}",
-                        entry.date(),
-                        schedule.0,
-                        schedule.1,
-                        entry.detail()
-                    );
+                    println!("{}", format_scheduled(entry, schedule))
                 }
             }
         }
         Command::List { all } => {
             for entry in list_entries(all)? {
                 if let Some(at) = entry.at() {
-                    println!("{} at {}: {}", entry.date(), at, entry.detail());
+                    println!("{}", format_at(entry, at))
                 } else if let Some(schedule) = entry.scheduled() {
-                    println!(
-                        "{} at {} - {}: {}",
-                        entry.date(),
-                        schedule.0,
-                        schedule.1,
-                        entry.detail()
-                    );
+                    println!("{}", format_scheduled(entry, schedule))
+                }
+            }
+        }
+        Command::Today {} => {
+            for entry in list_entries(false)? {
+                if let Some(at) = entry.at() {
+                    println!("{}", format_at(entry, at))
+                } else if let Some(schedule) = entry.scheduled() {
+                    println!("{}", format_scheduled(entry, schedule))
                 }
             }
         }
