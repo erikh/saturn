@@ -98,4 +98,8 @@ impl Record {
 
         self
     }
+
+    pub fn set_notifications(&mut self, notifications: Option<Vec<chrono::NaiveTime>>) {
+        self.notifications = notifications
+    }
 }

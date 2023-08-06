@@ -51,13 +51,16 @@ impl EntryParser {
 pub fn events_now(last: chrono::Duration) -> Result<Vec<Record>, anyhow::Error> {
     let filename = saturn_db();
 
-    let db = if std::fs::metadata(&filename).is_ok() {
+    let mut db = if std::fs::metadata(&filename).is_ok() {
         DB::load(filename.clone())?
     } else {
         DB::default()
     };
 
-    Ok(db.events_now(last))
+    let events = db.events_now(last);
+
+    db.dump(filename.clone())?;
+    Ok(events)
 }
 
 pub fn list_entries(all: bool) -> Result<Vec<Record>, anyhow::Error> {

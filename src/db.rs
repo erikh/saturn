@@ -46,18 +46,52 @@ impl DB {
             .collect::<Vec<Record>>()
     }
 
-    pub fn events_now(&self, last: chrono::Duration) -> Vec<Record> {
+    pub fn events_now(&mut self, last: chrono::Duration) -> Vec<Record> {
         let mut ret = Vec::new();
         let now = chrono::Local::now();
-        for item in self.list_today() {
+
+        for item in self
+            .0
+            .get_mut(&chrono::Local::now().date_naive())
+            .unwrap_or(&mut Vec::new())
+        {
             if let Some(at) = item.at() {
-                if at - now.time() < last {
-                    ret.push(item);
+                if at - now.time() < last && now.time() < at {
+                    ret.push(item.clone());
                 }
             } else if let Some(schedule) = item.scheduled() {
                 if (schedule.0 - last) < now.time() && (schedule.1 + last) > now.time() {
-                    ret.push(item)
+                    ret.push(item.clone())
                 }
+            }
+
+            if let Some(notifications) = item.notifications() {
+                let mut new = Vec::new();
+                let mut pushed = false;
+
+                for notification in notifications {
+                    if notification < now.time() {
+                        if let Some(at) = item.at() {
+                            if now.time() < at {
+                                if !pushed {
+                                    ret.push(item.clone());
+                                    pushed = true
+                                }
+                            }
+                        } else if let Some(schedule) = item.scheduled() {
+                            if now.time() < schedule.0 {
+                                if !pushed {
+                                    ret.push(item.clone());
+                                    pushed = true
+                                }
+                            }
+                        }
+                    } else {
+                        new.push(notification);
+                    }
+                }
+
+                item.set_notifications(Some(new));
             }
         }
 
