@@ -69,6 +69,19 @@ fn sort_events(a: &Record, b: &Record) -> std::cmp::Ordering {
     cmp
 }
 
+pub fn delete_event(primary_key: u64) -> Result<(), anyhow::Error> {
+    let filename = saturn_db();
+
+    let mut db = if std::fs::metadata(&filename).is_ok() {
+        DB::load(filename.clone())?
+    } else {
+        DB::default()
+    };
+
+    db.delete(primary_key);
+    db.dump(filename.clone())
+}
+
 pub fn events_now(last: chrono::Duration) -> Result<Vec<Record>, anyhow::Error> {
     let filename = saturn_db();
 

@@ -1,6 +1,6 @@
 use clap::{Parser, Subcommand};
 use saturn::{
-    cli::{events_now, list_entries, EntryParser},
+    cli::{delete_event, events_now, list_entries, EntryParser},
     record::{Record, Schedule},
 };
 use ttygrid::{add_line, grid, header};
@@ -19,6 +19,8 @@ struct ArgParser {
 
 #[derive(Debug, Subcommand)]
 enum Command {
+    #[command(about = "Delete an event by ID")]
+    Delete { id: u64 },
     #[command(about = "Send a visual notification when your appointment has arrived")]
     Notify {
         #[arg(short = 'w', long)]
@@ -123,6 +125,7 @@ fn print_entries(entries: Vec<Record>) {
 fn main() -> Result<(), anyhow::Error> {
     let cli = ArgParser::parse();
     match cli.command {
+        Command::Delete { id } => delete_event(id)?,
         Command::Notify { well, timeout } => {
             let timeout = timeout.map_or(std::time::Duration::new(60, 0), |t| {
                 fancy_duration::FancyDuration::<std::time::Duration>::parse(&t)

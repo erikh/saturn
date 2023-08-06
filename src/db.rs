@@ -27,6 +27,19 @@ impl DB {
         Ok(ciborium::into_writer(self, io)?)
     }
 
+    pub fn delete(&mut self, primary_key: u64) {
+        for (key, list) in self.records.clone() {
+            let mut new = Vec::new();
+            for record in list {
+                if record.primary_key() != primary_key {
+                    new.push(record.clone());
+                }
+            }
+
+            self.records.insert(key, new);
+        }
+    }
+
     pub fn record(&mut self, record: Record) {
         if let Some(item) = self.records.get_mut(&record.date()) {
             item.push(record);
