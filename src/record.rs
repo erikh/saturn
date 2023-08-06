@@ -2,13 +2,13 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
 pub type Fields = BTreeMap<String, String>;
-pub type Schedule = (time::Time, time::Time);
-pub type Notifications = Vec<time::Time>;
+pub type Schedule = (chrono::NaiveTime, chrono::NaiveTime);
+pub type Notifications = Vec<chrono::NaiveTime>;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Record {
-    date: time::Date,
-    at: Option<time::Time>,
+    date: chrono::NaiveDate,
+    at: Option<chrono::NaiveTime>,
     scheduled: Option<Schedule>,
     detail: String,
     fields: Fields,
@@ -17,9 +17,9 @@ pub struct Record {
 
 impl Default for Record {
     fn default() -> Self {
-        let now = time::OffsetDateTime::now_utc();
+        let now = chrono::Local::now();
         Self {
-            date: now.date(),
+            date: now.date_naive(),
             at: None,
             scheduled: None,
             detail: String::new(),
@@ -30,35 +30,11 @@ impl Default for Record {
 }
 
 impl Record {
-    pub fn random() -> Self {
-        let now: time::OffsetDateTime = rand::random();
-        let mut build = Self::build();
-        build.set_date(now.date());
-
-        if rand::random() {
-            build.set_at(Some(rand::random()));
-        } else {
-            build.set_scheduled(Some((rand::random(), rand::random())));
-        }
-
-        build.set_detail("random event".to_string());
-
-        for x in 0..(rand::random::<usize>() % 5) {
-            build.add_field(format!("field {}", x), "random field".to_string());
-        }
-
-        for _ in 0..(rand::random::<usize>() % 5) {
-            build.add_notification(rand::random());
-        }
-
-        build
-    }
-
-    pub fn date(&self) -> time::Date {
+    pub fn date(&self) -> chrono::NaiveDate {
         self.date
     }
 
-    pub fn at(&self) -> Option<time::Time> {
+    pub fn at(&self) -> Option<chrono::NaiveTime> {
         self.at
     }
 
@@ -86,12 +62,12 @@ impl Record {
         db.record(self.clone())
     }
 
-    pub fn set_date(&mut self, date: time::Date) -> &mut Self {
+    pub fn set_date(&mut self, date: chrono::NaiveDate) -> &mut Self {
         self.date = date;
         self
     }
 
-    pub fn set_at(&mut self, at: Option<time::Time>) -> &mut Self {
+    pub fn set_at(&mut self, at: Option<chrono::NaiveTime>) -> &mut Self {
         self.at = at;
         self.scheduled = None;
         self
@@ -113,7 +89,7 @@ impl Record {
         self
     }
 
-    pub fn add_notification(&mut self, notification: time::Time) -> &mut Self {
+    pub fn add_notification(&mut self, notification: chrono::NaiveTime) -> &mut Self {
         if let Some(notifications) = &mut self.notifications {
             notifications.push(notification)
         } else {

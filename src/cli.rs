@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 use crate::{db::DB, record::Record};
 use anyhow::anyhow;
+use chrono::{Datelike, Timelike};
 use std::{env::var, path::PathBuf};
 
 pub fn saturn_db() -> PathBuf {
@@ -47,7 +48,7 @@ impl EntryParser {
     }
 }
 
-pub fn list_entries() -> Result<Vec<Record>, anyhow::Error> {
+pub fn list_entries(all: bool) -> Result<Vec<Record>, anyhow::Error> {
     let filename = saturn_db();
 
     let db = if std::fs::metadata(&filename).is_ok() {
@@ -56,7 +57,11 @@ pub fn list_entries() -> Result<Vec<Record>, anyhow::Error> {
         DB::default()
     };
 
-    Ok(db.list_all())
+    if all {
+        Ok(db.list_all())
+    } else {
+        Ok(db.list_today())
+    }
 }
 
 enum EntryState {
@@ -74,7 +79,7 @@ fn parse_entry(args: Vec<String>) -> Result<Record, anyhow::Error> {
     let mut record = Record::build();
     let mut state = EntryState::Date;
 
-    let mut scheduled_first: Option<time::Time> = None;
+    let mut scheduled_first: Option<chrono::NaiveTime> = None;
 
     for arg in &args {
         match state {
@@ -115,7 +120,7 @@ fn parse_entry(args: Vec<String>) -> Result<Record, anyhow::Error> {
             EntryState::NotifyTime => match arg.as_str() {
                 "me" => {}
                 _ => {
-                    let duration = fancy_duration::FancyDuration::<time::Duration>::parse(arg)?;
+                    let duration = fancy_duration::FancyDuration::<chrono::Duration>::parse(arg)?;
                     if let Some(at) = record.at() {
                         record.add_notification(at - duration.duration());
                     } else if let Some(scheduled) = record.scheduled() {
@@ -141,57 +146,59 @@ fn parse_entry(args: Vec<String>) -> Result<Record, anyhow::Error> {
     Ok(record)
 }
 
-fn parse_date(s: String) -> Result<time::Date, anyhow::Error> {
+fn parse_date(s: String) -> Result<chrono::NaiveDate, anyhow::Error> {
     let regex = regex::Regex::new(r#"[/.-]"#)?;
     let split = regex.split(&s);
     let parts = split.collect::<Vec<&str>>();
     match parts.len() {
         3 => {
             // FIXME this should be locale-based
-            Ok(time::Date::from_calendar_date(
+            Ok(chrono::NaiveDate::from_ymd_opt(
                 parts[0].parse()?,
-                time::Month::try_from(parts[1].parse::<u8>()?)?,
+                parts[1].parse()?,
                 parts[2].parse()?,
-            )?)
+            )
+            .expect("Invalid Date"))
         }
         2 => {
             // FIXME this should be locale-based
-            Ok(time::Date::from_calendar_date(
-                time::OffsetDateTime::now_utc().year(),
-                time::Month::try_from(parts[0].parse::<u8>()?)?,
+            Ok(chrono::NaiveDate::from_ymd_opt(
+                chrono::Local::now().year(),
+                parts[0].parse()?,
                 parts[1].parse()?,
-            )?)
+            )
+            .expect("Invalid Date"))
         }
         1 => {
             // FIXME this should be locale-based
-            let now = time::OffsetDateTime::now_utc();
-            Ok(time::Date::from_calendar_date(
-                now.year(),
-                now.month(),
-                parts[0].parse()?,
-            )?)
+            let now = chrono::Local::now();
+            Ok(
+                chrono::NaiveDate::from_ymd_opt(now.year(), now.month(), parts[0].parse()?)
+                    .expect("Invalid Date"),
+            )
         }
         _ => return Err(anyhow!("Cannot parse date")),
     }
 }
 
-fn parse_time(s: String) -> Result<time::Time, anyhow::Error> {
+fn parse_time(s: String) -> Result<chrono::NaiveTime, anyhow::Error> {
     let regex = regex::Regex::new(r#"[:.]"#)?;
     let split = regex.split(&s);
     let parts = split.collect::<Vec<&str>>();
 
     match parts.len() {
-        3 => Ok(time::Time::from_hms(
+        3 => Ok(chrono::NaiveTime::from_hms_opt(
             parts[0].parse()?,
             parts[1].parse()?,
             parts[2].parse()?,
-        )?),
+        )
+        .expect("Invalid Time")),
         2 => {
             let regex = regex::Regex::new(r#"(\d+)(\D+)"#)?;
             if let Some(captures) = regex.captures(parts[1]) {
-                let hour: u8 = parts[0].parse()?;
+                let hour: u32 = parts[0].parse()?;
 
-                let minute: u8 = if let Some(minute) = captures.get(1) {
+                let minute: u32 = if let Some(minute) = captures.get(1) {
                     minute.as_str().parse()?
                 } else {
                     return Err(anyhow!("Cannot parse time"));
@@ -199,33 +206,34 @@ fn parse_time(s: String) -> Result<time::Time, anyhow::Error> {
 
                 if let Some(designation) = captures.get(2) {
                     match designation.as_str() {
-                        "pm" | "PM" => Ok(time::Time::from_hms(
+                        "pm" | "PM" => Ok(chrono::NaiveTime::from_hms_opt(
                             if hour == 12 { 12 } else { hour + 12 },
                             minute,
                             0,
-                        )?),
-                        "am" | "AM" => Ok(time::Time::from_hms(
+                        )
+                        .expect("Invalid Time")),
+                        "am" | "AM" => Ok(chrono::NaiveTime::from_hms_opt(
                             if hour == 12 { 0 } else { hour },
                             minute,
                             0,
-                        )?),
+                        )
+                        .expect("Invalid Time")),
                         _ => Err(anyhow!("Cannot parse time")),
                     }
                 } else {
                     Err(anyhow!("Cannot parse time"))
                 }
             } else {
-                Ok(time::Time::from_hms(
-                    parts[0].parse()?,
-                    parts[1].parse()?,
-                    0,
-                )?)
+                Ok(
+                    chrono::NaiveTime::from_hms_opt(parts[0].parse()?, parts[1].parse()?, 0)
+                        .expect("Invalid Time"),
+                )
             }
         }
         1 => {
             let regex = regex::Regex::new(r#"(\d+)(\D*)"#)?;
             if let Some(captures) = regex.captures(parts[0]) {
-                let hour: u8 = if let Some(hour) = captures.get(1) {
+                let hour: u32 = if let Some(hour) = captures.get(1) {
                     hour.as_str().parse()?
                 } else {
                     return Err(anyhow!("Cannot parse time"));
@@ -233,29 +241,33 @@ fn parse_time(s: String) -> Result<time::Time, anyhow::Error> {
 
                 if let Some(designation) = captures.get(2) {
                     match designation.as_str() {
-                        "pm" | "PM" => Ok(time::Time::from_hms(
+                        "pm" | "PM" => Ok(chrono::NaiveTime::from_hms_opt(
                             if hour == 12 { 12 } else { hour + 12 },
                             0,
                             0,
-                        )?),
-                        "am" | "AM" => Ok(time::Time::from_hms(
+                        )
+                        .expect("Invalid Time")),
+                        "am" | "AM" => Ok(chrono::NaiveTime::from_hms_opt(
                             if hour == 12 { 0 } else { hour },
                             0,
                             0,
-                        )?),
+                        )
+                        .expect("Invalid Time")),
                         "" => {
-                            if time::OffsetDateTime::now_utc().hour() > 12 {
-                                Ok(time::Time::from_hms(
+                            if chrono::Local::now().hour() > 12 {
+                                Ok(chrono::NaiveTime::from_hms_opt(
                                     if hour == 12 { 12 } else { hour + 12 },
                                     0,
                                     0,
-                                )?)
+                                )
+                                .expect("Invalid Time"))
                             } else {
-                                Ok(time::Time::from_hms(
+                                Ok(chrono::NaiveTime::from_hms_opt(
                                     if hour == 12 { 0 } else { hour },
                                     0,
                                     0,
-                                )?)
+                                )
+                                .expect("Invalid Time"))
                             }
                         }
                         _ => Err(anyhow!("Cannot parse time")),
@@ -276,52 +288,38 @@ mod tests {
     #[test]
     fn test_parse_date() {
         use super::parse_date;
+        use chrono::Datelike;
 
         let table = vec![
             (
                 "2018-10-23",
-                time::Date::from_calendar_date(2018, time::Month::October, 23).unwrap(),
+                chrono::NaiveDate::from_ymd_opt(2018, 10, 23).unwrap(),
             ),
             (
                 "2018/10/23",
-                time::Date::from_calendar_date(2018, time::Month::October, 23).unwrap(),
+                chrono::NaiveDate::from_ymd_opt(2018, 10, 23).unwrap(),
             ),
             (
                 "2018.10.23",
-                time::Date::from_calendar_date(2018, time::Month::October, 23).unwrap(),
+                chrono::NaiveDate::from_ymd_opt(2018, 10, 23).unwrap(),
             ),
             (
                 "10.23",
-                time::Date::from_calendar_date(
-                    time::OffsetDateTime::now_utc().year(),
-                    time::Month::October,
-                    23,
-                )
-                .unwrap(),
+                chrono::NaiveDate::from_ymd_opt(chrono::Local::now().year(), 10, 23).unwrap(),
             ),
             (
                 "10/23",
-                time::Date::from_calendar_date(
-                    time::OffsetDateTime::now_utc().year(),
-                    time::Month::October,
-                    23,
-                )
-                .unwrap(),
+                chrono::NaiveDate::from_ymd_opt(chrono::Local::now().year(), 10, 23).unwrap(),
             ),
             (
                 "10-23",
-                time::Date::from_calendar_date(
-                    time::OffsetDateTime::now_utc().year(),
-                    time::Month::October,
-                    23,
-                )
-                .unwrap(),
+                chrono::NaiveDate::from_ymd_opt(chrono::Local::now().year(), 10, 23).unwrap(),
             ),
             (
                 "23",
-                time::Date::from_calendar_date(
-                    time::OffsetDateTime::now_utc().year(),
-                    time::OffsetDateTime::now_utc().month(),
+                chrono::NaiveDate::from_ymd_opt(
+                    chrono::Local::now().year(),
+                    chrono::Local::now().month(),
                     23,
                 )
                 .unwrap(),
@@ -336,24 +334,33 @@ mod tests {
     #[test]
     fn test_parse_time() {
         use super::parse_time;
+        use chrono::Timelike;
 
-        let pm = time::OffsetDateTime::now_utc().hour() > 12;
+        let pm = chrono::Local::now().hour() > 12;
 
         let table = vec![
-            ("8:00:00", time::Time::from_hms(8, 0, 0).unwrap()),
-            ("8:12:56", time::Time::from_hms(8, 12, 56).unwrap()),
-            ("8:00", time::Time::from_hms(8, 0, 0).unwrap()),
-            ("8am", time::Time::from_hms(8, 0, 0).unwrap()),
-            ("8:00pm", time::Time::from_hms(20, 0, 0).unwrap()),
-            ("8pm", time::Time::from_hms(20, 0, 0).unwrap()),
-            ("8:30pm", time::Time::from_hms(20, 30, 0).unwrap()),
+            ("12am", chrono::NaiveTime::from_hms_opt(0, 0, 0).unwrap()),
+            ("12pm", chrono::NaiveTime::from_hms_opt(12, 0, 0).unwrap()),
+            ("8:00:00", chrono::NaiveTime::from_hms_opt(8, 0, 0).unwrap()),
+            (
+                "8:12:56",
+                chrono::NaiveTime::from_hms_opt(8, 12, 56).unwrap(),
+            ),
+            ("8:00", chrono::NaiveTime::from_hms_opt(8, 0, 0).unwrap()),
+            ("8am", chrono::NaiveTime::from_hms_opt(8, 0, 0).unwrap()),
+            ("8:00pm", chrono::NaiveTime::from_hms_opt(20, 0, 0).unwrap()),
+            ("8pm", chrono::NaiveTime::from_hms_opt(20, 0, 0).unwrap()),
+            (
+                "8:30pm",
+                chrono::NaiveTime::from_hms_opt(20, 30, 0).unwrap(),
+            ),
             (
                 "8",
-                time::Time::from_hms(if pm { 20 } else { 8 }, 0, 0).unwrap(),
+                chrono::NaiveTime::from_hms_opt(if pm { 20 } else { 8 }, 0, 0).unwrap(),
             ),
             (
                 "8:30",
-                time::Time::from_hms(if pm { 20 } else { 8 }, 30, 0).unwrap(),
+                chrono::NaiveTime::from_hms_opt(if pm { 20 } else { 8 }, 30, 0).unwrap(),
             ),
         ];
 
@@ -366,31 +373,34 @@ mod tests {
     fn test_parse_entry() {
         use super::parse_entry;
         use crate::record::Record;
+        use chrono::{Datelike, Timelike};
 
-        let now = time::OffsetDateTime::now_utc();
+        let now = chrono::Local::now();
         let pm = now.hour() > 12;
 
         let record = Record::build();
 
         let mut soda = record.clone();
-        soda.set_date(time::Date::from_calendar_date(now.year(), time::Month::August, 5).unwrap())
+        soda.set_date(chrono::NaiveDate::from_ymd_opt(now.year(), 8, 5).unwrap())
             .set_at(Some(
-                time::Time::from_hms(if pm { 20 } else { 8 }, 0, 0).unwrap(),
+                chrono::NaiveTime::from_hms_opt(if pm { 20 } else { 8 }, 0, 0).unwrap(),
             ))
-            .add_notification(time::Time::from_hms(if pm { 19 } else { 7 }, 55, 0).unwrap())
+            .add_notification(
+                chrono::NaiveTime::from_hms_opt(if pm { 19 } else { 7 }, 55, 0).unwrap(),
+            )
             .set_detail("Get a Soda".to_string());
 
         let mut birthday = record.clone();
         birthday
-            .set_date(time::Date::from_calendar_date(now.year(), time::Month::October, 23).unwrap())
-            .set_at(Some(time::Time::from_hms(7, 30, 0).unwrap()))
-            .add_notification(time::Time::from_hms(6, 30, 0).unwrap())
+            .set_date(chrono::NaiveDate::from_ymd_opt(now.year(), 10, 23).unwrap())
+            .set_at(Some(chrono::NaiveTime::from_hms_opt(7, 30, 0).unwrap()))
+            .add_notification(chrono::NaiveTime::from_hms_opt(6, 30, 0).unwrap())
             .set_detail("Tell my daughter 'happy birthday'".to_string());
 
         let mut new_year = record.clone();
         new_year
-            .set_date(time::Date::from_calendar_date(now.year(), time::Month::January, 1).unwrap())
-            .set_at(Some(time::Time::from_hms(0, 0, 0).unwrap()))
+            .set_date(chrono::NaiveDate::from_ymd_opt(now.year(), 1, 1).unwrap())
+            .set_at(Some(chrono::NaiveTime::from_hms_opt(0, 0, 0).unwrap()))
             .set_detail("Happy new year!".to_string());
 
         let table = vec![

@@ -8,14 +8,15 @@ edition = "2021"
 [dependencies]
 notify-rust = "*"
 anyhow = "*"
-time = { version = "*", features = [ "serde-human-readable", "local-offset", "rand" ] }
+chrono = { version = "*", features = [ "serde" ] }
+chrono-tz = "*"
 rand = "*"
 serde = "*"
 serde_derive = "*"
 ciborium = "*"
 clap = { version = "*", features = [ "derive" ] }
 regex = "*"
-fancy-duration = "*"
+fancy-duration = { version = "*", default-features = false, features = [ "chrono" ] }
 
 [dev-dependencies]
 tempfile = "*"

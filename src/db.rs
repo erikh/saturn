@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
-pub struct DB(BTreeMap<time::Date, Vec<Record>>);
+pub struct DB(BTreeMap<chrono::NaiveDate, Vec<Record>>);
 
 impl DB {
     pub fn load(filename: std::path::PathBuf) -> Result<Self, anyhow::Error> {
@@ -34,7 +34,7 @@ impl DB {
 
     pub fn list_today(&self) -> Vec<Record> {
         self.0
-            .get(&time::OffsetDateTime::now_utc().date())
+            .get(&chrono::Local::now().date_naive())
             .unwrap_or(&Vec::new())
             .clone()
     }
@@ -57,7 +57,26 @@ mod tests {
         let mut db = DB::default();
 
         for _ in 0..(rand::random::<usize>() % 50) + 1 {
-            db.record(Record::random());
+            db.record(
+                Record::build()
+                    .set_date(
+                        chrono::NaiveDate::from_ymd_opt(
+                            rand::random::<i32>() % 5 + 2023,
+                            rand::random::<u32>() % 12 + 1,
+                            rand::random::<u32>() % 28 + 1,
+                        )
+                        .unwrap(),
+                    )
+                    .set_at(Some(
+                        chrono::NaiveTime::from_hms_opt(
+                            rand::random::<u32>() % 24,
+                            rand::random::<u32>() % 60,
+                            0,
+                        )
+                        .unwrap(),
+                    ))
+                    .clone(),
+            );
         }
 
         let f = tempfile::NamedTempFile::new().unwrap();

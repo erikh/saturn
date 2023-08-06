@@ -23,7 +23,7 @@ fn main() -> Result<(), anyhow::Error> {
         Command::Notify {} => eprintln!("Notify command"),
         Command::ShellStatus {} => eprintln!("ShellStatus command"),
         Command::List {} => {
-            for entry in list_entries()? {
+            for entry in list_entries(false)? {
                 if let Some(at) = entry.at() {
                     println!("{} at {}: {}", entry.date(), at, entry.detail());
                 } else if let Some(schedule) = entry.scheduled() {
