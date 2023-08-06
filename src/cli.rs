@@ -55,7 +55,22 @@ pub fn events_now(last: chrono::Duration) -> Result<Vec<Record>, anyhow::Error> 
         DB::default()
     };
 
-    let events = db.events_now(last);
+    let mut events = db.events_now(last);
+    events.sort_by(|a, b| {
+        let cmp = a.date().cmp(&b.date());
+        if cmp == std::cmp::Ordering::Equal {
+            if let Some(a_at) = a.at() {
+                if let Some(b_at) = b.at() {
+                    return a_at.cmp(&b_at);
+                }
+            } else if let Some(a_schedule) = a.scheduled() {
+                if let Some(b_schedule) = b.scheduled() {
+                    return a_schedule.0.cmp(&b_schedule.0);
+                }
+            }
+        }
+        cmp
+    });
 
     db.dump(filename.clone())?;
     Ok(events)
@@ -70,11 +85,25 @@ pub fn list_entries(all: bool) -> Result<Vec<Record>, anyhow::Error> {
         DB::default()
     };
 
-    if all {
-        Ok(db.list_all())
-    } else {
-        Ok(db.list_today())
-    }
+    let mut list = if all { db.list_all() } else { db.list_today() };
+
+    list.sort_by(|a, b| {
+        let cmp = a.date().cmp(&b.date());
+        if cmp == std::cmp::Ordering::Equal {
+            if let Some(a_at) = a.at() {
+                if let Some(b_at) = b.at() {
+                    return a_at.cmp(&b_at);
+                }
+            } else if let Some(a_schedule) = a.scheduled() {
+                if let Some(b_schedule) = b.scheduled() {
+                    return a_schedule.0.cmp(&b_schedule.0);
+                }
+            }
+        }
+        cmp
+    });
+
+    Ok(list)
 }
 
 enum EntryState {
