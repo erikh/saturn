@@ -11,8 +11,10 @@ struct ArgParser {
 
 #[derive(Debug, Subcommand)]
 enum Command {
-    Notify {},
-    ShellStatus {},
+    Notify {
+        #[arg(short, long)]
+        well: Option<String>,
+    },
     Entry {
         args: Vec<String>,
     },
@@ -29,7 +31,32 @@ enum Command {
 fn main() -> Result<(), anyhow::Error> {
     let cli = ArgParser::parse();
     match cli.command {
-        Command::Notify {} => {}
+        Command::Notify { well } => {
+            let duration = if let Some(well) = well {
+                let duration = fancy_duration::FancyDuration::<chrono::Duration>::parse(&well)?;
+                duration.duration()
+            } else {
+                chrono::Duration::seconds(60)
+            };
+
+            for entry in events_now(duration)? {
+                if let Some(at) = entry.at() {
+                    notify_rust::Notification::new()
+                        .body(&format!("{} at {}: {}", entry.date(), at, entry.detail()))
+                        .show()?;
+                } else if let Some(schedule) = entry.scheduled() {
+                    notify_rust::Notification::new()
+                        .body(&format!(
+                            "{} at {} - {}: {}",
+                            entry.date(),
+                            schedule.0,
+                            schedule.1,
+                            entry.detail()
+                        ))
+                        .show()?;
+                }
+            }
+        }
         Command::Now { well } => {
             let duration = if let Some(well) = well {
                 let duration = fancy_duration::FancyDuration::<chrono::Duration>::parse(&well)?;
@@ -52,7 +79,6 @@ fn main() -> Result<(), anyhow::Error> {
                 }
             }
         }
-        Command::ShellStatus {} => eprintln!("ShellStatus command"),
         Command::List { all } => {
             for entry in list_entries(all)? {
                 if let Some(at) = entry.at() {
