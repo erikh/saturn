@@ -112,8 +112,7 @@ fn main() -> Result<(), anyhow::Error> {
             }
         }
         Command::Entry { args } => {
-            let ep = EntryParser::new(args);
-            ep.entry()?
+            EntryParser::new(args).entry()?;
         }
     }
     Ok(())
