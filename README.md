@@ -51,15 +51,15 @@ Likewise,
 saturn notify [--well=<duration>] [--timeout=<duration>]
 ```
 
+Will display a notification to the screen for every item that must be addressed
+immediately. `--well` is similar to `now`'s functionality, and `--timeout`
+configures how long to keep the notification up on the screen.
+
 This is what a notification looks like in `dunst`, which the notification
 system for `i3`. GNOME, KDE, MacOS, Windows will look different, but have the
 same text.
 
 <center><img src="notification.png" /></center>
-
-Will display a notification to the screen for every item that must be addressed
-immediately. `--well` is similar to `now`'s functionality, and `--timeout`
-configures how long to keep the notification up on the screen.
 
 ```
 saturn delete <id>
