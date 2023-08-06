@@ -20,9 +20,9 @@ struct ArgParser {
 enum Command {
     #[command(about = "Send a visual notification when your appointment has arrived")]
     Notify {
-        #[arg(short, long)]
+        #[arg(short = 'w', long)]
         well: Option<String>,
-        #[arg(short, long)]
+        #[arg(short = 't', long)]
         timeout: Option<String>,
     },
     #[command(about = "Enter a new entry into the calendar")]
@@ -31,12 +31,12 @@ enum Command {
     Today {},
     #[command(about = "List today's calendar by default, or --all to show the full calendar")]
     List {
-        #[arg(short, long)]
+        #[arg(short = 'a', long)]
         all: bool,
     },
     #[command(about = "Show the tasks that are important now, including notifications")]
     Now {
-        #[arg(short, long)]
+        #[arg(short = 'w', long)]
         well: Option<String>,
     },
 }
