@@ -28,21 +28,17 @@ enum Command {
     },
     #[command(about = "Enter a new entry into the calendar")]
     Entry { args: Vec<String> },
-    #[command(about = "Shorthand for 'today'")]
-    T {},
-    #[command(about = "Show today's calendar")]
+    #[command(alias = "t", about = "Show today's calendar")]
     Today {},
     #[command(about = "List today's calendar by default, or --all to show the full calendar")]
     List {
         #[arg(short = 'a', long)]
         all: bool,
     },
-    #[command(about = "Shorthand for 'now'")]
-    N {
-        #[arg(short = 'w', long)]
-        well: Option<String>,
-    },
-    #[command(about = "Show the tasks that are important now, including notifications")]
+    #[command(
+        alias = "n",
+        about = "Show the tasks that are important now, including notifications"
+    )]
     Now {
         #[arg(short = 'w', long)]
         well: Option<String>,
@@ -116,13 +112,13 @@ fn main() -> Result<(), anyhow::Error> {
                 }
             }
         }
-        Command::N { well } | Command::Now { well } => {
+        Command::Now { well } => {
             print_entries(events_now(get_well(well)?)?);
         }
         Command::List { all } => {
             print_entries(list_entries(all)?);
         }
-        Command::T {} | Command::Today {} => {
+        Command::Today {} => {
             print_entries(list_entries(false)?);
         }
         Command::Entry { args } => {
