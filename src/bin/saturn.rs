@@ -73,7 +73,6 @@ fn main() -> Result<(), anyhow::Error> {
     let cli = ArgParser::parse();
     match cli.command {
         Command::Notify { well, timeout } => {
-            let duration = get_well(well)?;
             let timeout = timeout.map_or(std::time::Duration::new(60, 0), |t| {
                 fancy_duration::FancyDuration::<std::time::Duration>::parse(&t)
                     .expect("Invalid Duration")
@@ -84,7 +83,7 @@ fn main() -> Result<(), anyhow::Error> {
             notification.summary("Calendar Event");
             notification.timeout(timeout);
 
-            for entry in events_now(duration)? {
+            for entry in events_now(get_well(well)?)? {
                 if let Some(at) = entry.at() {
                     notification.body(&format_at(entry, at)).show()?;
                 } else if let Some(schedule) = entry.scheduled() {
@@ -95,9 +94,7 @@ fn main() -> Result<(), anyhow::Error> {
             }
         }
         Command::Now { well } => {
-            let duration = get_well(well)?;
-
-            for entry in events_now(duration)? {
+            for entry in events_now(get_well(well)?)? {
                 print_entry(entry)
             }
         }

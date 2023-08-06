@@ -96,7 +96,15 @@ fn parse_entry(args: Vec<String>) -> Result<Record, anyhow::Error> {
     for arg in &args {
         match state {
             EntryState::Date => {
-                record.set_date(parse_date(arg.to_string())?);
+                match arg.to_lowercase().as_str() {
+                    "today" => record.set_date(chrono::Local::now().date_naive()),
+                    "yesterday" => record
+                        .set_date((chrono::Local::now() - chrono::Duration::days(1)).date_naive()),
+                    "tomorrow" => record
+                        .set_date((chrono::Local::now() + chrono::Duration::days(1)).date_naive()),
+                    _ => record.set_date(parse_date(arg.to_string())?),
+                };
+
                 state = EntryState::Time;
             }
             EntryState::Time => match arg.as_str() {
