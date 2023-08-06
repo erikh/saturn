@@ -82,6 +82,7 @@ pub fn events_now(last: chrono::Duration) -> Result<Vec<Record>, anyhow::Error> 
     events.sort_by(|a, b| sort_events(a, b));
 
     db.dump(filename.clone())?;
+
     Ok(events)
 }
 
@@ -95,8 +96,8 @@ pub fn list_entries(all: bool) -> Result<Vec<Record>, anyhow::Error> {
     };
 
     let mut list = if all { db.list_all() } else { db.list_today() };
-
     list.sort_by(|a, b| sort_events(a, b));
+
     Ok(list)
 }
 
