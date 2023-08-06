@@ -13,6 +13,7 @@ rand = "*"
 serde = "*"
 serde_derive = "*"
 ciborium = "*"
+clap = { version = "*", features = [ "derive" ] }
 
 [dev-dependencies]
 tempfile = "*"
