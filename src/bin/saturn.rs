@@ -47,16 +47,17 @@ fn main() -> Result<(), anyhow::Error> {
                     .duration()
             });
 
+            let mut notification = notify_rust::Notification::new();
+            notification.summary("Calendar Event");
+            notification.timeout(timeout);
+
             for entry in events_now(duration)? {
                 if let Some(at) = entry.at() {
-                    notify_rust::Notification::new()
-                        .summary("Calendar Event")
+                    notification
                         .body(&format!("{} at {}: {}", entry.date(), at, entry.detail()))
-                        .timeout(timeout)
                         .show()?;
                 } else if let Some(schedule) = entry.scheduled() {
-                    notify_rust::Notification::new()
-                        .summary("Calendar Event")
+                    notification
                         .body(&format!(
                             "{} at {} - {}: {}",
                             entry.date(),
@@ -64,7 +65,6 @@ fn main() -> Result<(), anyhow::Error> {
                             schedule.1,
                             entry.detail()
                         ))
-                        .timeout(timeout)
                         .show()?;
                 }
             }
