@@ -49,6 +49,26 @@ impl EntryParser {
     }
 }
 
+fn sort_events(a: &Record, b: &Record) -> std::cmp::Ordering {
+    let cmp = a.date().cmp(&b.date());
+    if cmp == std::cmp::Ordering::Equal {
+        if let Some(a_at) = a.at() {
+            if let Some(b_at) = b.at() {
+                return a_at.cmp(&b_at);
+            } else if let Some(b_schedule) = b.scheduled() {
+                return a_at.cmp(&b_schedule.0);
+            }
+        } else if let Some(a_schedule) = a.scheduled() {
+            if let Some(b_schedule) = b.scheduled() {
+                return a_schedule.0.cmp(&b_schedule.0);
+            } else if let Some(b_at) = b.at() {
+                return a_schedule.0.cmp(&b_at);
+            }
+        }
+    }
+    cmp
+}
+
 pub fn events_now(last: chrono::Duration) -> Result<Vec<Record>, anyhow::Error> {
     let filename = saturn_db();
 
@@ -59,21 +79,7 @@ pub fn events_now(last: chrono::Duration) -> Result<Vec<Record>, anyhow::Error> 
     };
 
     let mut events = db.events_now(last);
-    events.sort_by(|a, b| {
-        let cmp = a.date().cmp(&b.date());
-        if cmp == std::cmp::Ordering::Equal {
-            if let Some(a_at) = a.at() {
-                if let Some(b_at) = b.at() {
-                    return a_at.cmp(&b_at);
-                }
-            } else if let Some(a_schedule) = a.scheduled() {
-                if let Some(b_schedule) = b.scheduled() {
-                    return a_schedule.0.cmp(&b_schedule.0);
-                }
-            }
-        }
-        cmp
-    });
+    events.sort_by(|a, b| sort_events(a, b));
 
     db.dump(filename.clone())?;
     Ok(events)
@@ -90,22 +96,7 @@ pub fn list_entries(all: bool) -> Result<Vec<Record>, anyhow::Error> {
 
     let mut list = if all { db.list_all() } else { db.list_today() };
 
-    list.sort_by(|a, b| {
-        let cmp = a.date().cmp(&b.date());
-        if cmp == std::cmp::Ordering::Equal {
-            if let Some(a_at) = a.at() {
-                if let Some(b_at) = b.at() {
-                    return a_at.cmp(&b_at);
-                }
-            } else if let Some(a_schedule) = a.scheduled() {
-                if let Some(b_schedule) = b.scheduled() {
-                    return a_schedule.0.cmp(&b_schedule.0);
-                }
-            }
-        }
-        cmp
-    });
-
+    list.sort_by(|a, b| sort_events(a, b));
     Ok(list)
 }
 
