@@ -127,8 +127,8 @@ Will delete a calendar record by ID, which is listed with the listing tools.
 saturn complete <id>
 ```
 
-Will mark a task as "completed". There is currently just a visual notification
-for this in the list, there is no way to filter on completed tasks.
+Will mark a task as "completed". Completed tasks get a visual notification and
+are automatically excluded from listing without the `--all` flag.
 
 ## Database
 
