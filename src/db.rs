@@ -148,6 +148,10 @@ impl DB {
         records.append(&mut next_day);
 
         for mut item in records {
+            if item.completed() {
+                continue;
+            }
+
             if let Some(at) = item.at() {
                 if at - now.time() < last && now.time() < at {
                     ret.push(item.clone());
