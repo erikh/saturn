@@ -228,6 +228,10 @@ fn parse_entry(args: Vec<String>) -> Result<Record, anyhow::Error> {
                         record.add_notification(at - duration.duration());
                     } else if let Some(scheduled) = record.scheduled() {
                         record.add_notification(scheduled.0 - duration.duration());
+                    } else if record.all_day() {
+                        record.add_notification(
+                            chrono::NaiveTime::from_hms_opt(0, 0, 0).unwrap() - duration.duration(),
+                        );
                     } else {
                         return Err(anyhow!(
                             "No time was scheduled to base this notification off of"

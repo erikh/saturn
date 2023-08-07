@@ -133,17 +133,33 @@ impl DB {
         let mut ret = Vec::new();
         let now = chrono::Local::now();
 
-        for item in self
+        let mut records = self
             .records
             .get_mut(&chrono::Local::now().date_naive())
             .unwrap_or(&mut Vec::new())
-        {
+            .clone();
+
+        let mut next_day = self
+            .records
+            .get_mut(&(chrono::Local::now() + chrono::Duration::days(1)).date_naive())
+            .unwrap_or(&mut Vec::new())
+            .clone();
+
+        records.append(&mut next_day);
+
+        for mut item in records {
             if let Some(at) = item.at() {
                 if at - now.time() < last && now.time() < at {
                     ret.push(item.clone());
                 }
             } else if let Some(schedule) = item.scheduled() {
                 if (schedule.0 - last) < now.time() && (schedule.1 + last) > now.time() {
+                    ret.push(item.clone())
+                }
+            } else if item.all_day() {
+                if item.date() - chrono::Duration::days(1) == now.date_naive()
+                    && now.time() > chrono::NaiveTime::from_hms_opt(23, 59, 0).unwrap() - last
+                {
                     ret.push(item.clone())
                 }
             }
@@ -166,6 +182,16 @@ impl DB {
                                 if !pushed {
                                     ret.push(item.clone());
                                     pushed = true
+                                }
+                            }
+                        } else if item.all_day() {
+                            if item.date() - chrono::Duration::days(1) == now.date_naive()
+                                && now.time()
+                                    > chrono::NaiveTime::from_hms_opt(23, 59, 0).unwrap() - last
+                            {
+                                if !pushed {
+                                    ret.push(item.clone());
+                                    pushed = true;
                                 }
                             }
                         }
