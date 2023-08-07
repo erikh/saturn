@@ -96,6 +96,12 @@ time.
 -   google calendar support (maybe proton too)
 -   tasks maybe
 
+## Target Platform
+
+Due to flock(2) use, which to the best of my knowledge is the only reason,
+Windows probably does not work properly. Patches welcome if there are windows
+users who'd like to use it.
+
 ## Author
 
 Erik Hollensbe <erik+github@hollensbe.org>
