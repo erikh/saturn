@@ -115,7 +115,7 @@ This is what a notification looks like in `dunst`, which the notification
 system for `i3`. GNOME, KDE, MacOS, etc will look different, but have the
 same text.
 
-<center><img style="width:50%" src="notification.png" /></center>
+<div style="text-align: center"><img style="width:50%" src="notification.png" /></div>
 
 ```
 saturn delete <id>
