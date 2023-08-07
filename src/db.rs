@@ -68,6 +68,22 @@ impl DB {
                 .to_string()));
             }
 
+            if nix::libc::chmod(
+                std::ffi::CString::from_vec_unchecked(
+                    filename.to_str().unwrap().as_bytes().to_vec(),
+                )
+                .as_ptr(),
+                nix::libc::S_IRUSR | nix::libc::S_IWUSR,
+            ) != 0
+            {
+                return Err(anyhow!(std::ffi::CStr::from_ptr(nix::libc::strerror(
+                    nix::errno::errno()
+                ))
+                .to_str()
+                .unwrap()
+                .to_string()));
+            }
+
             Ok(ciborium::into_writer(self, std::fs::File::from_raw_fd(fd))?)
         }
     }
@@ -163,6 +179,16 @@ impl DB {
         }
 
         ret
+    }
+
+    pub fn complete_task(&mut self, primary_key: u64) {
+        for (_, list) in &mut self.records {
+            for record in list {
+                if record.primary_key() == primary_key {
+                    record.set_completed(true);
+                }
+            }
+        }
     }
 }
 

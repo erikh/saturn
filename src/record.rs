@@ -23,6 +23,7 @@ pub struct Record {
     detail: String,
     fields: Fields,
     notifications: Option<Notifications>,
+    completed: bool,
 }
 
 impl Default for Record {
@@ -38,6 +39,7 @@ impl Default for Record {
             detail: String::new(),
             fields: Fields::default(),
             notifications: None,
+            completed: false,
         }
     }
 }
@@ -49,6 +51,10 @@ impl Record {
 
     pub fn record_type(&self) -> RecordType {
         self.typ.clone()
+    }
+
+    pub fn completed(&self) -> bool {
+        self.completed
     }
 
     pub fn date(&self) -> chrono::NaiveDate {
@@ -102,6 +108,11 @@ impl Record {
         self.scheduled = None;
         self.all_day = all_day;
         self.typ = RecordType::AllDay;
+        self
+    }
+
+    pub fn set_completed(&mut self, completed: bool) -> &mut Self {
+        self.completed = completed;
         self
     }
 

@@ -1,6 +1,6 @@
 use clap::{Parser, Subcommand};
 use saturn::{
-    cli::{delete_event, events_now, list_entries, EntryParser},
+    cli::{complete_task, delete_event, events_now, list_entries, EntryParser},
     record::{Record, Schedule},
 };
 use ttygrid::{add_line, grid, header};
@@ -19,7 +19,9 @@ struct ArgParser {
 
 #[derive(Debug, Subcommand)]
 enum Command {
-    #[command(about = "Delete an event by ID")]
+    #[command(alias = "c", about = "Also `c`. Complete a Task")]
+    Complete { id: u64 },
+    #[command(alias = "d", about = "Also `d`. Delete an event by ID")]
     Delete { id: u64 },
     #[command(about = "Send a visual notification when your appointment has arrived")]
     Notify {
@@ -68,7 +70,8 @@ fn grid_at(grid: &mut ttygrid::TTYGrid, entry: Record, at: chrono::NaiveTime) {
             if entry.detail().len() > 20 { "..." } else { "" }
         ),
         entry.primary_key().to_string(),
-        entry.date().to_string()
+        entry.date().to_string(),
+        if entry.completed() { "X" } else { "" }.to_string()
     )
     .unwrap()
 }
@@ -83,7 +86,8 @@ fn grid_all_day(grid: &mut ttygrid::TTYGrid, entry: Record) {
             if entry.detail().len() > 20 { "..." } else { "" }
         ),
         entry.primary_key().to_string(),
-        entry.date().to_string()
+        entry.date().to_string(),
+        if entry.completed() { "X" } else { "" }.to_string()
     )
     .unwrap()
 }
@@ -98,22 +102,30 @@ fn grid_scheduled(grid: &mut ttygrid::TTYGrid, entry: Record, schedule: Schedule
             if entry.detail().len() > 20 { "..." } else { "" }
         ),
         entry.primary_key().to_string(),
-        entry.date().to_string()
+        entry.date().to_string(),
+        if entry.completed() { "X" } else { "" }.to_string()
     )
     .unwrap()
 }
 
 fn format_at(entry: Record, at: chrono::NaiveTime) -> String {
-    format!("{} at {}: {}", entry.date(), at, entry.detail())
+    format!(
+        "{} at {}: {}{}",
+        entry.date(),
+        at,
+        entry.detail(),
+        if entry.completed() { "- Completed" } else { "" }
+    )
 }
 
 fn format_scheduled(entry: Record, schedule: Schedule) -> String {
     format!(
-        "{} at {} to {}: {}",
+        "{} at {} to {}: {}{}",
         entry.date(),
         schedule.0,
         schedule.1,
-        entry.detail()
+        entry.detail(),
+        if entry.completed() { "- Completed" } else { "" }
     )
 }
 
@@ -123,10 +135,11 @@ fn print_entries(entries: Vec<Record>) {
     }
 
     let mut grid = grid!(
-        header!("TIME", 2),
-        header!("DETAIL", 3),
-        header!("ID", 0),
-        header!("DATE", 1)
+        header!("TIME"),
+        header!("DETAIL"),
+        header!("ID"),
+        header!("DATE"),
+        header!("DONE")
     );
 
     for entry in entries {
@@ -145,6 +158,7 @@ fn print_entries(entries: Vec<Record>) {
 fn main() -> Result<(), anyhow::Error> {
     let cli = ArgParser::parse();
     match cli.command {
+        Command::Complete { id } => complete_task(id)?,
         Command::Delete { id } => delete_event(id)?,
         Command::Notify { well, timeout } => {
             let timeout = timeout.map_or(std::time::Duration::new(60, 0), |t| {
