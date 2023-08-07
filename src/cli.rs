@@ -121,7 +121,10 @@ pub fn delete_event(primary_key: u64) -> Result<(), anyhow::Error> {
     db.dump(filename.clone())
 }
 
-pub fn events_now(last: chrono::Duration) -> Result<Vec<Record>, anyhow::Error> {
+pub fn events_now(
+    last: chrono::Duration,
+    include_completed: bool,
+) -> Result<Vec<Record>, anyhow::Error> {
     let filename = saturn_db();
 
     let mut db = if std::fs::metadata(&filename).is_ok() {
@@ -130,7 +133,7 @@ pub fn events_now(last: chrono::Duration) -> Result<Vec<Record>, anyhow::Error> 
         DB::default()
     };
 
-    let mut events = db.events_now(last);
+    let mut events = db.events_now(last, include_completed);
     events.sort_by(|a, b| sort_events(a, b));
 
     db.dump(filename.clone())?;
@@ -138,7 +141,7 @@ pub fn events_now(last: chrono::Duration) -> Result<Vec<Record>, anyhow::Error> 
     Ok(events)
 }
 
-pub fn list_entries(all: bool) -> Result<Vec<Record>, anyhow::Error> {
+pub fn list_entries(all: bool, include_completed: bool) -> Result<Vec<Record>, anyhow::Error> {
     let filename = saturn_db();
 
     let db = if std::fs::metadata(&filename).is_ok() {
@@ -147,7 +150,11 @@ pub fn list_entries(all: bool) -> Result<Vec<Record>, anyhow::Error> {
         DB::default()
     };
 
-    let mut list = if all { db.list_all() } else { db.list_today() };
+    let mut list = if all {
+        db.list_all(include_completed)
+    } else {
+        db.list_today(include_completed)
+    };
     list.sort_by(|a, b| sort_events(a, b));
 
     Ok(list)

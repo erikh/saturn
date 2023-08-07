@@ -29,6 +29,8 @@ enum Command {
         well: Option<String>,
         #[arg(short = 't', long, default_value = "10s")]
         timeout: Option<String>,
+        #[arg(short = 'c', long)]
+        include_completed: bool,
     },
     #[command(alias = "e", about = "Also `e`. Enter a new entry into the calendar")]
     Entry { args: Vec<String> },
@@ -41,6 +43,8 @@ enum Command {
     List {
         #[arg(short = 'a', long)]
         all: bool,
+        #[arg(short = 'c', long)]
+        include_completed: bool,
     },
     #[command(
         alias = "n",
@@ -49,6 +53,8 @@ enum Command {
     Now {
         #[arg(short = 'w', long)]
         well: Option<String>,
+        #[arg(short = 'c', long)]
+        include_completed: bool,
     },
 }
 
@@ -160,7 +166,11 @@ fn main() -> Result<(), anyhow::Error> {
     match cli.command {
         Command::Complete { id } => complete_task(id)?,
         Command::Delete { id } => delete_event(id)?,
-        Command::Notify { well, timeout } => {
+        Command::Notify {
+            well,
+            timeout,
+            include_completed,
+        } => {
             let timeout = timeout.map_or(std::time::Duration::new(60, 0), |t| {
                 fancy_duration::FancyDuration::<std::time::Duration>::parse(&t)
                     .expect("Invalid Duration")
@@ -171,7 +181,7 @@ fn main() -> Result<(), anyhow::Error> {
             notification.summary("Calendar Event");
             notification.timeout(timeout);
 
-            for entry in events_now(get_well(well)?)? {
+            for entry in events_now(get_well(well)?, include_completed)? {
                 if let Some(at) = entry.at() {
                     notification.body(&format_at(entry, at)).show()?;
                 } else if let Some(schedule) = entry.scheduled() {
@@ -181,14 +191,20 @@ fn main() -> Result<(), anyhow::Error> {
                 }
             }
         }
-        Command::Now { well } => {
-            print_entries(events_now(get_well(well)?)?);
+        Command::Now {
+            well,
+            include_completed,
+        } => {
+            print_entries(events_now(get_well(well)?, include_completed)?);
         }
-        Command::List { all } => {
-            print_entries(list_entries(all)?);
+        Command::List {
+            all,
+            include_completed,
+        } => {
+            print_entries(list_entries(all, include_completed)?);
         }
         Command::Today {} => {
-            print_entries(list_entries(false)?);
+            print_entries(list_entries(false, false)?);
         }
         Command::Entry { args } => {
             EntryParser::new(args).entry()?;

@@ -115,21 +115,36 @@ impl DB {
         key
     }
 
-    pub fn list_today(&self) -> Vec<Record> {
+    pub fn list_today(&self, include_completed: bool) -> Vec<Record> {
         self.records
             .get(&chrono::Local::now().date_naive())
             .unwrap_or(&Vec::new())
-            .clone()
-    }
-
-    pub fn list_all(&self) -> Vec<Record> {
-        self.records
             .iter()
-            .flat_map(|(_, v)| v.clone())
+            .filter_map(|v| {
+                if v.completed() && !include_completed {
+                    None
+                } else {
+                    Some(v.clone())
+                }
+            })
             .collect::<Vec<Record>>()
     }
 
-    pub fn events_now(&mut self, last: chrono::Duration) -> Vec<Record> {
+    pub fn list_all(&self, include_completed: bool) -> Vec<Record> {
+        self.records
+            .iter()
+            .flat_map(|(_, v)| v.clone())
+            .filter_map(|v| {
+                if v.completed() && !include_completed {
+                    None
+                } else {
+                    Some(v)
+                }
+            })
+            .collect::<Vec<Record>>()
+    }
+
+    pub fn events_now(&mut self, last: chrono::Duration, include_completed: bool) -> Vec<Record> {
         let mut ret = Vec::new();
         let now = chrono::Local::now();
 
@@ -148,7 +163,7 @@ impl DB {
         records.append(&mut next_day);
 
         for mut item in records {
-            if item.completed() {
+            if item.completed() && !include_completed {
                 continue;
             }
 
