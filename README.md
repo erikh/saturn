@@ -81,7 +81,8 @@ primitive. Suggestions and patches welcome.
 
 The `--well` options take a duration. This duration is intended to roughly
 match the frequency at which you run the program, so that there is little to no
-overlay. This flag is provided for `saturn now` and `saturn notify`.
+overlap between event firings. This flag is provided for `saturn now` and
+`saturn notify`.
 
 Notifications (specified by a `notify` entry stanza) are only fired once in any
 event. Events, on the other hand, are shown every time they fall into the
