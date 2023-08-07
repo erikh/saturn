@@ -12,14 +12,14 @@ pub struct DB {
 impl DB {
     pub fn load(filename: std::path::PathBuf) -> Result<Self, anyhow::Error> {
         unsafe {
-            let res = nix::libc::open(
+            let fd = nix::libc::open(
                 std::ffi::CString::from_vec_unchecked(
                     filename.to_str().unwrap().as_bytes().to_vec(),
                 )
                 .as_ptr(),
                 nix::libc::O_RDONLY,
             );
-            if res < 0 {
+            if fd < 0 {
                 return Err(anyhow!(std::ffi::CStr::from_ptr(nix::libc::strerror(
                     nix::errno::errno()
                 ))
@@ -28,10 +28,7 @@ impl DB {
                 .to_string()));
             }
 
-            let fd = res;
-
-            let res = nix::libc::flock(fd, nix::libc::LOCK_EX);
-            if res != 0 {
+            if nix::libc::flock(fd, nix::libc::LOCK_EX) != 0 {
                 return Err(anyhow!(std::ffi::CStr::from_ptr(nix::libc::strerror(
                     nix::errno::errno()
                 ))
@@ -46,14 +43,14 @@ impl DB {
 
     pub fn dump(&self, filename: std::path::PathBuf) -> Result<(), anyhow::Error> {
         unsafe {
-            let res = nix::libc::open(
+            let fd = nix::libc::open(
                 std::ffi::CString::from_vec_unchecked(
                     filename.to_str().unwrap().as_bytes().to_vec(),
                 )
                 .as_ptr(),
                 nix::libc::O_WRONLY | nix::libc::O_TRUNC | nix::libc::O_CREAT,
             );
-            if res < 0 {
+            if fd < 0 {
                 return Err(anyhow!(std::ffi::CStr::from_ptr(nix::libc::strerror(
                     nix::errno::errno()
                 ))
@@ -62,10 +59,7 @@ impl DB {
                 .to_string()));
             }
 
-            let fd = res;
-
-            let res = nix::libc::flock(fd, nix::libc::LOCK_EX);
-            if res != 0 {
+            if nix::libc::flock(fd, nix::libc::LOCK_EX) != 0 {
                 return Err(anyhow!(std::ffi::CStr::from_ptr(nix::libc::strerror(
                     nix::errno::errno()
                 ))
