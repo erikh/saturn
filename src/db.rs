@@ -1,6 +1,7 @@
 use crate::record::Record;
+use anyhow::anyhow;
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, os::unix::io::FromRawFd};
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct DB {
@@ -10,21 +11,77 @@ pub struct DB {
 
 impl DB {
     pub fn load(filename: std::path::PathBuf) -> Result<Self, anyhow::Error> {
-        let mut io = std::fs::OpenOptions::new();
-        io.read(true);
-        let io = io.open(filename)?;
+        unsafe {
+            let res = nix::libc::open(
+                std::ffi::CString::from_vec_unchecked(
+                    filename.to_str().unwrap().as_bytes().to_vec(),
+                )
+                .as_ptr(),
+                nix::libc::O_RDONLY,
+            );
+            if res < 0 {
+                return Err(anyhow!(std::ffi::CStr::from_ptr(nix::libc::strerror(
+                    nix::errno::errno()
+                ))
+                .to_str()
+                .unwrap()
+                .to_string()));
+            }
 
-        Ok(ciborium::from_reader(io)?)
+            let fd = res;
+
+            let res = nix::libc::flock(fd, nix::libc::LOCK_EX);
+            if res != 0 {
+                return Err(anyhow!(std::ffi::CStr::from_ptr(nix::libc::strerror(
+                    nix::errno::errno()
+                ))
+                .to_str()
+                .unwrap()
+                .to_string()));
+            }
+
+            let io = std::fs::File::from_raw_fd(fd);
+            let result = ciborium::from_reader(io);
+
+            Ok(result?)
+        }
     }
 
     pub fn dump(&self, filename: std::path::PathBuf) -> Result<(), anyhow::Error> {
-        let mut io = std::fs::OpenOptions::new();
-        io.truncate(true);
-        io.write(true);
-        io.create(true);
-        let io = io.open(filename)?;
+        unsafe {
+            let res = nix::libc::open(
+                std::ffi::CString::from_vec_unchecked(
+                    filename.to_str().unwrap().as_bytes().to_vec(),
+                )
+                .as_ptr(),
+                nix::libc::O_WRONLY | nix::libc::O_TRUNC | nix::libc::O_CREAT,
+            );
+            if res < 0 {
+                return Err(anyhow!(std::ffi::CStr::from_ptr(nix::libc::strerror(
+                    nix::errno::errno()
+                ))
+                .to_str()
+                .unwrap()
+                .to_string()));
+            }
 
-        Ok(ciborium::into_writer(self, io)?)
+            let fd = res;
+
+            let res = nix::libc::flock(fd, nix::libc::LOCK_EX);
+            if res != 0 {
+                return Err(anyhow!(std::ffi::CStr::from_ptr(nix::libc::strerror(
+                    nix::errno::errno()
+                ))
+                .to_str()
+                .unwrap()
+                .to_string()));
+            }
+
+            let io = std::fs::File::from_raw_fd(fd);
+            let result = ciborium::into_writer(self, io);
+
+            Ok(result?)
+        }
     }
 
     pub fn delete(&mut self, primary_key: u64) {

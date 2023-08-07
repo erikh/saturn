@@ -21,6 +21,7 @@ clap = { version = "*", features = [ "derive" ] }
 regex = "*"
 fancy-duration = { version = "*", default-features = false, features = [ "chrono" ] }
 ttygrid = "*"
+nix = "*"
 
 [dev-dependencies]
 tempfile = "*"

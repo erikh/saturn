@@ -851,6 +851,7 @@ dependencies = [
  "cfg-if",
  "libc",
  "memoffset",
+ "pin-utils",
  "static_assertions",
 ]
 
@@ -1186,6 +1187,7 @@ dependencies = [
  "clap",
  "console",
  "fancy-duration",
+ "nix",
  "notify-rust",
  "rand",
  "regex",
