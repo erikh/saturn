@@ -11,9 +11,10 @@ Saturn provides you with a CLI interface to calendaring much in the way [taskwar
 Entry language is basically:
 
 ```
-ENTRY = <date> <AT | SCHEDULED> ["notify" <duration>] <detail>
+ENTRY = <date> <AT | SCHEDULED | ALL DAY> ["notify" <duration>] <detail>
 AT = at <time>
 SCHEDULED = from <time> to <time>
+ALL DAY = all day
 ```
 
 You trigger it by using `saturn entry`:
