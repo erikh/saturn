@@ -41,13 +41,14 @@ impl EntryParser {
         let mut record = self.to_record()?;
         record.record.set_primary_key(db.next_key());
 
-        db.record(record.record);
-
         if let Some(mut recurrence) = record.recurrence {
-            recurrence.set_recurrence_key(db.next_recurrence_key());
+            let key = db.next_recurrence_key();
+            record.record.set_recurrence_key(Some(key));
+            recurrence.set_recurrence_key(key);
             db.record_recurrence(recurrence);
         }
 
+        db.record(record.record);
         db.dump(self.filename.clone())?;
 
         Ok(())

@@ -115,6 +115,18 @@ impl Record {
         self.typ.clone()
     }
 
+    pub fn datetime(&self) -> chrono::DateTime<chrono::Local> {
+        let time = match self.record_type() {
+            RecordType::At => self.at.unwrap(),
+            RecordType::AllDay => chrono::NaiveTime::from_hms_opt(0, 0, 0).unwrap(),
+            RecordType::Schedule => self.scheduled.unwrap().0,
+        };
+
+        chrono::NaiveDateTime::new(self.date, time)
+            .and_local_timezone(chrono::Local::now().timezone())
+            .unwrap()
+    }
+
     pub fn completed(&self) -> bool {
         self.completed
     }

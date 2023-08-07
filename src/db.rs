@@ -39,11 +39,14 @@ impl DB {
                 .to_string()));
             }
 
-            Ok(ciborium::from_reader(std::fs::File::from_raw_fd(fd))?)
+            let mut s: Self = ciborium::from_reader(std::fs::File::from_raw_fd(fd))?;
+
+            s.update_recurrence();
+            Ok(s)
         }
     }
 
-    pub fn dump(&self, filename: std::path::PathBuf) -> Result<(), anyhow::Error> {
+    pub fn dump(&mut self, filename: std::path::PathBuf) -> Result<(), anyhow::Error> {
         unsafe {
             let fd = nix::libc::open(
                 std::ffi::CString::from_vec_unchecked(
@@ -85,6 +88,8 @@ impl DB {
                 .unwrap()
                 .to_string()));
             }
+
+            self.update_recurrence();
 
             Ok(ciborium::into_writer(self, std::fs::File::from_raw_fd(fd))?)
         }
@@ -130,6 +135,40 @@ impl DB {
 
     pub fn list_recurrence(&self) -> Vec<RecurringRecord> {
         self.recurring.clone()
+    }
+
+    pub fn update_recurrence(&mut self) {
+        let now = chrono::Local::now();
+
+        for recur in self.recurring.clone() {
+            let mut seen: Option<Record> = None;
+            let mut begin = now - recur.recurrence().duration();
+            while begin.date_naive() <= now.date_naive() {
+                if let Some(items) = self.records.get(&begin.date_naive()) {
+                    for item in items {
+                        if let Some(key) = item.recurrence_key() {
+                            if key == recur.recurrence_key()
+                                && now - item.datetime() > recur.recurrence().duration()
+                            {
+                                seen = Some(item.clone());
+                            }
+                        }
+                    }
+                }
+                begin += chrono::Duration::days(1);
+            }
+
+            if let Some(seen) = seen {
+                let mut dt = seen.datetime();
+                let duration = recur.recurrence().duration();
+
+                while dt + duration < now {
+                    let key = self.next_key();
+                    dt += duration;
+                    self.record(recur.record_from(key, dt.naive_local()));
+                }
+            }
+        }
     }
 
     pub fn next_key(&mut self) -> u64 {
