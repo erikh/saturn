@@ -70,7 +70,7 @@ fn sort_events(a: &Record, b: &Record) -> std::cmp::Ordering {
                 }
             }
             RecordType::AllDay => {
-                if b.all_day() {
+                if b.record_type() == RecordType::AllDay {
                     a.primary_key().cmp(&b.primary_key())
                 } else {
                     std::cmp::Ordering::Less
