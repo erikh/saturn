@@ -74,8 +74,8 @@ Will delete a calendar record by ID, which is listed with the listing tools.
 
 ## Database
 
-Saturn keeps a CBOR database in ~/.saturn.db. Locking is not in use and you've
-been warned. We'll get there.
+Saturn keeps a CBOR database in ~/.saturn.db. Locking is flock(2), and quite
+primitive. Suggestions and patches welcome.
 
 ## Leveraging the well features with a periodic scheduler
 
