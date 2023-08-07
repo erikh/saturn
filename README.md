@@ -9,6 +9,10 @@ of important appointments.
 
 [Here](https://asciinema.org/a/XkRCXcgucQCRYassutGLMlWqq) is a demo of it in action.
 
+## Installation
+
+cargo install --git https://github.com/erikh/saturn
+
 ## Entry language
 
 Entry language is basically:
