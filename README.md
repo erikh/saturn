@@ -150,14 +150,14 @@ I hope this clears things up; I was trying to figure out a good way to run this
 in `cron` etc without spamming myself with notifications for a long period of
 time.
 
-Here's an example: we run a loop of `saturn notify` with a well of one minute,
+Here's an example: we run a loop of `saturn notify` with a well of two minutes,
 and then we sleep for a minute. This allows notify to catch the alert only
 once, passing it up by the next time it runs.
 
 ```bash
 while true
 do
-    saturn notify --well 1m
+    saturn notify --well 2m
     sleep 60
 done
 ```
