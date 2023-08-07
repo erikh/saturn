@@ -72,6 +72,13 @@ saturn delete <id>
 
 Will delete a calendar record by ID, which is listed with the listing tools.
 
+```
+saturn complete <id>
+```
+
+Will mark a task as "completed". There is currently just a visual notification
+for this in the list, there is no way to filter on completed tasks.
+
 ## Database
 
 Saturn keeps a CBOR database in ~/.saturn.db. Locking is flock(2), and quite
@@ -95,7 +102,6 @@ time.
 ## Future Plans
 
 -   google calendar support (maybe proton too)
--   tasks maybe
 
 ## Target Platform
 
