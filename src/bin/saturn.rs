@@ -43,8 +43,6 @@ enum Command {
     List {
         #[arg(short = 'a', long)]
         all: bool,
-        #[arg(short = 'c', long)]
-        include_completed: bool,
     },
     #[command(
         alias = "n",
@@ -197,11 +195,8 @@ fn main() -> Result<(), anyhow::Error> {
         } => {
             print_entries(events_now(get_well(well)?, include_completed)?);
         }
-        Command::List {
-            all,
-            include_completed,
-        } => {
-            print_entries(list_entries(all, include_completed)?);
+        Command::List { all } => {
+            print_entries(list_entries(all, all)?);
         }
         Command::Today {} => {
             print_entries(list_entries(false, false)?);
