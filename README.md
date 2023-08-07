@@ -61,7 +61,7 @@ immediately. `--well` is similar to `now`'s functionality, and `--timeout`
 configures how long to keep the notification up on the screen.
 
 This is what a notification looks like in `dunst`, which the notification
-system for `i3`. GNOME, KDE, MacOS, Windows will look different, but have the
+system for `i3`. GNOME, KDE, MacOS, etc will look different, but have the
 same text.
 
 <center><img src="notification.png" /></center>
