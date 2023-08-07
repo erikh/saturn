@@ -1,4 +1,7 @@
-use crate::{db::DB, record::Record};
+use crate::{
+    db::DB,
+    record::{Record, RecordType},
+};
 use anyhow::anyhow;
 use chrono::{Datelike, Timelike};
 use std::{env::var, path::PathBuf};
@@ -52,24 +55,40 @@ impl EntryParser {
 fn sort_events(a: &Record, b: &Record) -> std::cmp::Ordering {
     let cmp = a.date().cmp(&b.date());
     if cmp == std::cmp::Ordering::Equal {
-        if let Some(a_at) = a.at() {
-            if let Some(b_at) = b.at() {
-                a_at.cmp(&b_at)
-            } else if let Some(b_schedule) = b.scheduled() {
-                a_at.cmp(&b_schedule.0)
-            } else {
-                std::cmp::Ordering::Equal
+        match a.record_type() {
+            RecordType::At => {
+                if let Some(a_at) = a.at() {
+                    if let Some(b_at) = b.at() {
+                        a_at.cmp(&b_at)
+                    } else if let Some(b_schedule) = b.scheduled() {
+                        a_at.cmp(&b_schedule.0)
+                    } else {
+                        std::cmp::Ordering::Equal
+                    }
+                } else {
+                    std::cmp::Ordering::Equal
+                }
             }
-        } else if let Some(a_schedule) = a.scheduled() {
-            if let Some(b_schedule) = b.scheduled() {
-                a_schedule.0.cmp(&b_schedule.0)
-            } else if let Some(b_at) = b.at() {
-                a_schedule.0.cmp(&b_at)
-            } else {
-                std::cmp::Ordering::Equal
+            RecordType::AllDay => {
+                if b.all_day() {
+                    a.primary_key().cmp(&b.primary_key())
+                } else {
+                    std::cmp::Ordering::Less
+                }
             }
-        } else {
-            std::cmp::Ordering::Equal
+            RecordType::Schedule => {
+                if let Some(a_schedule) = a.scheduled() {
+                    if let Some(b_schedule) = b.scheduled() {
+                        a_schedule.0.cmp(&b_schedule.0)
+                    } else if let Some(b_at) = b.at() {
+                        a_schedule.0.cmp(&b_at)
+                    } else {
+                        std::cmp::Ordering::Equal
+                    }
+                } else {
+                    std::cmp::Ordering::Equal
+                }
+            }
         }
     } else {
         cmp
@@ -153,12 +172,18 @@ fn parse_entry(args: Vec<String>) -> Result<Record, anyhow::Error> {
                 state = EntryState::Time;
             }
             EntryState::Time => match arg.as_str() {
+                "all" => {
+                    record.set_all_day(true);
+                    state = EntryState::TimeAt
+                }
                 "at" => state = EntryState::TimeAt,
                 "from" => state = EntryState::TimeScheduled,
                 _ => return Err(anyhow!("Time must be 'from' or 'at'")),
             },
             EntryState::TimeAt => {
-                record.set_at(Some(parse_time(arg.to_string())?));
+                if arg != "day" {
+                    record.set_at(Some(parse_time(arg.to_string())?));
+                }
                 state = EntryState::Notify;
             }
             EntryState::TimeScheduled => {

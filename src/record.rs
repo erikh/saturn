@@ -6,11 +6,20 @@ pub type Schedule = (chrono::NaiveTime, chrono::NaiveTime);
 pub type Notifications = Vec<chrono::NaiveTime>;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub enum RecordType {
+    At,
+    Schedule,
+    AllDay,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Record {
     primary_key: u64,
     date: chrono::NaiveDate,
+    typ: RecordType,
     at: Option<chrono::NaiveTime>,
     scheduled: Option<Schedule>,
+    all_day: bool,
     detail: String,
     fields: Fields,
     notifications: Option<Notifications>,
@@ -22,8 +31,10 @@ impl Default for Record {
         Self {
             primary_key: 0,
             date: now.date_naive(),
+            typ: RecordType::AllDay,
             at: None,
             scheduled: None,
+            all_day: true,
             detail: String::new(),
             fields: Fields::default(),
             notifications: None,
@@ -36,8 +47,16 @@ impl Record {
         self.primary_key
     }
 
+    pub fn record_type(&self) -> RecordType {
+        self.typ.clone()
+    }
+
     pub fn date(&self) -> chrono::NaiveDate {
         self.date
+    }
+
+    pub fn all_day(&self) -> bool {
+        self.all_day
     }
 
     pub fn at(&self) -> Option<chrono::NaiveTime> {
@@ -73,6 +92,19 @@ impl Record {
         self
     }
 
+    pub fn set_record_type(&mut self, typ: RecordType) -> &mut Self {
+        self.typ = typ;
+        self
+    }
+
+    pub fn set_all_day(&mut self, all_day: bool) -> &mut Self {
+        self.at = None;
+        self.scheduled = None;
+        self.all_day = all_day;
+        self.typ = RecordType::AllDay;
+        self
+    }
+
     pub fn set_date(&mut self, date: chrono::NaiveDate) -> &mut Self {
         self.date = date;
         self
@@ -81,12 +113,16 @@ impl Record {
     pub fn set_at(&mut self, at: Option<chrono::NaiveTime>) -> &mut Self {
         self.at = at;
         self.scheduled = None;
+        self.all_day = false;
+        self.typ = RecordType::At;
         self
     }
 
     pub fn set_scheduled(&mut self, schedule: Option<Schedule>) -> &mut Self {
         self.scheduled = schedule;
         self.at = None;
+        self.all_day = false;
+        self.typ = RecordType::Schedule;
         self
     }
 

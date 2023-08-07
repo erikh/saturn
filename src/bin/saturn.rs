@@ -73,6 +73,21 @@ fn grid_at(grid: &mut ttygrid::TTYGrid, entry: Record, at: chrono::NaiveTime) {
     .unwrap()
 }
 
+fn grid_all_day(grid: &mut ttygrid::TTYGrid, entry: Record) {
+    add_line!(
+        grid,
+        "All Day".to_string(),
+        format!(
+            "{0:.20}{1}",
+            entry.detail(),
+            if entry.detail().len() > 20 { "..." } else { "" }
+        ),
+        entry.primary_key().to_string(),
+        entry.date().to_string()
+    )
+    .unwrap()
+}
+
 fn grid_scheduled(grid: &mut ttygrid::TTYGrid, entry: Record, schedule: Schedule) {
     add_line!(
         grid,
@@ -119,6 +134,8 @@ fn print_entries(entries: Vec<Record>) {
             grid_at(&mut grid, entry, at);
         } else if let Some(schedule) = entry.scheduled() {
             grid_scheduled(&mut grid, entry, schedule);
+        } else if entry.all_day() {
+            grid_all_day(&mut grid, entry);
         }
     }
 
