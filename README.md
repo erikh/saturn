@@ -38,6 +38,48 @@ saturn entry tomorrow at 8pm Take a Shower
 This will schedule a shower tomorrow at 8pm with a notification at the time of
 the appointment. You can also use `saturn e`.
 
+### Formats
+
+There are numerous formats that can be used for different times, dates, and
+durations. Localization is desired but I haven't found a good set of tools for
+doing it yet.
+
+#### Dates
+
+Dates can be represented a number of ways:
+
+-   `today`, `tomorrow`, and `yesterday` are case-insensitive and have their
+    traditional relative meanings.
+-   A day (integer) by itself will assume the current month and year.
+-   `month/day` (e.g. 8/7) will assume the current year.
+-   `year/month/day` (e.g. 2023/8/7) will represent a full date.
+-   The following characters can be used as date separators: `/`, `-`, and `.`.
+
+#### Times
+
+-   `hour:minute:second` represents a full time. You may also use `.` for the separators.
+-   `hour:minute` when less than 13 represents the time in relationship to the
+    current 12-hour clock. 13 and above are 24-hour time.
+-   `hour:minute[pm|am]` represents the current 12 hour time with appropriate time of day designation.
+-   `hour[pm|am]` represents the top of the hour in 12 hour time with the appropriate time of day designation.
+-   `hour` represents the top of the hour in 12 hour time with the current time of day designation.
+
+#### Durations
+
+All duration rules take from the [fancy-duration](https://github.com/erikh/fancy-duration) crate.
+
+Durations are combined in order of precedence with single character
+designations for each unit. Example: `2h15m12s`, is "2 hours, 15 minutes, and
+12 seconds".
+
+-   `s`: seconds
+-   `m`: minutes
+-   `h`: hours
+-   `d`: days
+-   `w`: weeks
+-   `m` (leading position only): months
+-   `y`: years
+
 ## Querying
 
 ```
@@ -107,6 +149,18 @@ window, which is the current time, +/- the `--well` duration.
 I hope this clears things up; I was trying to figure out a good way to run this
 in `cron` etc without spamming myself with notifications for a long period of
 time.
+
+Here's an example: we run a loop of `saturn notify` with a well of one minute,
+and then we sleep for a minute. This allows notify to catch the alert only
+once, passing it up by the next time it runs.
+
+```bash
+while true
+do
+    saturn notify --well 1m
+    sleep 60
+done
+```
 
 ## Recurring tasks
 
