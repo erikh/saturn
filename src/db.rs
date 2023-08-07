@@ -40,8 +40,7 @@ impl DB {
                 .to_string()));
             }
 
-            let io = std::fs::File::from_raw_fd(fd);
-            Ok(ciborium::from_reader(io)?)
+            Ok(ciborium::from_reader(std::fs::File::from_raw_fd(fd))?)
         }
     }
 
@@ -75,8 +74,7 @@ impl DB {
                 .to_string()));
             }
 
-            let io = std::fs::File::from_raw_fd(fd);
-            Ok(ciborium::into_writer(self, io)?)
+            Ok(ciborium::into_writer(self, std::fs::File::from_raw_fd(fd))?)
         }
     }
 
