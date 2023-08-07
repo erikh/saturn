@@ -1,7 +1,7 @@
 use clap::{Parser, Subcommand};
 use saturn::{
-    cli::{complete_task, delete_event, events_now, list_entries, EntryParser},
-    record::{Record, Schedule},
+    cli::{complete_task, delete_event, events_now, list_entries, list_recurrence, EntryParser},
+    record::{Record, RecurringRecord, Schedule},
 };
 use ttygrid::{add_line, grid, header};
 
@@ -21,8 +21,15 @@ struct ArgParser {
 enum Command {
     #[command(alias = "c", about = "Also `c`. Complete a Task")]
     Complete { id: u64 },
-    #[command(alias = "d", about = "Also `d`. Delete an event by ID")]
-    Delete { id: u64 },
+    #[command(
+        alias = "d",
+        about = "Also `d`. Delete an event by ID. Pass `-r` to delete recurring IDs"
+    )]
+    Delete {
+        id: u64,
+        #[arg(short = 'r', long)]
+        recur: bool,
+    },
     #[command(about = "Send a visual notification when your appointment has arrived")]
     Notify {
         #[arg(short = 'w', long)]
@@ -41,6 +48,8 @@ enum Command {
         about = "Also `l`. List today's calendar by default, or --all to show the full calendar"
     )]
     List {
+        #[arg(short = 'r', long)]
+        recur: bool,
         #[arg(short = 'a', long)]
         all: bool,
     },
@@ -159,11 +168,39 @@ fn print_entries(entries: Vec<Record>) {
     println!("{}", grid.display().unwrap());
 }
 
+fn print_recurring(entries: Vec<RecurringRecord>) {
+    if entries.is_empty() {
+        return;
+    }
+
+    let mut grid = grid!(header!("INTERVAL"), header!("DETAIL"), header!("ID"));
+
+    for entry in entries {
+        add_line!(
+            grid,
+            entry.recurrence().to_string(),
+            format!(
+                "{0:.20}{1}",
+                entry.record().detail(),
+                if entry.record().detail().len() > 20 {
+                    "..."
+                } else {
+                    ""
+                }
+            ),
+            entry.recurrence_key().to_string()
+        )
+        .unwrap()
+    }
+
+    println!("{}", grid.display().unwrap());
+}
+
 fn main() -> Result<(), anyhow::Error> {
     let cli = ArgParser::parse();
     match cli.command {
         Command::Complete { id } => complete_task(id)?,
-        Command::Delete { id } => delete_event(id)?,
+        Command::Delete { id, recur } => delete_event(id, recur)?,
         Command::Notify {
             well,
             timeout,
@@ -195,8 +232,12 @@ fn main() -> Result<(), anyhow::Error> {
         } => {
             print_entries(events_now(get_well(well)?, include_completed)?);
         }
-        Command::List { all } => {
-            print_entries(list_entries(all, all)?);
+        Command::List { all, recur } => {
+            if recur {
+                print_recurring(list_recurrence()?);
+            } else {
+                print_entries(list_entries(all, all)?);
+            }
         }
         Command::Today {} => {
             print_entries(list_entries(false, false)?);

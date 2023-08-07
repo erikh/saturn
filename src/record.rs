@@ -12,9 +12,66 @@ pub enum RecordType {
     AllDay,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct RecurringRecord {
+    record: Record,
+    recurrence: fancy_duration::FancyDuration<chrono::Duration>,
+    recurrence_key: u64,
+}
+
+impl RecurringRecord {
+    pub fn new(
+        record: Record,
+        recurrence: fancy_duration::FancyDuration<chrono::Duration>,
+    ) -> Self {
+        Self {
+            record,
+            recurrence,
+            recurrence_key: 0,
+        }
+    }
+
+    pub fn record(&self) -> Record {
+        self.record.clone()
+    }
+
+    pub fn recurrence(&self) -> fancy_duration::FancyDuration<chrono::Duration> {
+        self.recurrence.clone()
+    }
+
+    pub fn recurrence_key(&self) -> u64 {
+        self.recurrence_key
+    }
+
+    pub fn set_recurrence_key(&mut self, key: u64) {
+        self.recurrence_key = key;
+    }
+
+    pub fn record_from(&self, primary_key: u64, from: chrono::NaiveDateTime) -> Record {
+        let mut record = self.record.clone();
+        record.set_primary_key(primary_key);
+        record.set_recurrence_key(Some(self.recurrence_key));
+        let time = from + self.recurrence.duration();
+        record.set_date(time.date());
+        match record.record_type() {
+            RecordType::At => {
+                record.set_at(Some(time.time()));
+            }
+            RecordType::AllDay => {}
+            RecordType::Schedule => {
+                let schedule = record.scheduled().unwrap();
+                let duration = schedule.1 - schedule.0;
+                record.set_scheduled(Some((time.time(), time.time() + duration)));
+            }
+        };
+        record
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Record {
     primary_key: u64,
+    recurrence_key: Option<u64>,
     date: chrono::NaiveDate,
     typ: RecordType,
     at: Option<chrono::NaiveTime>,
@@ -31,6 +88,7 @@ impl Default for Record {
         let now = chrono::Local::now();
         Self {
             primary_key: 0,
+            recurrence_key: None,
             date: now.date_naive(),
             typ: RecordType::AllDay,
             at: None,
@@ -47,6 +105,10 @@ impl Default for Record {
 impl Record {
     pub fn primary_key(&self) -> u64 {
         self.primary_key
+    }
+
+    pub fn recurrence_key(&self) -> Option<u64> {
+        self.recurrence_key
     }
 
     pub fn record_type(&self) -> RecordType {
@@ -95,6 +157,11 @@ impl Record {
 
     pub fn set_primary_key(&mut self, primary_key: u64) -> &mut Self {
         self.primary_key = primary_key;
+        self
+    }
+
+    pub fn set_recurrence_key(&mut self, key: Option<u64>) -> &mut Self {
+        self.recurrence_key = key;
         self
     }
 

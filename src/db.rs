@@ -1,4 +1,4 @@
-use crate::record::Record;
+use crate::record::{Record, RecurringRecord};
 use anyhow::anyhow;
 use serde::{Deserialize, Serialize};
 use std::{collections::BTreeMap, os::unix::io::FromRawFd};
@@ -7,6 +7,8 @@ use std::{collections::BTreeMap, os::unix::io::FromRawFd};
 pub struct DB {
     primary_key: u64,
     records: BTreeMap<chrono::NaiveDate, Vec<Record>>,
+    recurrence_key: u64,
+    recurring: Vec<RecurringRecord>,
 }
 
 impl DB {
@@ -101,6 +103,19 @@ impl DB {
         }
     }
 
+    pub fn delete_recurrence(&mut self, primary_key: u64) {
+        let mut new = Vec::new();
+
+        for entry in &self.recurring {
+            if entry.recurrence_key() != primary_key {
+                new.push(entry.clone());
+            }
+        }
+
+        self.recurring.clear();
+        self.recurring.append(&mut new);
+    }
+
     pub fn record(&mut self, record: Record) {
         if let Some(item) = self.records.get_mut(&record.date()) {
             item.push(record);
@@ -109,9 +124,23 @@ impl DB {
         }
     }
 
+    pub fn record_recurrence(&mut self, record: RecurringRecord) {
+        self.recurring.push(record);
+    }
+
+    pub fn list_recurrence(&self) -> Vec<RecurringRecord> {
+        self.recurring.clone()
+    }
+
     pub fn next_key(&mut self) -> u64 {
         let key = self.primary_key;
         self.primary_key += 1;
+        key
+    }
+
+    pub fn next_recurrence_key(&mut self) -> u64 {
+        let key = self.recurrence_key;
+        self.recurrence_key += 1;
         key
     }
 

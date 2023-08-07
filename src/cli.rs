@@ -1,6 +1,6 @@
 use crate::{
     db::DB,
-    record::{Record, RecordType},
+    record::{Record, RecordType, RecurringRecord},
 };
 use anyhow::anyhow;
 use chrono::{Datelike, Timelike};
@@ -39,15 +39,21 @@ impl EntryParser {
         };
 
         let mut record = self.to_record()?;
-        record.set_primary_key(db.next_key());
+        record.record.set_primary_key(db.next_key());
 
-        db.record(record);
+        db.record(record.record);
+
+        if let Some(mut recurrence) = record.recurrence {
+            recurrence.set_recurrence_key(db.next_recurrence_key());
+            db.record_recurrence(recurrence);
+        }
+
         db.dump(self.filename.clone())?;
 
         Ok(())
     }
 
-    pub fn to_record(&self) -> Result<Record, anyhow::Error> {
+    pub fn to_record(&self) -> Result<EntryRecord, anyhow::Error> {
         parse_entry(self.args.clone())
     }
 }
@@ -95,6 +101,18 @@ fn sort_events(a: &Record, b: &Record) -> std::cmp::Ordering {
     }
 }
 
+pub fn list_recurrence() -> Result<Vec<RecurringRecord>, anyhow::Error> {
+    let filename = saturn_db();
+
+    let db = if std::fs::metadata(&filename).is_ok() {
+        DB::load(filename.clone())?
+    } else {
+        DB::default()
+    };
+
+    Ok(db.list_recurrence())
+}
+
 pub fn complete_task(primary_key: u64) -> Result<(), anyhow::Error> {
     let filename = saturn_db();
 
@@ -108,7 +126,7 @@ pub fn complete_task(primary_key: u64) -> Result<(), anyhow::Error> {
     db.dump(filename.clone())
 }
 
-pub fn delete_event(primary_key: u64) -> Result<(), anyhow::Error> {
+pub fn delete_event(primary_key: u64, recur: bool) -> Result<(), anyhow::Error> {
     let filename = saturn_db();
 
     let mut db = if std::fs::metadata(&filename).is_ok() {
@@ -117,7 +135,12 @@ pub fn delete_event(primary_key: u64) -> Result<(), anyhow::Error> {
         DB::default()
     };
 
-    db.delete(primary_key);
+    if recur {
+        db.delete_recurrence(primary_key);
+    } else {
+        db.delete(primary_key);
+    }
+
     db.dump(filename.clone())
 }
 
@@ -161,6 +184,7 @@ pub fn list_entries(all: bool, include_completed: bool) -> Result<Vec<Record>, a
 }
 
 enum EntryState {
+    Recur,
     Date,
     Time,
     TimeAt,
@@ -171,25 +195,53 @@ enum EntryState {
     Detail,
 }
 
-fn parse_entry(args: Vec<String>) -> Result<Record, anyhow::Error> {
+#[derive(Debug, PartialEq)]
+pub struct EntryRecord {
+    record: Record,
+    recurrence: Option<RecurringRecord>,
+}
+
+fn parse_entry(args: Vec<String>) -> Result<EntryRecord, anyhow::Error> {
     let mut record = Record::build();
     let mut state = EntryState::Date;
 
     let mut scheduled_first: Option<chrono::NaiveTime> = None;
+    let mut recurrence: Option<fancy_duration::FancyDuration<chrono::Duration>> = None;
 
     for arg in &args {
         match state {
+            EntryState::Recur => {
+                recurrence = Some(fancy_duration::FancyDuration::<chrono::Duration>::parse(
+                    arg,
+                )?);
+                state = EntryState::Date;
+            }
             EntryState::Date => {
                 match arg.to_lowercase().as_str() {
-                    "today" => record.set_date(chrono::Local::now().date_naive()),
-                    "yesterday" => record
-                        .set_date((chrono::Local::now() - chrono::Duration::days(1)).date_naive()),
-                    "tomorrow" => record
-                        .set_date((chrono::Local::now() + chrono::Duration::days(1)).date_naive()),
-                    _ => record.set_date(parse_date(arg.to_string())?),
+                    "today" => {
+                        record.set_date(chrono::Local::now().date_naive());
+                        state = EntryState::Time;
+                    }
+                    "yesterday" => {
+                        record.set_date(
+                            (chrono::Local::now() - chrono::Duration::days(1)).date_naive(),
+                        );
+                        state = EntryState::Time;
+                    }
+                    "tomorrow" => {
+                        record.set_date(
+                            (chrono::Local::now() + chrono::Duration::days(1)).date_naive(),
+                        );
+                        state = EntryState::Time;
+                    }
+                    "recur" => {
+                        state = EntryState::Recur;
+                    }
+                    _ => {
+                        record.set_date(parse_date(arg.to_string())?);
+                        state = EntryState::Time;
+                    }
                 };
-
-                state = EntryState::Time;
             }
             EntryState::Time => match arg.as_str() {
                 "all" => {
@@ -257,7 +309,19 @@ fn parse_entry(args: Vec<String>) -> Result<Record, anyhow::Error> {
         }
     }
 
-    Ok(record)
+    if let Some(recurrence) = recurrence {
+        let rr = RecurringRecord::new(record.clone(), recurrence);
+
+        Ok(EntryRecord {
+            record,
+            recurrence: Some(rr),
+        })
+    } else {
+        Ok(EntryRecord {
+            record,
+            recurrence: None,
+        })
+    }
 }
 
 fn parse_date(s: String) -> Result<chrono::NaiveDate, anyhow::Error> {
@@ -568,7 +632,8 @@ mod tests {
                         .map(|s| s.to_string())
                         .collect::<Vec<String>>()
                 )
-                .unwrap(),
+                .unwrap()
+                .record,
                 t,
             )
         }
