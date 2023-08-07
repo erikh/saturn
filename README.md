@@ -14,7 +14,9 @@ of important appointments.
 There is currently no crate, please use the `--git` method of installing crates
 with cargo:
 
+```
 cargo install --git https://github.com/erikh/saturn
+```
 
 ## Entry language
 
