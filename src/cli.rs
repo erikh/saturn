@@ -142,7 +142,7 @@ pub fn events_now(
 ) -> Result<Vec<Record>, anyhow::Error> {
     do_db(|db| {
         let mut events = db.events_now(last, include_completed);
-        events.sort_by(|a, b| sort_events(a, b));
+        events.sort_by(sort_events);
         events
     })
 }
@@ -154,7 +154,7 @@ pub fn list_entries(all: bool, include_completed: bool) -> Result<Vec<Record>, a
         } else {
             db.list_today(include_completed)
         };
-        list.sort_by(|a, b| sort_events(a, b));
+        list.sort_by(sort_events);
         list
     })
 }
