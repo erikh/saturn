@@ -1,5 +1,5 @@
 use crate::{
-    db::file::{UnixFileDB, UnixFileLoader},
+    db::{memory::MemoryDB, unixfile::UnixFileLoader},
     record::{Record, RecordType, RecurringRecord},
 };
 use anyhow::anyhow;
@@ -35,7 +35,7 @@ impl EntryParser {
         let mut db = if std::fs::metadata(&self.filename).is_ok() {
             UnixFileLoader::new(&self.filename).load()?
         } else {
-            Box::new(UnixFileDB::default())
+            MemoryDB::new()
         };
 
         let mut record = self.to_record()?;
@@ -108,7 +108,7 @@ pub fn list_recurrence() -> Result<Vec<RecurringRecord>, anyhow::Error> {
     let db = if std::fs::metadata(&filename).is_ok() {
         UnixFileLoader::new(&filename).load()?
     } else {
-        Box::new(UnixFileDB::default())
+        MemoryDB::new()
     };
 
     Ok(db.list_recurrence())
@@ -120,7 +120,7 @@ pub fn complete_task(primary_key: u64) -> Result<(), anyhow::Error> {
     let mut db = if std::fs::metadata(&filename).is_ok() {
         UnixFileLoader::new(&filename).load()?
     } else {
-        Box::new(UnixFileDB::default())
+        MemoryDB::new()
     };
 
     db.complete_task(primary_key);
@@ -133,7 +133,7 @@ pub fn delete_event(primary_key: u64, recur: bool) -> Result<(), anyhow::Error> 
     let mut db = if std::fs::metadata(&filename).is_ok() {
         UnixFileLoader::new(&filename).load()?
     } else {
-        Box::new(UnixFileDB::default())
+        MemoryDB::new()
     };
 
     if recur {
@@ -154,7 +154,7 @@ pub fn events_now(
     let mut db = if std::fs::metadata(&filename).is_ok() {
         UnixFileLoader::new(&filename).load()?
     } else {
-        Box::new(UnixFileDB::default())
+        MemoryDB::new()
     };
 
     let mut events = db.events_now(last, include_completed);
@@ -171,7 +171,7 @@ pub fn list_entries(all: bool, include_completed: bool) -> Result<Vec<Record>, a
     let db = if std::fs::metadata(&filename).is_ok() {
         UnixFileLoader::new(&filename).load()?
     } else {
-        Box::new(UnixFileDB::default())
+        MemoryDB::new()
     };
 
     let mut list = if all {

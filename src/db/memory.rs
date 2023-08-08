@@ -1,103 +1,20 @@
 use crate::record::{Record, RecurringRecord};
-use anyhow::anyhow;
 use serde::{Deserialize, Serialize};
-use std::{collections::BTreeMap, os::unix::io::FromRawFd};
-
-pub struct UnixFileLoader<'a>(pub &'a std::path::PathBuf);
-
-impl<'a> UnixFileLoader<'a> {
-    pub fn new(filename: &'a std::path::PathBuf) -> Self {
-        Self(filename)
-    }
-
-    pub fn load(&self) -> Result<Box<UnixFileDB>, anyhow::Error> {
-        unsafe {
-            let fd = nix::libc::open(
-                std::ffi::CString::from_vec_unchecked(self.0.to_str().unwrap().as_bytes().to_vec())
-                    .as_ptr(),
-                nix::libc::O_RDONLY,
-            );
-            if fd < 0 {
-                return Err(anyhow!(std::ffi::CStr::from_ptr(nix::libc::strerror(
-                    nix::errno::errno()
-                ))
-                .to_str()
-                .unwrap()
-                .to_string()));
-            }
-
-            if nix::libc::flock(fd, nix::libc::LOCK_EX) != 0 {
-                return Err(anyhow!(std::ffi::CStr::from_ptr(nix::libc::strerror(
-                    nix::errno::errno()
-                ))
-                .to_str()
-                .unwrap()
-                .to_string()));
-            }
-
-            let res: UnixFileDB = ciborium::from_reader(std::fs::File::from_raw_fd(fd))?;
-            Ok(Box::new(res))
-        }
-    }
-
-    pub fn dump(&self, db: &mut Box<UnixFileDB>) -> Result<(), anyhow::Error> {
-        unsafe {
-            let fd = nix::libc::open(
-                std::ffi::CString::from_vec_unchecked(self.0.to_str().unwrap().as_bytes().to_vec())
-                    .as_ptr(),
-                nix::libc::O_WRONLY | nix::libc::O_TRUNC | nix::libc::O_CREAT,
-            );
-            if fd < 0 {
-                return Err(anyhow!(std::ffi::CStr::from_ptr(nix::libc::strerror(
-                    nix::errno::errno()
-                ))
-                .to_str()
-                .unwrap()
-                .to_string()));
-            }
-
-            if nix::libc::flock(fd, nix::libc::LOCK_EX) != 0 {
-                return Err(anyhow!(std::ffi::CStr::from_ptr(nix::libc::strerror(
-                    nix::errno::errno()
-                ))
-                .to_str()
-                .unwrap()
-                .to_string()));
-            }
-
-            if nix::libc::chmod(
-                std::ffi::CString::from_vec_unchecked(self.0.to_str().unwrap().as_bytes().to_vec())
-                    .as_ptr(),
-                nix::libc::S_IRUSR | nix::libc::S_IWUSR,
-            ) != 0
-            {
-                return Err(anyhow!(std::ffi::CStr::from_ptr(nix::libc::strerror(
-                    nix::errno::errno()
-                ))
-                .to_str()
-                .unwrap()
-                .to_string()));
-            }
-
-            db.update_recurrence();
-
-            Ok(ciborium::into_writer(
-                db.as_ref(),
-                std::fs::File::from_raw_fd(fd),
-            )?)
-        }
-    }
-}
+use std::collections::BTreeMap;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
-pub struct UnixFileDB {
+pub struct MemoryDB {
     primary_key: u64,
     records: BTreeMap<chrono::NaiveDate, Vec<Record>>,
     recurrence_key: u64,
     recurring: Vec<RecurringRecord>,
 }
 
-impl UnixFileDB {
+impl MemoryDB {
+    pub fn new() -> Box<Self> {
+        Box::new(Self::default())
+    }
+
     pub fn delete(&mut self, primary_key: u64) {
         for (key, list) in self.records.clone() {
             let mut new = Vec::new();
@@ -315,10 +232,10 @@ impl UnixFileDB {
 mod tests {
     #[test]
     fn test_recording() {
-        use super::{UnixFileDB, UnixFileLoader};
+        use crate::db::{memory::MemoryDB, unixfile::UnixFileLoader};
         use crate::record::Record;
 
-        let mut db = Box::new(UnixFileDB::default());
+        let mut db = MemoryDB::new();
 
         for x in 0..(rand::random::<u64>() % 50) + 1 {
             db.record(
