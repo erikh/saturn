@@ -2,9 +2,12 @@ pub mod file;
 
 use crate::record::{Record, RecurringRecord};
 
-pub trait DBLoader {
-    fn load(&self) -> dyn DB;
-    fn dump(&self) -> dyn DB;
+pub trait DBLoader<T>
+where
+    T: DB + serde::Serialize + for<'a> serde::Deserialize<'a>,
+{
+    fn load(&self) -> Result<Box<T>, anyhow::Error>;
+    fn dump(&self, db: &mut Box<T>) -> Result<(), anyhow::Error>;
 }
 
 pub trait DB {

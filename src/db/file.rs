@@ -3,22 +3,18 @@ use anyhow::anyhow;
 use serde::{Deserialize, Serialize};
 use std::{collections::BTreeMap, os::unix::io::FromRawFd};
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
-pub struct UnixFileDB {
-    primary_key: u64,
-    records: BTreeMap<chrono::NaiveDate, Vec<Record>>,
-    recurrence_key: u64,
-    recurring: Vec<RecurringRecord>,
-}
+pub struct UnixFileLoader<'a>(pub &'a std::path::PathBuf);
 
-impl UnixFileDB {
-    pub fn load(filename: std::path::PathBuf) -> Result<Self, anyhow::Error> {
+impl<'a> UnixFileLoader<'a> {
+    pub fn new(filename: &'a std::path::PathBuf) -> Self {
+        Self(filename)
+    }
+
+    pub fn load(&self) -> Result<Box<UnixFileDB>, anyhow::Error> {
         unsafe {
             let fd = nix::libc::open(
-                std::ffi::CString::from_vec_unchecked(
-                    filename.to_str().unwrap().as_bytes().to_vec(),
-                )
-                .as_ptr(),
+                std::ffi::CString::from_vec_unchecked(self.0.to_str().unwrap().as_bytes().to_vec())
+                    .as_ptr(),
                 nix::libc::O_RDONLY,
             );
             if fd < 0 {
@@ -39,17 +35,16 @@ impl UnixFileDB {
                 .to_string()));
             }
 
-            Ok(ciborium::from_reader(std::fs::File::from_raw_fd(fd))?)
+            let res: UnixFileDB = ciborium::from_reader(std::fs::File::from_raw_fd(fd))?;
+            Ok(Box::new(res))
         }
     }
 
-    pub fn dump(&mut self, filename: std::path::PathBuf) -> Result<(), anyhow::Error> {
+    pub fn dump(&self, db: &mut Box<UnixFileDB>) -> Result<(), anyhow::Error> {
         unsafe {
             let fd = nix::libc::open(
-                std::ffi::CString::from_vec_unchecked(
-                    filename.to_str().unwrap().as_bytes().to_vec(),
-                )
-                .as_ptr(),
+                std::ffi::CString::from_vec_unchecked(self.0.to_str().unwrap().as_bytes().to_vec())
+                    .as_ptr(),
                 nix::libc::O_WRONLY | nix::libc::O_TRUNC | nix::libc::O_CREAT,
             );
             if fd < 0 {
@@ -71,10 +66,8 @@ impl UnixFileDB {
             }
 
             if nix::libc::chmod(
-                std::ffi::CString::from_vec_unchecked(
-                    filename.to_str().unwrap().as_bytes().to_vec(),
-                )
-                .as_ptr(),
+                std::ffi::CString::from_vec_unchecked(self.0.to_str().unwrap().as_bytes().to_vec())
+                    .as_ptr(),
                 nix::libc::S_IRUSR | nix::libc::S_IWUSR,
             ) != 0
             {
@@ -86,12 +79,25 @@ impl UnixFileDB {
                 .to_string()));
             }
 
-            self.update_recurrence();
+            db.update_recurrence();
 
-            Ok(ciborium::into_writer(self, std::fs::File::from_raw_fd(fd))?)
+            Ok(ciborium::into_writer(
+                db.as_ref(),
+                std::fs::File::from_raw_fd(fd),
+            )?)
         }
     }
+}
 
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct UnixFileDB {
+    primary_key: u64,
+    records: BTreeMap<chrono::NaiveDate, Vec<Record>>,
+    recurrence_key: u64,
+    recurring: Vec<RecurringRecord>,
+}
+
+impl UnixFileDB {
     pub fn delete(&mut self, primary_key: u64) {
         for (key, list) in self.records.clone() {
             let mut new = Vec::new();
@@ -309,10 +315,10 @@ impl UnixFileDB {
 mod tests {
     #[test]
     fn test_recording() {
-        use super::UnixFileDB;
+        use super::{UnixFileDB, UnixFileLoader};
         use crate::record::Record;
 
-        let mut db = UnixFileDB::default();
+        let mut db = Box::new(UnixFileDB::default());
 
         for x in 0..(rand::random::<u64>() % 50) + 1 {
             db.record(
@@ -339,9 +345,11 @@ mod tests {
         }
 
         let f = tempfile::NamedTempFile::new().unwrap();
-        assert!(db.dump(f.path().to_path_buf()).is_ok());
+        assert!(UnixFileLoader::new(&f.path().to_path_buf())
+            .dump(&mut db)
+            .is_ok());
 
-        let res = UnixFileDB::load(f.path().to_path_buf());
+        let res = UnixFileLoader::new(&f.path().to_path_buf()).load();
         assert!(res.is_ok());
 
         let db2 = res.unwrap();

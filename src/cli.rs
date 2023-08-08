@@ -1,5 +1,5 @@
 use crate::{
-    db::file::UnixFileDB,
+    db::file::{UnixFileDB, UnixFileLoader},
     record::{Record, RecordType, RecurringRecord},
 };
 use anyhow::anyhow;
@@ -33,9 +33,9 @@ impl EntryParser {
 
     pub fn entry(&self) -> Result<(), anyhow::Error> {
         let mut db = if std::fs::metadata(&self.filename).is_ok() {
-            UnixFileDB::load(self.filename.clone())?
+            UnixFileLoader::new(&self.filename).load()?
         } else {
-            UnixFileDB::default()
+            Box::new(UnixFileDB::default())
         };
 
         let mut record = self.to_record()?;
@@ -49,7 +49,7 @@ impl EntryParser {
         }
 
         db.record(record.record);
-        db.dump(self.filename.clone())?;
+        UnixFileLoader::new(&self.filename).dump(&mut db)?;
 
         Ok(())
     }
@@ -106,9 +106,9 @@ pub fn list_recurrence() -> Result<Vec<RecurringRecord>, anyhow::Error> {
     let filename = saturn_db();
 
     let db = if std::fs::metadata(&filename).is_ok() {
-        UnixFileDB::load(filename.clone())?
+        UnixFileLoader::new(&filename).load()?
     } else {
-        UnixFileDB::default()
+        Box::new(UnixFileDB::default())
     };
 
     Ok(db.list_recurrence())
@@ -118,22 +118,22 @@ pub fn complete_task(primary_key: u64) -> Result<(), anyhow::Error> {
     let filename = saturn_db();
 
     let mut db = if std::fs::metadata(&filename).is_ok() {
-        UnixFileDB::load(filename.clone())?
+        UnixFileLoader::new(&filename).load()?
     } else {
-        UnixFileDB::default()
+        Box::new(UnixFileDB::default())
     };
 
     db.complete_task(primary_key);
-    db.dump(filename.clone())
+    UnixFileLoader::new(&filename).dump(&mut db)
 }
 
 pub fn delete_event(primary_key: u64, recur: bool) -> Result<(), anyhow::Error> {
     let filename = saturn_db();
 
     let mut db = if std::fs::metadata(&filename).is_ok() {
-        UnixFileDB::load(filename.clone())?
+        UnixFileLoader::new(&filename).load()?
     } else {
-        UnixFileDB::default()
+        Box::new(UnixFileDB::default())
     };
 
     if recur {
@@ -142,7 +142,7 @@ pub fn delete_event(primary_key: u64, recur: bool) -> Result<(), anyhow::Error> 
         db.delete(primary_key);
     }
 
-    db.dump(filename.clone())
+    UnixFileLoader::new(&filename).dump(&mut db)
 }
 
 pub fn events_now(
@@ -152,15 +152,15 @@ pub fn events_now(
     let filename = saturn_db();
 
     let mut db = if std::fs::metadata(&filename).is_ok() {
-        UnixFileDB::load(filename.clone())?
+        UnixFileLoader::new(&filename).load()?
     } else {
-        UnixFileDB::default()
+        Box::new(UnixFileDB::default())
     };
 
     let mut events = db.events_now(last, include_completed);
     events.sort_by(|a, b| sort_events(a, b));
 
-    db.dump(filename.clone())?;
+    UnixFileLoader::new(&filename).dump(&mut db)?;
 
     Ok(events)
 }
@@ -169,9 +169,9 @@ pub fn list_entries(all: bool, include_completed: bool) -> Result<Vec<Record>, a
     let filename = saturn_db();
 
     let db = if std::fs::metadata(&filename).is_ok() {
-        UnixFileDB::load(filename.clone())?
+        UnixFileLoader::new(&filename).load()?
     } else {
-        UnixFileDB::default()
+        Box::new(UnixFileDB::default())
     };
 
     let mut list = if all {
