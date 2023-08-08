@@ -163,7 +163,7 @@ impl Record {
         Self::default()
     }
 
-    pub fn record(&self, mut db: crate::db::DB) {
+    pub fn record(&self, mut db: crate::db::file::UnixFileDB) {
         db.record(self.clone())
     }
 

@@ -1,5 +1,5 @@
 use crate::{
-    db::DB,
+    db::file::UnixFileDB,
     record::{Record, RecordType, RecurringRecord},
 };
 use anyhow::anyhow;
@@ -33,9 +33,9 @@ impl EntryParser {
 
     pub fn entry(&self) -> Result<(), anyhow::Error> {
         let mut db = if std::fs::metadata(&self.filename).is_ok() {
-            DB::load(self.filename.clone())?
+            UnixFileDB::load(self.filename.clone())?
         } else {
-            DB::default()
+            UnixFileDB::default()
         };
 
         let mut record = self.to_record()?;
@@ -106,9 +106,9 @@ pub fn list_recurrence() -> Result<Vec<RecurringRecord>, anyhow::Error> {
     let filename = saturn_db();
 
     let db = if std::fs::metadata(&filename).is_ok() {
-        DB::load(filename.clone())?
+        UnixFileDB::load(filename.clone())?
     } else {
-        DB::default()
+        UnixFileDB::default()
     };
 
     Ok(db.list_recurrence())
@@ -118,9 +118,9 @@ pub fn complete_task(primary_key: u64) -> Result<(), anyhow::Error> {
     let filename = saturn_db();
 
     let mut db = if std::fs::metadata(&filename).is_ok() {
-        DB::load(filename.clone())?
+        UnixFileDB::load(filename.clone())?
     } else {
-        DB::default()
+        UnixFileDB::default()
     };
 
     db.complete_task(primary_key);
@@ -131,9 +131,9 @@ pub fn delete_event(primary_key: u64, recur: bool) -> Result<(), anyhow::Error> 
     let filename = saturn_db();
 
     let mut db = if std::fs::metadata(&filename).is_ok() {
-        DB::load(filename.clone())?
+        UnixFileDB::load(filename.clone())?
     } else {
-        DB::default()
+        UnixFileDB::default()
     };
 
     if recur {
@@ -152,9 +152,9 @@ pub fn events_now(
     let filename = saturn_db();
 
     let mut db = if std::fs::metadata(&filename).is_ok() {
-        DB::load(filename.clone())?
+        UnixFileDB::load(filename.clone())?
     } else {
-        DB::default()
+        UnixFileDB::default()
     };
 
     let mut events = db.events_now(last, include_completed);
@@ -169,9 +169,9 @@ pub fn list_entries(all: bool, include_completed: bool) -> Result<Vec<Record>, a
     let filename = saturn_db();
 
     let db = if std::fs::metadata(&filename).is_ok() {
-        DB::load(filename.clone())?
+        UnixFileDB::load(filename.clone())?
     } else {
-        DB::default()
+        UnixFileDB::default()
     };
 
     let mut list = if all {
