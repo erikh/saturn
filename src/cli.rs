@@ -102,86 +102,61 @@ fn sort_events(a: &Record, b: &Record) -> std::cmp::Ordering {
     }
 }
 
-pub fn list_recurrence() -> Result<Vec<RecurringRecord>, anyhow::Error> {
+fn do_db<T>(f: impl FnOnce(&mut Box<MemoryDB>) -> T) -> Result<T, anyhow::Error> {
     let filename = saturn_db();
 
-    let db = if std::fs::metadata(&filename).is_ok() {
+    let mut db = if std::fs::metadata(&filename).is_ok() {
         UnixFileLoader::new(&filename).load()?
     } else {
         MemoryDB::new()
     };
 
-    Ok(db.list_recurrence())
+    let res = f(&mut db);
+
+    UnixFileLoader::new(&filename).dump(&mut db)?;
+
+    Ok(res)
+}
+
+pub fn list_recurrence() -> Result<Vec<RecurringRecord>, anyhow::Error> {
+    do_db(|db| db.list_recurrence())
 }
 
 pub fn complete_task(primary_key: u64) -> Result<(), anyhow::Error> {
-    let filename = saturn_db();
-
-    let mut db = if std::fs::metadata(&filename).is_ok() {
-        UnixFileLoader::new(&filename).load()?
-    } else {
-        MemoryDB::new()
-    };
-
-    db.complete_task(primary_key);
-    UnixFileLoader::new(&filename).dump(&mut db)
+    do_db(|db| db.complete_task(primary_key))
 }
 
 pub fn delete_event(primary_key: u64, recur: bool) -> Result<(), anyhow::Error> {
-    let filename = saturn_db();
-
-    let mut db = if std::fs::metadata(&filename).is_ok() {
-        UnixFileLoader::new(&filename).load()?
-    } else {
-        MemoryDB::new()
-    };
-
-    if recur {
-        db.delete_recurrence(primary_key);
-    } else {
-        db.delete(primary_key);
-    }
-
-    UnixFileLoader::new(&filename).dump(&mut db)
+    do_db(|db| {
+        if recur {
+            db.delete_recurrence(primary_key);
+        } else {
+            db.delete(primary_key);
+        }
+    })
 }
 
 pub fn events_now(
     last: chrono::Duration,
     include_completed: bool,
 ) -> Result<Vec<Record>, anyhow::Error> {
-    let filename = saturn_db();
-
-    let mut db = if std::fs::metadata(&filename).is_ok() {
-        UnixFileLoader::new(&filename).load()?
-    } else {
-        MemoryDB::new()
-    };
-
-    let mut events = db.events_now(last, include_completed);
-    events.sort_by(|a, b| sort_events(a, b));
-
-    UnixFileLoader::new(&filename).dump(&mut db)?;
-
-    Ok(events)
+    do_db(|db| {
+        let mut events = db.events_now(last, include_completed);
+        events.sort_by(|a, b| sort_events(a, b));
+        events
+    })
 }
 
 pub fn list_entries(all: bool, include_completed: bool) -> Result<Vec<Record>, anyhow::Error> {
-    let filename = saturn_db();
-
-    let db = if std::fs::metadata(&filename).is_ok() {
-        UnixFileLoader::new(&filename).load()?
-    } else {
-        MemoryDB::new()
-    };
-
-    let mut list = if all {
-        db.list_all(include_completed)
-    } else {
-        db.list_today(include_completed)
-    };
-    list.sort_by(|a, b| sort_events(a, b));
-
-    Ok(list)
+    do_db(|db| {
+        let mut list = if all {
+            db.list_all(include_completed)
+        } else {
+            db.list_today(include_completed)
+        };
+        list.sort_by(|a, b| sort_events(a, b));
+        list
+    })
 }
 
 enum EntryState {
