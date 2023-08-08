@@ -39,10 +39,7 @@ impl DB {
                 .to_string()));
             }
 
-            let mut s: Self = ciborium::from_reader(std::fs::File::from_raw_fd(fd))?;
-
-            s.update_recurrence();
-            Ok(s)
+            Ok(ciborium::from_reader(std::fs::File::from_raw_fd(fd))?)
         }
     }
 
@@ -148,7 +145,7 @@ impl DB {
                     for item in items {
                         if let Some(key) = item.recurrence_key() {
                             if key == recur.recurrence_key()
-                                && now - item.datetime() > recur.recurrence().duration()
+                                && item.datetime() - recur.recurrence().duration() < now
                             {
                                 seen = Some(item.clone());
                             }
@@ -162,10 +159,13 @@ impl DB {
                 let mut dt = seen.datetime();
                 let duration = recur.recurrence().duration();
 
-                while dt + duration < now {
+                loop {
                     let key = self.next_key();
-                    dt += duration;
                     self.record(recur.record_from(key, dt.naive_local()));
+                    dt += duration;
+                    if dt >= now {
+                        break;
+                    }
                 }
             }
         }
