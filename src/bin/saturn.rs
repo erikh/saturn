@@ -9,6 +9,7 @@ use saturn::{
     },
     record::{Record, RecurringRecord, Schedule},
 };
+use std::io::Write;
 use ttygrid::{add_line, grid, header};
 
 #[derive(Parser, Debug)]
@@ -226,7 +227,9 @@ async fn main() -> Result<(), anyhow::Error> {
                 let calendar = Client::new("", "", "", "", "");
                 let url = calendar.user_consent_url(&[]);
                 println!("Click on this and login: {}", url);
-                print!("Now paste the result in here:");
+                let mut out = std::io::stdout().lock();
+                out.write(b"Now paste the result in here: ")?;
+                out.flush()?;
                 let mut buf = String::new();
                 if std::io::stdin().read_line(&mut buf)? == 0 {
                     return Err(anyhow!("Paste something in, fool"));
