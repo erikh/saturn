@@ -215,7 +215,8 @@ fn print_recurring(entries: Vec<RecurringRecord>) {
     println!("{}", grid.display().unwrap());
 }
 
-fn main() -> Result<(), anyhow::Error> {
+#[tokio::main]
+async fn main() -> Result<(), anyhow::Error> {
     let cli = ArgParser::parse();
     match cli.command {
         Command::Config { command } => match command {
