@@ -1,4 +1,5 @@
 use crate::{
+    config::{Config, DBType, CONFIG_FILENAME, DB_FILENAME},
     db::{memory::MemoryDB, unixfile::UnixFileLoader},
     record::{Record, RecordType, RecurringRecord},
 };
@@ -6,11 +7,15 @@ use anyhow::anyhow;
 use chrono::{Datelike, Timelike};
 use std::{env::var, path::PathBuf};
 
+pub fn saturn_config() -> PathBuf {
+    PathBuf::from(var("HOME").unwrap_or("/".to_string())).join(CONFIG_FILENAME)
+}
+
 pub fn saturn_db() -> PathBuf {
     PathBuf::from(
         var("SATURN_DB").unwrap_or(
             PathBuf::from(var("HOME").unwrap_or("/".to_string()))
-                .join(".saturn.db")
+                .join(DB_FILENAME)
                 .to_str()
                 .unwrap()
                 .to_string(),
@@ -103,19 +108,26 @@ fn sort_events(a: &Record, b: &Record) -> std::cmp::Ordering {
 }
 
 fn do_db<T>(f: impl FnOnce(&mut Box<MemoryDB>) -> T) -> Result<T, anyhow::Error> {
-    let filename = saturn_db();
+    let config = Config::load(saturn_config())?;
 
-    let mut db = if std::fs::metadata(&filename).is_ok() {
-        UnixFileLoader::new(&filename).load()?
-    } else {
-        MemoryDB::new()
-    };
+    match config.db_type() {
+        DBType::UnixFile => {
+            let filename = saturn_db();
 
-    let res = f(&mut db);
+            let mut db = if std::fs::metadata(&filename).is_ok() {
+                UnixFileLoader::new(&filename).load()?
+            } else {
+                MemoryDB::new()
+            };
 
-    UnixFileLoader::new(&filename).dump(&mut db)?;
+            let res = f(&mut db);
 
-    Ok(res)
+            UnixFileLoader::new(&filename).dump(&mut db)?;
+
+            Ok(res)
+        }
+        _ => Err(anyhow!("Invalid DB Type")),
+    }
 }
 
 pub fn list_recurrence() -> Result<Vec<RecurringRecord>, anyhow::Error> {

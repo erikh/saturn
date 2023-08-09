@@ -22,6 +22,7 @@ regex = "*"
 fancy-duration = { version = "*", default-features = false, features = [ "chrono" ] }
 ttygrid = "*"
 nix = "*"
+serde_yaml = "*"
 
 [dev-dependencies]
 tempfile = "*"
