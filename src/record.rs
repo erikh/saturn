@@ -51,17 +51,16 @@ impl RecurringRecord {
         let mut record = self.record.clone();
         record.set_primary_key(primary_key);
         record.set_recurrence_key(Some(self.recurrence_key));
-        let time = from + self.recurrence.duration();
-        record.set_date(time.date());
+        record.set_date(from.date());
         match record.record_type() {
             RecordType::At => {
-                record.set_at(Some(time.time()));
+                record.set_at(Some(from.time()));
             }
             RecordType::AllDay => {}
             RecordType::Schedule => {
                 let schedule = record.scheduled().unwrap();
                 let duration = schedule.1 - schedule.0;
-                record.set_scheduled(Some((time.time(), time.time() + duration)));
+                record.set_scheduled(Some((from.time(), from.time() + duration)));
             }
         };
         record

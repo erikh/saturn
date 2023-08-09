@@ -34,7 +34,8 @@ impl<'a> UnixFileLoader<'a> {
                 .to_string()));
             }
 
-            let res: MemoryDB = ciborium::from_reader(std::fs::File::from_raw_fd(fd))?;
+            let mut res: MemoryDB = ciborium::from_reader(std::fs::File::from_raw_fd(fd))?;
+            res.update_recurrence();
             Ok(Box::new(res))
         }
     }

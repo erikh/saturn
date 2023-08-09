@@ -62,7 +62,7 @@ impl MemoryDB {
 
         for recur in self.recurring.clone() {
             let mut seen: Option<Record> = None;
-            let mut begin = now - recur.recurrence().duration();
+            let mut begin = now - recur.recurrence().duration() - chrono::Duration::days(7);
             while begin.date_naive() <= now.date_naive() {
                 if let Some(items) = self.records.get(&begin.date_naive()) {
                     for item in items {
@@ -83,12 +83,12 @@ impl MemoryDB {
                 let duration = recur.recurrence().duration();
 
                 loop {
-                    let key = self.next_key();
-                    self.record(recur.record_from(key, dt.naive_local()));
                     dt += duration;
                     if dt >= now {
                         break;
                     }
+                    let key = self.next_key();
+                    self.record(recur.record_from(key, dt.naive_local()));
                 }
             }
         }
