@@ -231,7 +231,9 @@ async fn main() -> Result<(), anyhow::Error> {
                 out.write(b"Now paste the result in here: ")?;
                 out.flush()?;
                 let mut buf = String::new();
-                if std::io::stdin().read_line(&mut buf)? == 0 {
+                std::io::stdin().read_line(&mut buf)?;
+
+                if buf.trim().is_empty() {
                     return Err(anyhow!("Paste something in, fool"));
                 }
             }
