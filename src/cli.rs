@@ -4,7 +4,8 @@ use crate::{
     record::{Record, RecordType, RecurringRecord},
 };
 use anyhow::anyhow;
-use chrono::{Datelike, Timelike};
+use chrono::{Datelike, Duration, Timelike};
+use fancy_duration::FancyDuration;
 use std::{env::var, path::PathBuf};
 
 pub fn saturn_config() -> PathBuf {
@@ -107,6 +108,12 @@ fn sort_events(a: &Record, b: &Record) -> std::cmp::Ordering {
     }
 }
 
+pub fn set_sync_window(duration: FancyDuration<Duration>) -> Result<(), anyhow::Error> {
+    let mut config = Config::load(saturn_config())?;
+    config.set_sync_duration(Some(duration));
+    config.save(saturn_config())
+}
+
 fn do_db<T>(f: impl FnOnce(&mut Box<MemoryDB>) -> T) -> Result<T, anyhow::Error> {
     let config = Config::load(saturn_config())?;
 
@@ -148,10 +155,7 @@ pub fn delete_event(primary_key: u64, recur: bool) -> Result<(), anyhow::Error> 
     })
 }
 
-pub fn events_now(
-    last: chrono::Duration,
-    include_completed: bool,
-) -> Result<Vec<Record>, anyhow::Error> {
+pub fn events_now(last: Duration, include_completed: bool) -> Result<Vec<Record>, anyhow::Error> {
     do_db(|db| {
         let mut events = db.events_now(last, include_completed);
         events.sort_by(sort_events);
@@ -194,14 +198,12 @@ fn parse_entry(args: Vec<String>) -> Result<EntryRecord, anyhow::Error> {
     let mut state = EntryState::Date;
 
     let mut scheduled_first: Option<chrono::NaiveTime> = None;
-    let mut recurrence: Option<fancy_duration::FancyDuration<chrono::Duration>> = None;
+    let mut recurrence: Option<FancyDuration<Duration>> = None;
 
     for arg in &args {
         match state {
             EntryState::Recur => {
-                recurrence = Some(fancy_duration::FancyDuration::<chrono::Duration>::parse(
-                    arg,
-                )?);
+                recurrence = Some(FancyDuration::<Duration>::parse(arg)?);
                 state = EntryState::Date;
             }
             EntryState::Date => {
@@ -211,15 +213,11 @@ fn parse_entry(args: Vec<String>) -> Result<EntryRecord, anyhow::Error> {
                         state = EntryState::Time;
                     }
                     "yesterday" => {
-                        record.set_date(
-                            (chrono::Local::now() - chrono::Duration::days(1)).date_naive(),
-                        );
+                        record.set_date((chrono::Local::now() - Duration::days(1)).date_naive());
                         state = EntryState::Time;
                     }
                     "tomorrow" => {
-                        record.set_date(
-                            (chrono::Local::now() + chrono::Duration::days(1)).date_naive(),
-                        );
+                        record.set_date((chrono::Local::now() + Duration::days(1)).date_naive());
                         state = EntryState::Time;
                     }
                     "recur" => {
@@ -270,7 +268,7 @@ fn parse_entry(args: Vec<String>) -> Result<EntryRecord, anyhow::Error> {
             EntryState::NotifyTime => match arg.as_str() {
                 "me" => {}
                 _ => {
-                    let duration = fancy_duration::FancyDuration::<chrono::Duration>::parse(arg)?;
+                    let duration = FancyDuration::<Duration>::parse(arg)?;
                     if let Some(at) = record.at() {
                         record.add_notification(at - duration.duration());
                     } else if let Some(scheduled) = record.scheduled() {
@@ -556,7 +554,7 @@ mod tests {
     fn test_parse_entry() {
         use super::parse_entry;
         use crate::record::Record;
-        use chrono::{Datelike, Timelike};
+        use chrono::{Datelike, Duration, Timelike};
 
         let now = chrono::Local::now();
         let pm = now.hour() >= 12;
@@ -575,7 +573,7 @@ mod tests {
 
         let mut relax = record.clone();
         relax
-            .set_date((chrono::Local::now() + chrono::Duration::days(1)).date_naive())
+            .set_date((chrono::Local::now() + Duration::days(1)).date_naive())
             .set_at(Some(chrono::NaiveTime::from_hms_opt(16, 0, 0).unwrap()))
             .set_detail("Relax".to_string());
 

@@ -1,6 +1,10 @@
 use clap::{Parser, Subcommand};
+use fancy_duration::FancyDuration;
 use saturn::{
-    cli::{complete_task, delete_event, events_now, list_entries, list_recurrence, EntryParser},
+    cli::{
+        complete_task, delete_event, events_now, list_entries, list_recurrence, set_sync_window,
+        EntryParser,
+    },
     record::{Record, RecurringRecord, Schedule},
 };
 use ttygrid::{add_line, grid, header};
@@ -18,7 +22,22 @@ struct ArgParser {
 }
 
 #[derive(Debug, Subcommand)]
+enum ConfigCommand {
+    #[command(about = "Get an authentication token")]
+    GetToken {},
+    #[command(
+        about = "Set the synchronization window for remote requests. Window will be both added to the leading and trailing duration."
+    )]
+    SetSyncWindow { window: String },
+}
+
+#[derive(Debug, Subcommand)]
 enum Command {
+    #[command(about = "Manipulate Configuration")]
+    Config {
+        #[command(subcommand)]
+        command: ConfigCommand,
+    },
     #[command(alias = "c", about = "Also `c`. Complete a Task")]
     Complete { id: u64 },
     #[command(
@@ -199,6 +218,12 @@ fn print_recurring(entries: Vec<RecurringRecord>) {
 fn main() -> Result<(), anyhow::Error> {
     let cli = ArgParser::parse();
     match cli.command {
+        Command::Config { command } => match command {
+            ConfigCommand::GetToken {} => {}
+            ConfigCommand::SetSyncWindow { window } => {
+                set_sync_window(FancyDuration::<chrono::Duration>::parse(&window)?)?;
+            }
+        },
         Command::Complete { id } => complete_task(id)?,
         Command::Delete { id, recur } => delete_event(id, recur)?,
         Command::Notify {
