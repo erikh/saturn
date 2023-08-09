@@ -1,5 +1,7 @@
+use anyhow::anyhow;
 use clap::{Parser, Subcommand};
 use fancy_duration::FancyDuration;
+use google_calendar::Client;
 use saturn::{
     cli::{
         complete_task, delete_event, events_now, list_entries, list_recurrence, set_sync_window,
@@ -220,7 +222,16 @@ async fn main() -> Result<(), anyhow::Error> {
     let cli = ArgParser::parse();
     match cli.command {
         Command::Config { command } => match command {
-            ConfigCommand::GetToken {} => {}
+            ConfigCommand::GetToken {} => {
+                let calendar = Client::new("", "", "", "", "");
+                let url = calendar.user_consent_url(&[]);
+                println!("Click on this and login: {}", url);
+                print!("Now paste the result in here:");
+                let mut buf = String::new();
+                if std::io::stdin().read_line(&mut buf)? == 0 {
+                    return Err(anyhow!("Paste something in, fool"));
+                }
+            }
             ConfigCommand::SetSyncWindow { window } => {
                 set_sync_window(FancyDuration::<chrono::Duration>::parse(&window)?)?;
             }
