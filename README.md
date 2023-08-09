@@ -172,6 +172,34 @@ them. Until they are added, they will not have IDs nor can they be manipulated.
 Commands like `now` and `notify` which only perform read operations also adjust
 this data, so they can fire notifications properly for new tasks.
 
+## Google Calendar Support (ongoing work)
+
+Google Calendar support is partially working, with OAuth credentials being
+setup properly. Additional work still needs to be done to address database
+work.
+
+To use `saturn` with Google Calendar, you must create a Google Cloud account
+and assign an OAuth application to it. One is not provided automatically by
+using `saturn` to eliminate concerns of data provenance.
+
+To do this, follow [these
+steps](https://developers.google.com/calendar/api/quickstart/go), which go into
+how to set up an application for development. Be sure to setup any accounts you
+want to use as "Test Users", and ensure that
+`https://www.googleapis.com/auth/calendar` is in your list of allowed scopes.
+Once you have the "Client ID" and "Client Secret", run this command:
+
+```bash
+saturn config set-client <client id> <client secret>
+saturn config get-token
+```
+
+The latter of these two commands will have you access a URL in your browser and
+make you login to the google account you wish to use, which must be listed in
+your "testing users" in the OAuth setup above.
+
+I wish this were a little easier, but them's the ropes.
+
 ## Future Plans
 
 -   google calendar support (maybe proton too)
