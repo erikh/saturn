@@ -130,10 +130,15 @@ saturn complete <id>
 Will mark a task as "completed". Completed tasks get a visual notification and
 are automatically excluded from listing without the `--all` flag.
 
-## Database
+## Database & Configuration File
 
-Saturn keeps a CBOR database in ~/.saturn.db. Locking is flock(2), and quite
+Saturn keeps a CBOR database in `~/.saturn.db`. Locking is flock(2), and quite
 primitive. Suggestions and patches welcome.
+
+The configuration file is only required in limited scenarios (such as remote
+calendar support) and exists in `~/.saturn.conf`. It is a plain YAML file, but
+is typically manipulated by `saturn config` commands, which may replace any
+comments or other manipulations you previously did to the file by hand.
 
 ## Leveraging the well features with a periodic scheduler
 
