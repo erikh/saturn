@@ -230,7 +230,7 @@ async fn main() -> Result<(), anyhow::Error> {
                 client_id,
                 client_secret,
             } => set_client_info(client_id, client_secret)?,
-            ConfigCommand::GetToken {} => get_access_token()?,
+            ConfigCommand::GetToken {} => get_access_token().await?,
             ConfigCommand::SetSyncWindow { window } => {
                 set_sync_window(FancyDuration::<chrono::Duration>::parse(&window)?)?
             }

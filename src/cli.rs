@@ -1,13 +1,14 @@
 use crate::{
     config::{Config, DBType, CONFIG_FILENAME, DB_FILENAME},
     db::{google::CALENDAR_SCOPE, memory::MemoryDB, unixfile::UnixFileLoader},
+    oauth::{oauth_listener, State},
     record::{Record, RecordType, RecurringRecord},
 };
 use anyhow::anyhow;
 use chrono::{Datelike, Duration, Timelike};
 use fancy_duration::FancyDuration;
 use google_calendar::Client;
-use std::{env::var, io::Write, path::PathBuf};
+use std::{env::var, path::PathBuf};
 
 pub fn saturn_config() -> PathBuf {
     PathBuf::from(var("HOME").unwrap_or("/".to_string())).join(CONFIG_FILENAME)
@@ -113,8 +114,8 @@ pub fn get_config() -> Result<Config, anyhow::Error> {
     Config::load(saturn_config())
 }
 
-pub fn get_access_token() -> Result<(), anyhow::Error> {
-    let config = get_config()?;
+pub async fn get_access_token() -> Result<(), anyhow::Error> {
+    let mut config = get_config()?;
 
     if !config.has_client() {
         return Err(anyhow!(
@@ -122,27 +123,30 @@ pub fn get_access_token() -> Result<(), anyhow::Error> {
         ));
     }
 
+    let state = State::default();
+    let host = oauth_listener(state.clone()).await?;
+
     let calendar = Client::new(
         config.client_id().unwrap(),
         config.client_secret().unwrap(),
-        "http://localhost",
+        format!("http://{}", host),
         "",
         "",
     );
 
     let url = calendar.user_consent_url(&[CALENDAR_SCOPE.to_string()]);
     println!("Click on this and login: {}", url);
-    let mut out = std::io::stdout().lock();
-    out.write(b"Now paste the result in here: ")?;
-    out.flush()?;
-    let mut buf = String::new();
-    std::io::stdin().read_line(&mut buf)?;
 
-    if buf.trim().is_empty() {
-        return Err(anyhow!("Paste something in, fool"));
+    loop {
+        let lock = state.lock().await;
+        if lock.is_some() {
+            config.set_access_token(Some(lock.clone().unwrap()));
+            config.save(saturn_config())?;
+            return Ok(());
+        }
+
+        tokio::time::sleep(std::time::Duration::new(1, 0)).await;
     }
-
-    Ok(())
 }
 
 pub fn set_client_info(client_id: String, client_secret: String) -> Result<(), anyhow::Error> {

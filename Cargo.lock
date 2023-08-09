@@ -514,6 +514,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "davisjr"
+version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ad51e92447ea74b09ac6e100773e5f84f72a2b80218c645c84208c6e06ef9b93"
+dependencies = [
+ "async-recursion",
+ "http",
+ "hyper",
+ "lazy_static",
+ "serde_json",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
 name = "deranged"
 version = "0.3.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1900,6 +1915,7 @@ dependencies = [
  "ciborium",
  "clap",
  "console",
+ "davisjr",
  "fancy-duration",
  "google-calendar",
  "nix",
@@ -1912,6 +1928,7 @@ dependencies = [
  "tempfile",
  "tokio",
  "ttygrid",
+ "url",
 ]
 
 [[package]]

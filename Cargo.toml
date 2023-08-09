@@ -25,6 +25,8 @@ nix = "*"
 serde_yaml = "*"
 tokio = { version = "*", features = [ "full" ] }
 google-calendar = "*"
+davisjr = "*"
+url = "*"
 
 [dev-dependencies]
 tempfile = "*"
