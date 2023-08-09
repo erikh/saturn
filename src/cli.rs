@@ -1,6 +1,6 @@
 use crate::{
     config::{Config, DBType, CONFIG_FILENAME, DB_FILENAME},
-    db::{memory::MemoryDB, unixfile::UnixFileLoader},
+    db::{google::CALENDAR_SCOPE, memory::MemoryDB, unixfile::UnixFileLoader},
     record::{Record, RecordType, RecurringRecord},
 };
 use anyhow::anyhow;
@@ -130,7 +130,7 @@ pub fn get_access_token() -> Result<(), anyhow::Error> {
         "",
     );
 
-    let url = calendar.user_consent_url(&["https://www.googleapis.com/auth/calendar".to_string()]);
+    let url = calendar.user_consent_url(&[CALENDAR_SCOPE.to_string()]);
     println!("Click on this and login: {}", url);
     let mut out = std::io::stdout().lock();
     out.write(b"Now paste the result in here: ")?;
