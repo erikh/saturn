@@ -1,3 +1,5 @@
+use chrono::Duration;
+use fancy_duration::FancyDuration;
 use serde::{Deserialize, Serialize};
 
 pub const CONFIG_FILENAME: &str = ".saturn.conf";
@@ -10,10 +12,21 @@ pub enum DBType {
     Google,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
     db_type: DBType,
     access_token: Option<String>,
+    sync_duration: Option<FancyDuration<Duration>>,
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            db_type: DBType::UnixFile,
+            access_token: None,
+            sync_duration: None,
+        }
+    }
 }
 
 impl Config {
@@ -51,5 +64,13 @@ impl Config {
 
     pub fn db_type(&self) -> DBType {
         self.db_type.clone()
+    }
+
+    pub fn set_sync_duration(&mut self, sync_duration: Option<FancyDuration<Duration>>) {
+        self.sync_duration = sync_duration;
+    }
+
+    pub fn sync_duration(&self) -> Option<FancyDuration<Duration>> {
+        self.sync_duration.clone()
     }
 }
