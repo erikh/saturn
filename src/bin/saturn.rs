@@ -1,15 +1,13 @@
 use anyhow::anyhow;
 use clap::{Parser, Subcommand};
 use fancy_duration::FancyDuration;
-use google_calendar::Client;
 use saturn::{
     cli::{
-        complete_task, delete_event, events_now, get_config, list_entries, list_recurrence,
+        complete_task, delete_event, events_now, get_access_token, list_entries, list_recurrence,
         set_client_info, set_sync_window, EntryParser,
     },
     record::{Record, RecurringRecord, Schedule},
 };
-use std::io::Write;
 use ttygrid::{add_line, grid, header};
 
 #[derive(Parser, Debug)]
@@ -232,35 +230,7 @@ async fn main() -> Result<(), anyhow::Error> {
                 client_id,
                 client_secret,
             } => set_client_info(client_id, client_secret)?,
-            ConfigCommand::GetToken {} => {
-                let config = get_config()?;
-
-                if !config.has_client() {
-                    return Err(anyhow!(
-                        "You need to configure a client first; see `saturn config set-client`"
-                    ));
-                }
-
-                let calendar = Client::new(
-                    config.client_id().unwrap(),
-                    config.client_secret().unwrap(),
-                    "",
-                    "",
-                    "",
-                );
-
-                let url = calendar.user_consent_url(&[]);
-                println!("Click on this and login: {}", url);
-                let mut out = std::io::stdout().lock();
-                out.write(b"Now paste the result in here: ")?;
-                out.flush()?;
-                let mut buf = String::new();
-                std::io::stdin().read_line(&mut buf)?;
-
-                if buf.trim().is_empty() {
-                    return Err(anyhow!("Paste something in, fool"));
-                }
-            }
+            ConfigCommand::GetToken {} => get_access_token()?,
             ConfigCommand::SetSyncWindow { window } => {
                 set_sync_window(FancyDuration::<chrono::Duration>::parse(&window)?)?;
             }

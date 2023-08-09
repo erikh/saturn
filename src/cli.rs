@@ -6,7 +6,8 @@ use crate::{
 use anyhow::anyhow;
 use chrono::{Datelike, Duration, Timelike};
 use fancy_duration::FancyDuration;
-use std::{env::var, path::PathBuf};
+use google_calendar::Client;
+use std::{env::var, io::Write, path::PathBuf};
 
 pub fn saturn_config() -> PathBuf {
     PathBuf::from(var("HOME").unwrap_or("/".to_string())).join(CONFIG_FILENAME)
@@ -110,6 +111,38 @@ fn sort_events(a: &Record, b: &Record) -> std::cmp::Ordering {
 
 pub fn get_config() -> Result<Config, anyhow::Error> {
     Config::load(saturn_config())
+}
+
+pub fn get_access_token() -> Result<(), anyhow::Error> {
+    let config = get_config()?;
+
+    if !config.has_client() {
+        return Err(anyhow!(
+            "You need to configure a client first; see `saturn config set-client`"
+        ));
+    }
+
+    let calendar = Client::new(
+        config.client_id().unwrap(),
+        config.client_secret().unwrap(),
+        "http://localhost",
+        "",
+        "",
+    );
+
+    let url = calendar.user_consent_url(&["https://www.googleapis.com/auth/calendar".to_string()]);
+    println!("Click on this and login: {}", url);
+    let mut out = std::io::stdout().lock();
+    out.write(b"Now paste the result in here: ")?;
+    out.flush()?;
+    let mut buf = String::new();
+    std::io::stdin().read_line(&mut buf)?;
+
+    if buf.trim().is_empty() {
+        return Err(anyhow!("Paste something in, fool"));
+    }
+
+    Ok(())
 }
 
 pub fn set_client_info(client_id: String, client_secret: String) -> Result<(), anyhow::Error> {
