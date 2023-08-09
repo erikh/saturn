@@ -4,8 +4,8 @@ use fancy_duration::FancyDuration;
 use google_calendar::Client;
 use saturn::{
     cli::{
-        complete_task, delete_event, events_now, list_entries, list_recurrence, set_sync_window,
-        EntryParser,
+        complete_task, delete_event, events_now, get_config, list_entries, list_recurrence,
+        set_client_info, set_sync_window, EntryParser,
     },
     record::{Record, RecurringRecord, Schedule},
 };
@@ -26,6 +26,11 @@ struct ArgParser {
 
 #[derive(Debug, Subcommand)]
 enum ConfigCommand {
+    #[command(about = "Set your client credentials")]
+    SetClient {
+        client_id: String,
+        client_secret: String,
+    },
     #[command(about = "Get an authentication token")]
     GetToken {},
     #[command(
@@ -223,8 +228,27 @@ async fn main() -> Result<(), anyhow::Error> {
     let cli = ArgParser::parse();
     match cli.command {
         Command::Config { command } => match command {
+            ConfigCommand::SetClient {
+                client_id,
+                client_secret,
+            } => set_client_info(client_id, client_secret)?,
             ConfigCommand::GetToken {} => {
-                let calendar = Client::new("", "", "", "", "");
+                let config = get_config()?;
+
+                if !config.has_client() {
+                    return Err(anyhow!(
+                        "You need to configure a client first; see `saturn config set-client`"
+                    ));
+                }
+
+                let calendar = Client::new(
+                    config.client_id().unwrap(),
+                    config.client_secret().unwrap(),
+                    "",
+                    "",
+                    "",
+                );
+
                 let url = calendar.user_consent_url(&[]);
                 println!("Click on this and login: {}", url);
                 let mut out = std::io::stdout().lock();

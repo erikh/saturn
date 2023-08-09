@@ -108,8 +108,18 @@ fn sort_events(a: &Record, b: &Record) -> std::cmp::Ordering {
     }
 }
 
+pub fn get_config() -> Result<Config, anyhow::Error> {
+    Config::load(saturn_config())
+}
+
+pub fn set_client_info(client_id: String, client_secret: String) -> Result<(), anyhow::Error> {
+    let mut config = get_config()?;
+    config.set_client_info(client_id, client_secret);
+    config.save(saturn_config())
+}
+
 pub fn set_sync_window(duration: FancyDuration<Duration>) -> Result<(), anyhow::Error> {
-    let mut config = Config::load(saturn_config())?;
+    let mut config = get_config()?;
     config.set_sync_duration(Some(duration));
     config.save(saturn_config())
 }

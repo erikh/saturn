@@ -16,6 +16,7 @@ pub enum DBType {
 pub struct Config {
     db_type: DBType,
     access_token: Option<String>,
+    client_info: Option<(String, String)>,
     sync_duration: Option<FancyDuration<Duration>>,
 }
 
@@ -24,6 +25,7 @@ impl Default for Config {
         Self {
             db_type: DBType::UnixFile,
             access_token: None,
+            client_info: None,
             sync_duration: None,
         }
     }
@@ -72,5 +74,21 @@ impl Config {
 
     pub fn sync_duration(&self) -> Option<FancyDuration<Duration>> {
         self.sync_duration.clone()
+    }
+
+    pub fn set_client_info(&mut self, client_id: String, client_secret: String) {
+        self.client_info = Some((client_id, client_secret))
+    }
+
+    pub fn has_client(&self) -> bool {
+        self.client_info.is_some()
+    }
+
+    pub fn client_id(&self) -> Option<String> {
+        self.client_info.clone().map(|s| s.0)
+    }
+
+    pub fn client_secret(&self) -> Option<String> {
+        self.client_info.clone().map(|s| s.1)
     }
 }
