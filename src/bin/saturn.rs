@@ -232,7 +232,7 @@ async fn main() -> Result<(), anyhow::Error> {
             } => set_client_info(client_id, client_secret)?,
             ConfigCommand::GetToken {} => get_access_token()?,
             ConfigCommand::SetSyncWindow { window } => {
-                set_sync_window(FancyDuration::<chrono::Duration>::parse(&window)?)?;
+                set_sync_window(FancyDuration::<chrono::Duration>::parse(&window)?)?
             }
         },
         Command::Complete { id } => complete_task(id)?,
