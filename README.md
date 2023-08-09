@@ -196,7 +196,8 @@ saturn config get-token
 
 The latter of these two commands will have you access a URL in your browser and
 make you login to the google account you wish to use, which must be listed in
-your "testing users" in the OAuth setup above.
+your "testing users" in the OAuth setup above. As a final step, it will call
+back into a web service the application starts, which will feed it the token.
 
 I wish this were a little easier, but them's the ropes.
 
