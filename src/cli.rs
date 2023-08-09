@@ -142,6 +142,7 @@ pub async fn get_access_token() -> Result<(), anyhow::Error> {
         if lock.is_some() {
             config.set_access_token(Some(lock.clone().unwrap()));
             config.save(saturn_config())?;
+            println!("Captured. Thanks!");
             return Ok(());
         }
 
