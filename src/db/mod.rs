@@ -32,8 +32,8 @@ pub trait DB {
     fn recurrence_key(&self) -> u64;
     fn set_recurrence_key(&mut self, primary_key: u64);
 
-    fn delete(&mut self, primary_key: u64);
-    fn delete_recurrence(&mut self, primary_key: u64);
+    fn delete(&mut self, primary_key: u64) -> Result<(), anyhow::Error>;
+    fn delete_recurrence(&mut self, primary_key: u64) -> Result<(), anyhow::Error>;
     fn record(&mut self, record: Record) -> Result<(), anyhow::Error>;
     fn record_recurrence(&mut self, record: RecurringRecord) -> Result<(), anyhow::Error>;
     fn list_recurrence(&self) -> Result<Vec<RecurringRecord>, anyhow::Error>;

@@ -36,7 +36,7 @@ impl DB for MemoryDB {
         self.recurrence_key = primary_key;
     }
 
-    fn delete(&mut self, primary_key: u64) {
+    fn delete(&mut self, primary_key: u64) -> Result<(), anyhow::Error> {
         for (key, list) in self.records.clone() {
             let mut new = Vec::new();
             for record in list {
@@ -47,9 +47,10 @@ impl DB for MemoryDB {
 
             self.records.insert(key, new);
         }
+        Ok(())
     }
 
-    fn delete_recurrence(&mut self, primary_key: u64) {
+    fn delete_recurrence(&mut self, primary_key: u64) -> Result<(), anyhow::Error> {
         let mut new = Vec::new();
 
         for entry in &self.recurring {
@@ -60,6 +61,7 @@ impl DB for MemoryDB {
 
         self.recurring.clear();
         self.recurring.append(&mut new);
+        Ok(())
     }
 
     fn record(&mut self, record: Record) -> Result<(), anyhow::Error> {
@@ -260,27 +262,29 @@ mod tests {
         let mut db = MemoryDB::new();
 
         for x in 0..(rand::random::<u64>() % 50) + 1 {
-            db.record(
-                Record::build()
-                    .set_primary_key(x)
-                    .set_date(
-                        chrono::NaiveDate::from_ymd_opt(
-                            rand::random::<i32>() % 5 + 2023,
-                            rand::random::<u32>() % 12 + 1,
-                            rand::random::<u32>() % 28 + 1,
+            assert!(db
+                .record(
+                    Record::build()
+                        .set_primary_key(x)
+                        .set_date(
+                            chrono::NaiveDate::from_ymd_opt(
+                                rand::random::<i32>() % 5 + 2023,
+                                rand::random::<u32>() % 12 + 1,
+                                rand::random::<u32>() % 28 + 1,
+                            )
+                            .unwrap(),
                         )
-                        .unwrap(),
-                    )
-                    .set_at(Some(
-                        chrono::NaiveTime::from_hms_opt(
-                            rand::random::<u32>() % 24,
-                            rand::random::<u32>() % 60,
-                            0,
-                        )
-                        .unwrap(),
-                    ))
-                    .clone(),
-            );
+                        .set_at(Some(
+                            chrono::NaiveTime::from_hms_opt(
+                                rand::random::<u32>() % 24,
+                                rand::random::<u32>() % 60,
+                                0,
+                            )
+                            .unwrap(),
+                        ))
+                        .clone(),
+                )
+                .is_ok());
         }
 
         let f = tempfile::NamedTempFile::new().unwrap();

@@ -105,7 +105,7 @@ impl DB for RemoteDB<'_> {
         self.recurrence_key = primary_key;
     }
 
-    fn delete(&mut self, primary_key: u64) {
+    fn delete(&mut self, primary_key: u64) -> Result<(), anyhow::Error> {
         let client = self.client.clone();
         let id = self.lookup(primary_key).expect("Invalid ID");
 
@@ -114,13 +114,13 @@ impl DB for RemoteDB<'_> {
                 .expect("Client is not configured properly")
                 .delete(id)
                 .await
-                .unwrap()
-        });
+        })?;
 
         self.remove_by_internal_id(primary_key);
+        Ok(())
     }
 
-    fn delete_recurrence(&mut self, primary_key: u64) {
+    fn delete_recurrence(&mut self, primary_key: u64) -> Result<(), anyhow::Error> {
         let client = self.client.clone();
         let id = self.lookup(primary_key).expect("Invalid ID");
 
@@ -129,10 +129,10 @@ impl DB for RemoteDB<'_> {
                 .expect("Client is not configured properly")
                 .delete_recurrence(id)
                 .await
-                .unwrap()
-        });
+        })?;
 
         self.remove_by_internal_id(primary_key);
+        Ok(())
     }
 
     fn record(&mut self, record: Record) -> Result<(), anyhow::Error> {
@@ -150,8 +150,7 @@ impl DB for RemoteDB<'_> {
                 .expect("Client is not configured properly")
                 .record(record)
                 .await
-                .unwrap()
-        });
+        })?;
 
         self.add(internal.unwrap(), key);
         Ok(())
@@ -171,8 +170,7 @@ impl DB for RemoteDB<'_> {
                 .expect("Client is not configured properly")
                 .record_recurrence(record)
                 .await
-                .unwrap()
-        });
+        })?;
 
         self.add_recurring(internal.unwrap(), recurrence);
         Ok(())

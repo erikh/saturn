@@ -229,9 +229,9 @@ pub async fn complete_task(primary_key: u64) -> Result<(), anyhow::Error> {
 pub async fn delete_event(primary_key: u64, recur: bool) -> Result<(), anyhow::Error> {
     do_db(|db| {
         if recur {
-            db.delete_recurrence(primary_key);
+            db.delete_recurrence(primary_key)?;
         } else {
-            db.delete(primary_key);
+            db.delete(primary_key)?;
         }
 
         Ok(())
