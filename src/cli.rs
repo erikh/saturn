@@ -28,38 +28,29 @@ pub fn saturn_db() -> PathBuf {
 
 pub struct EntryParser {
     args: Vec<String>,
-    filename: PathBuf,
 }
 
 impl EntryParser {
     pub fn new(args: Vec<String>) -> Self {
-        Self {
-            args,
-            filename: saturn_db(),
-        }
+        Self { args }
     }
 
-    pub fn entry(&self) -> Result<(), anyhow::Error> {
-        let mut db = if std::fs::metadata(&self.filename).is_ok() {
-            UnixFileLoader::new(&self.filename).load()?
-        } else {
-            MemoryDB::new()
-        };
-
+    pub async fn entry(&self) -> Result<(), anyhow::Error> {
         let mut record = self.to_record()?;
-        record.record.set_primary_key(db.next_key());
 
-        if let Some(mut recurrence) = record.recurrence {
-            let key = db.next_recurrence_key();
-            record.record.set_recurrence_key(Some(key));
-            recurrence.set_recurrence_key(key);
-            db.record_recurrence(recurrence);
-        }
+        do_db(|db| {
+            record.record.set_primary_key(db.next_key());
 
-        db.record(record.record);
-        UnixFileLoader::new(&self.filename).dump(&mut db)?;
+            if let Some(mut recurrence) = record.recurrence {
+                let key = db.next_recurrence_key();
+                record.record.set_recurrence_key(Some(key));
+                recurrence.set_recurrence_key(key);
+                db.record_recurrence(recurrence);
+            }
 
-        Ok(())
+            db.record(record.record);
+        })
+        .await
     }
 
     pub fn to_record(&self) -> Result<EntryRecord, anyhow::Error> {
@@ -162,7 +153,7 @@ pub fn set_sync_window(duration: FancyDuration<Duration>) -> Result<(), anyhow::
     config.save(saturn_config())
 }
 
-fn do_db<T>(f: impl FnOnce(&mut Box<MemoryDB>) -> T) -> Result<T, anyhow::Error> {
+async fn do_db<T>(f: impl FnOnce(&mut Box<MemoryDB>) -> T) -> Result<T, anyhow::Error> {
     let config = Config::load(saturn_config())?;
 
     match config.db_type() {
@@ -170,14 +161,14 @@ fn do_db<T>(f: impl FnOnce(&mut Box<MemoryDB>) -> T) -> Result<T, anyhow::Error>
             let filename = saturn_db();
 
             let mut db = if std::fs::metadata(&filename).is_ok() {
-                UnixFileLoader::new(&filename).load()?
+                UnixFileLoader::new(&filename).load().await?
             } else {
                 MemoryDB::new()
             };
 
             let res = f(&mut db);
 
-            UnixFileLoader::new(&filename).dump(&mut db)?;
+            UnixFileLoader::new(&filename).dump(&mut db).await?;
 
             Ok(res)
         }
@@ -185,15 +176,15 @@ fn do_db<T>(f: impl FnOnce(&mut Box<MemoryDB>) -> T) -> Result<T, anyhow::Error>
     }
 }
 
-pub fn list_recurrence() -> Result<Vec<RecurringRecord>, anyhow::Error> {
-    do_db(|db| db.list_recurrence())
+pub async fn list_recurrence() -> Result<Vec<RecurringRecord>, anyhow::Error> {
+    do_db(|db| db.list_recurrence()).await
 }
 
-pub fn complete_task(primary_key: u64) -> Result<(), anyhow::Error> {
-    do_db(|db| db.complete_task(primary_key))
+pub async fn complete_task(primary_key: u64) -> Result<(), anyhow::Error> {
+    do_db(|db| db.complete_task(primary_key)).await
 }
 
-pub fn delete_event(primary_key: u64, recur: bool) -> Result<(), anyhow::Error> {
+pub async fn delete_event(primary_key: u64, recur: bool) -> Result<(), anyhow::Error> {
     do_db(|db| {
         if recur {
             db.delete_recurrence(primary_key);
@@ -201,17 +192,25 @@ pub fn delete_event(primary_key: u64, recur: bool) -> Result<(), anyhow::Error> 
             db.delete(primary_key);
         }
     })
+    .await
 }
 
-pub fn events_now(last: Duration, include_completed: bool) -> Result<Vec<Record>, anyhow::Error> {
+pub async fn events_now(
+    last: Duration,
+    include_completed: bool,
+) -> Result<Vec<Record>, anyhow::Error> {
     do_db(|db| {
         let mut events = db.events_now(last, include_completed);
         events.sort_by(sort_events);
         events
     })
+    .await
 }
 
-pub fn list_entries(all: bool, include_completed: bool) -> Result<Vec<Record>, anyhow::Error> {
+pub async fn list_entries(
+    all: bool,
+    include_completed: bool,
+) -> Result<Vec<Record>, anyhow::Error> {
     do_db(|db| {
         let mut list = if all {
             db.list_all(include_completed)
@@ -221,6 +220,7 @@ pub fn list_entries(all: bool, include_completed: bool) -> Result<Vec<Record>, a
         list.sort_by(sort_events);
         list
     })
+    .await
 }
 
 enum EntryState {

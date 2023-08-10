@@ -27,6 +27,7 @@ tokio = { version = "*", features = [ "full" ] }
 google-calendar = "*"
 davisjr = "*"
 url = "*"
+async-trait = "*"
 
 [dev-dependencies]
 tempfile = "*"

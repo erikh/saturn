@@ -4,12 +4,13 @@ pub mod unixfile;
 
 use crate::record::{Record, RecurringRecord};
 
+#[async_trait::async_trait]
 pub trait DBLoader<T>
 where
     T: DB + serde::Serialize + for<'a> serde::Deserialize<'a>,
 {
-    fn load(&self) -> Result<Box<T>, anyhow::Error>;
-    fn dump(&self, db: &mut Box<T>) -> Result<(), anyhow::Error>;
+    async fn load(&self) -> Result<Box<T>, anyhow::Error>;
+    async fn dump(&self, db: &mut Box<T>) -> Result<(), anyhow::Error>;
 }
 
 pub trait DB {

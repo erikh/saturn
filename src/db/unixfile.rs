@@ -9,7 +9,7 @@ impl<'a> UnixFileLoader<'a> {
         Self(filename)
     }
 
-    pub fn load(&self) -> Result<Box<MemoryDB>, anyhow::Error> {
+    pub async fn load(&self) -> Result<Box<MemoryDB>, anyhow::Error> {
         unsafe {
             let fd = nix::libc::open(
                 std::ffi::CString::from_vec_unchecked(self.0.to_str().unwrap().as_bytes().to_vec())
@@ -40,7 +40,7 @@ impl<'a> UnixFileLoader<'a> {
         }
     }
 
-    pub fn dump(&self, db: &mut Box<MemoryDB>) -> Result<(), anyhow::Error> {
+    pub async fn dump(&self, db: &mut Box<MemoryDB>) -> Result<(), anyhow::Error> {
         unsafe {
             let fd = nix::libc::open(
                 std::ffi::CString::from_vec_unchecked(self.0.to_str().unwrap().as_bytes().to_vec())

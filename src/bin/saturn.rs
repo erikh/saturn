@@ -235,8 +235,8 @@ async fn main() -> Result<(), anyhow::Error> {
                 set_sync_window(FancyDuration::<chrono::Duration>::parse(&window)?)?
             }
         },
-        Command::Complete { id } => complete_task(id)?,
-        Command::Delete { id, recur } => delete_event(id, recur)?,
+        Command::Complete { id } => complete_task(id).await?,
+        Command::Delete { id, recur } => delete_event(id, recur).await?,
         Command::Notify {
             well,
             timeout,
@@ -252,7 +252,7 @@ async fn main() -> Result<(), anyhow::Error> {
             notification.summary("Calendar Event");
             notification.timeout(timeout);
 
-            for entry in events_now(get_well(well)?, include_completed)? {
+            for entry in events_now(get_well(well)?, include_completed).await? {
                 if let Some(at) = entry.at() {
                     notification.body(&format_at(entry, at)).show()?;
                 } else if let Some(schedule) = entry.scheduled() {
@@ -266,20 +266,20 @@ async fn main() -> Result<(), anyhow::Error> {
             well,
             include_completed,
         } => {
-            print_entries(events_now(get_well(well)?, include_completed)?);
+            print_entries(events_now(get_well(well)?, include_completed).await?);
         }
         Command::List { all, recur } => {
             if recur {
-                print_recurring(list_recurrence()?);
+                print_recurring(list_recurrence().await?);
             } else {
-                print_entries(list_entries(all, all)?);
+                print_entries(list_entries(all, all).await?);
             }
         }
         Command::Today {} => {
-            print_entries(list_entries(false, false)?);
+            print_entries(list_entries(false, false).await?);
         }
         Command::Entry { args } => {
-            EntryParser::new(args).entry()?;
+            EntryParser::new(args).entry().await?;
         }
     }
     Ok(())
