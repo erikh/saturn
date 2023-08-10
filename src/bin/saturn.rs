@@ -4,7 +4,7 @@ use fancy_duration::FancyDuration;
 use saturn::{
     cli::{
         complete_task, delete_event, events_now, get_access_token, list_entries, list_recurrence,
-        set_client_info, set_sync_window, EntryParser,
+        set_client_info, set_db_type, set_sync_window, EntryParser,
     },
     record::{Record, RecurringRecord, Schedule},
 };
@@ -24,6 +24,8 @@ struct ArgParser {
 
 #[derive(Debug, Subcommand)]
 enum ConfigCommand {
+    #[command(about = "Set the database type you wish to use (unixfile or google)")]
+    DBType { db_type: String },
     #[command(about = "Set your client credentials")]
     SetClient {
         client_id: String,
@@ -234,6 +236,7 @@ async fn main() -> Result<(), anyhow::Error> {
             ConfigCommand::SetSyncWindow { window } => {
                 set_sync_window(FancyDuration::<chrono::Duration>::parse(&window)?)?
             }
+            ConfigCommand::DBType { db_type } => set_db_type(db_type)?,
         },
         Command::Complete { id } => complete_task(id).await?,
         Command::Delete { id, recur } => delete_event(id, recur).await?,

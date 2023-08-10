@@ -1,6 +1,10 @@
 use crate::{
     config::{Config, DBType, CONFIG_FILENAME, DB_FILENAME},
-    db::{google::CALENDAR_SCOPE, memory::MemoryDB, unixfile::UnixFileLoader},
+    db::{
+        google::{GoogleLoader, CALENDAR_SCOPE},
+        memory::MemoryDB,
+        unixfile::UnixFileLoader,
+    },
     oauth::{oauth_listener, State},
     record::{Record, RecordType, RecurringRecord},
 };
@@ -105,6 +109,23 @@ pub fn get_config() -> Result<Config, anyhow::Error> {
     Config::load(saturn_config())
 }
 
+pub fn set_db_type(db_type: String) -> Result<(), anyhow::Error> {
+    let mut config = get_config()?;
+    let typ = match db_type.as_str() {
+        "google" => DBType::Google,
+        "unixfile" => DBType::UnixFile,
+        _ => {
+            return Err(anyhow!(
+                "Invalid db type: valid types are `google` and `unixfile`"
+            ))
+        }
+    };
+
+    config.set_db_type(typ);
+
+    Ok(())
+}
+
 pub async fn get_access_token() -> Result<(), anyhow::Error> {
     let mut config = get_config()?;
 
@@ -172,7 +193,15 @@ async fn do_db<T>(f: impl FnOnce(&mut Box<MemoryDB>) -> T) -> Result<T, anyhow::
 
             Ok(res)
         }
-        _ => Err(anyhow!("Invalid DB Type")),
+        DBType::Google => {
+            let loader = GoogleLoader::new(config)?;
+            let mut db = loader.load().await?;
+
+            let res = f(&mut db);
+
+            loader.dump(&mut db).await?;
+            Ok(res)
+        }
     }
 }
 
