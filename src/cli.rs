@@ -4,6 +4,7 @@ use crate::{
         google::{GoogleLoader, CALENDAR_SCOPE},
         memory::MemoryDB,
         unixfile::UnixFileLoader,
+        DB,
     },
     oauth::{oauth_listener, ClientParameters, State},
     record::{Record, RecordType, RecurringRecord},

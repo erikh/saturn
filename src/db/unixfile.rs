@@ -1,4 +1,4 @@
-use crate::db::memory::MemoryDB;
+use crate::db::{memory::MemoryDB, DB};
 use anyhow::anyhow;
 use std::os::unix::io::FromRawFd;
 

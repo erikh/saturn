@@ -1,4 +1,7 @@
-use crate::record::{Record, RecurringRecord};
+use crate::{
+    db::DB,
+    record::{Record, RecurringRecord},
+};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
@@ -14,24 +17,26 @@ impl MemoryDB {
     pub fn new() -> Box<Self> {
         Box::new(Self::default())
     }
+}
 
-    pub fn primary_key(&self) -> u64 {
+impl DB for MemoryDB {
+    fn primary_key(&self) -> u64 {
         self.primary_key
     }
 
-    pub fn recurrence_key(&self) -> u64 {
+    fn recurrence_key(&self) -> u64 {
         self.recurrence_key
     }
 
-    pub fn set_primary_key(&mut self, primary_key: u64) {
+    fn set_primary_key(&mut self, primary_key: u64) {
         self.primary_key = primary_key;
     }
 
-    pub fn set_recurrence_key(&mut self, primary_key: u64) {
+    fn set_recurrence_key(&mut self, primary_key: u64) {
         self.recurrence_key = primary_key;
     }
 
-    pub fn delete(&mut self, primary_key: u64) {
+    fn delete(&mut self, primary_key: u64) {
         for (key, list) in self.records.clone() {
             let mut new = Vec::new();
             for record in list {
@@ -44,7 +49,7 @@ impl MemoryDB {
         }
     }
 
-    pub fn delete_recurrence(&mut self, primary_key: u64) {
+    fn delete_recurrence(&mut self, primary_key: u64) {
         let mut new = Vec::new();
 
         for entry in &self.recurring {
@@ -57,7 +62,7 @@ impl MemoryDB {
         self.recurring.append(&mut new);
     }
 
-    pub fn record(&mut self, record: Record) {
+    fn record(&mut self, record: Record) {
         if let Some(item) = self.records.get_mut(&record.date()) {
             item.push(record);
         } else {
@@ -65,15 +70,15 @@ impl MemoryDB {
         }
     }
 
-    pub fn record_recurrence(&mut self, record: RecurringRecord) {
+    fn record_recurrence(&mut self, record: RecurringRecord) {
         self.recurring.push(record);
     }
 
-    pub fn list_recurrence(&self) -> Vec<RecurringRecord> {
+    fn list_recurrence(&self) -> Vec<RecurringRecord> {
         self.recurring.clone()
     }
 
-    pub fn update_recurrence(&mut self) {
+    fn update_recurrence(&mut self) {
         let now = chrono::Local::now();
 
         for recur in self.recurring.clone() {
@@ -110,19 +115,7 @@ impl MemoryDB {
         }
     }
 
-    pub fn next_key(&mut self) -> u64 {
-        let key = self.primary_key;
-        self.primary_key += 1;
-        key
-    }
-
-    pub fn next_recurrence_key(&mut self) -> u64 {
-        let key = self.recurrence_key;
-        self.recurrence_key += 1;
-        key
-    }
-
-    pub fn list_today(&self, include_completed: bool) -> Vec<Record> {
+    fn list_today(&self, include_completed: bool) -> Vec<Record> {
         self.records
             .get(&chrono::Local::now().date_naive())
             .unwrap_or(&Vec::new())
@@ -137,7 +130,7 @@ impl MemoryDB {
             .collect::<Vec<Record>>()
     }
 
-    pub fn list_all(&self, include_completed: bool) -> Vec<Record> {
+    fn list_all(&self, include_completed: bool) -> Vec<Record> {
         self.records
             .iter()
             .flat_map(|(_, v)| v.clone())
@@ -151,7 +144,7 @@ impl MemoryDB {
             .collect::<Vec<Record>>()
     }
 
-    pub fn events_now(&mut self, last: chrono::Duration, include_completed: bool) -> Vec<Record> {
+    fn events_now(&mut self, last: chrono::Duration, include_completed: bool) -> Vec<Record> {
         let mut ret = Vec::new();
         let now = chrono::Local::now();
 
@@ -233,7 +226,7 @@ impl MemoryDB {
         ret
     }
 
-    pub fn complete_task(&mut self, primary_key: u64) {
+    fn complete_task(&mut self, primary_key: u64) {
         for (_, list) in &mut self.records {
             for record in list {
                 if record.primary_key() == primary_key {
@@ -248,7 +241,7 @@ impl MemoryDB {
 mod tests {
     #[tokio::test]
     async fn test_recording() {
-        use crate::db::{memory::MemoryDB, unixfile::UnixFileLoader};
+        use crate::db::{memory::MemoryDB, unixfile::UnixFileLoader, DB};
         use crate::record::Record;
 
         let mut db = MemoryDB::new();
