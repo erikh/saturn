@@ -8,8 +8,6 @@ pub struct MemoryDB {
     records: BTreeMap<chrono::NaiveDate, Vec<Record>>,
     recurrence_key: u64,
     recurring: Vec<RecurringRecord>,
-    id_map: BTreeMap<String, u64>,
-    recurring_id_map: BTreeMap<String, u64>,
 }
 
 impl MemoryDB {
