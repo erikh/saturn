@@ -8,6 +8,8 @@ pub struct MemoryDB {
     records: BTreeMap<chrono::NaiveDate, Vec<Record>>,
     recurrence_key: u64,
     recurring: Vec<RecurringRecord>,
+    id_map: BTreeMap<String, u64>,
+    recurring_id_map: BTreeMap<String, u64>,
 }
 
 impl MemoryDB {
@@ -230,8 +232,8 @@ impl MemoryDB {
 
 #[cfg(test)]
 mod tests {
-    #[test]
-    fn test_recording() {
+    #[tokio::test]
+    async fn test_recording() {
         use crate::db::{memory::MemoryDB, unixfile::UnixFileLoader};
         use crate::record::Record;
 
@@ -264,9 +266,10 @@ mod tests {
         let f = tempfile::NamedTempFile::new().unwrap();
         assert!(UnixFileLoader::new(&f.path().to_path_buf())
             .dump(&mut db)
+            .await
             .is_ok());
 
-        let res = UnixFileLoader::new(&f.path().to_path_buf()).load();
+        let res = UnixFileLoader::new(&f.path().to_path_buf()).load().await;
         assert!(res.is_ok());
 
         let db2 = res.unwrap();

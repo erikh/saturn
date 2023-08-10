@@ -51,22 +51,18 @@ impl GoogleLoader {
             client: self.client.clone(),
         };
 
-        eprintln!("here");
         let calendars = client.list_all(MinAccessRole::Owner, false, false).await?;
 
-        eprintln!("here");
         if calendars.status != 200 {
             return Err(anyhow!(
                 "Google Calendar produced a non-200 response to requesting calendars"
             ));
         }
 
-        eprintln!("here");
         let client = Events {
             client: self.client.clone(),
         };
 
-        eprintln!("here");
         let events = client
             .list_all(
                 &calendars.body[0].id,
@@ -86,16 +82,23 @@ impl GoogleLoader {
             )
             .await?;
 
-        eprintln!("here");
         if events.status != 200 {
             return Err(anyhow!(
                 "Google Calendar produced a non-200 response to requesting events"
             ));
         }
 
-        eprintln!("here");
         for event in events.body {
-            println!("{}", event.summary);
+            println!(
+                "{} {} {}",
+                event.id,
+                event.start.map_or("All Day".to_string(), |s| s
+                    .date_time
+                    .unwrap()
+                    .with_timezone(&chrono::Local)
+                    .to_string()),
+                event.summary
+            );
         }
 
         Ok(MemoryDB::new())
