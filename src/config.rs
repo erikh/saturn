@@ -17,6 +17,7 @@ pub struct Config {
     db_type: DBType,
     access_token: Option<String>,
     client_info: Option<(String, String)>,
+    redirect_url: Option<String>,
     sync_duration: Option<FancyDuration<Duration>>,
 }
 
@@ -25,6 +26,7 @@ impl Default for Config {
         Self {
             db_type: DBType::UnixFile,
             access_token: None,
+            redirect_url: None,
             client_info: None,
             sync_duration: None,
         }
@@ -58,6 +60,14 @@ impl Config {
 
     pub fn access_token(&self) -> Option<String> {
         self.access_token.clone()
+    }
+
+    pub fn set_redirect_url(&mut self, redirect_url: Option<String>) {
+        self.redirect_url = redirect_url;
+    }
+
+    pub fn redirect_url(&self) -> Option<String> {
+        self.redirect_url.clone()
     }
 
     pub fn set_db_type(&mut self, typ: DBType) {

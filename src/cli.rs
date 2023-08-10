@@ -5,7 +5,7 @@ use crate::{
         memory::MemoryDB,
         unixfile::UnixFileLoader,
     },
-    oauth::{oauth_listener, State},
+    oauth::{oauth_listener, ClientParameters, State},
     record::{Record, RecordType, RecurringRecord},
 };
 use anyhow::anyhow;
@@ -13,6 +13,7 @@ use chrono::{Datelike, Duration, Timelike};
 use fancy_duration::FancyDuration;
 use google_calendar::Client;
 use std::{env::var, path::PathBuf};
+use tokio::sync::Mutex;
 
 pub fn saturn_config() -> PathBuf {
     PathBuf::from(var("HOME").unwrap_or("/".to_string())).join(CONFIG_FILENAME)
@@ -122,6 +123,7 @@ pub fn set_db_type(db_type: String) -> Result<(), anyhow::Error> {
     };
 
     config.set_db_type(typ);
+    config.save(saturn_config())?;
 
     Ok(())
 }
@@ -135,13 +137,19 @@ pub async fn get_access_token() -> Result<(), anyhow::Error> {
         ));
     }
 
-    let state = State::default();
+    let state = State::new(Mutex::new(ClientParameters {
+        client_id: config.client_id().unwrap(),
+        client_secret: config.client_secret().unwrap(),
+        redirect_url: None,
+        access_key: None,
+    }));
     let host = oauth_listener(state.clone()).await?;
+    let redirect_url = format!("http://{}", host);
 
     let calendar = Client::new(
         config.client_id().unwrap(),
         config.client_secret().unwrap(),
-        format!("http://{}", host),
+        redirect_url.clone(),
         "",
         "",
     );
@@ -151,8 +159,9 @@ pub async fn get_access_token() -> Result<(), anyhow::Error> {
 
     loop {
         let lock = state.lock().await;
-        if lock.is_some() {
-            config.set_access_token(Some(lock.clone().unwrap()));
+        if lock.access_key.is_some() {
+            config.set_access_token(lock.access_key.clone());
+            config.set_redirect_url(Some(redirect_url));
             config.save(saturn_config())?;
             println!("Captured. Thanks!");
             return Ok(());
