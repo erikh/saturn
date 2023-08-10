@@ -1,5 +1,6 @@
 pub mod google;
 pub mod memory;
+pub mod remote;
 pub mod unixfile;
 
 use crate::record::{Record, RecurringRecord};
