@@ -35,7 +35,7 @@ impl<'a> UnixFileLoader<'a> {
             }
 
             let mut res: MemoryDB = ciborium::from_reader(std::fs::File::from_raw_fd(fd))?;
-            res.update_recurrence();
+            res.update_recurrence()?;
             Ok(Box::new(res))
         }
     }
@@ -79,7 +79,7 @@ impl<'a> UnixFileLoader<'a> {
                 .to_string()));
             }
 
-            db.update_recurrence();
+            db.update_recurrence()?;
 
             Ok(ciborium::into_writer(
                 db.as_ref(),

@@ -51,10 +51,10 @@ impl EntryParser {
                 let key = db.next_recurrence_key();
                 record.record.set_recurrence_key(Some(key));
                 recurrence.set_recurrence_key(key);
-                db.record_recurrence(recurrence);
+                db.record_recurrence(recurrence)?;
             }
 
-            db.record(record.record);
+            db.record(record.record)
         })
         .await
     }
@@ -184,7 +184,9 @@ pub fn set_sync_window(duration: FancyDuration<Duration>) -> Result<(), anyhow::
     config.save(saturn_config())
 }
 
-async fn do_db<T>(f: impl FnOnce(&mut Box<MemoryDB>) -> T) -> Result<T, anyhow::Error> {
+async fn do_db<T>(
+    f: impl FnOnce(&mut Box<MemoryDB>) -> Result<T, anyhow::Error>,
+) -> Result<T, anyhow::Error> {
     let config = Config::load(saturn_config())?;
 
     match config.db_type() {
@@ -201,7 +203,7 @@ async fn do_db<T>(f: impl FnOnce(&mut Box<MemoryDB>) -> T) -> Result<T, anyhow::
 
             UnixFileLoader::new(&filename).dump(&mut db).await?;
 
-            Ok(res)
+            res
         }
         DBType::Google => {
             let loader = GoogleLoader::new(config)?;
@@ -210,17 +212,18 @@ async fn do_db<T>(f: impl FnOnce(&mut Box<MemoryDB>) -> T) -> Result<T, anyhow::
             let res = f(&mut db);
 
             loader.dump(&mut db).await?;
-            Ok(res)
+
+            res
         }
     }
 }
 
 pub async fn list_recurrence() -> Result<Vec<RecurringRecord>, anyhow::Error> {
-    do_db(|db| db.list_recurrence()).await
+    do_db(|db| Ok(db.list_recurrence())).await
 }
 
 pub async fn complete_task(primary_key: u64) -> Result<(), anyhow::Error> {
-    do_db(|db| db.complete_task(primary_key)).await
+    do_db(|db| Ok(db.complete_task(primary_key))).await
 }
 
 pub async fn delete_event(primary_key: u64, recur: bool) -> Result<(), anyhow::Error> {
@@ -230,6 +233,8 @@ pub async fn delete_event(primary_key: u64, recur: bool) -> Result<(), anyhow::E
         } else {
             db.delete(primary_key);
         }
+
+        Ok(())
     })
     .await
 }
@@ -241,7 +246,7 @@ pub async fn events_now(
     do_db(|db| {
         let mut events = db.events_now(last, include_completed);
         events.sort_by(sort_events);
-        events
+        Ok(events)
     })
     .await
 }
@@ -257,7 +262,7 @@ pub async fn list_entries(
             db.list_today(include_completed)
         };
         list.sort_by(sort_events);
-        list
+        Ok(list)
     })
     .await
 }

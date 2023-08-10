@@ -62,23 +62,26 @@ impl DB for MemoryDB {
         self.recurring.append(&mut new);
     }
 
-    fn record(&mut self, record: Record) {
+    fn record(&mut self, record: Record) -> Result<(), anyhow::Error> {
         if let Some(item) = self.records.get_mut(&record.date()) {
             item.push(record);
         } else {
             self.records.insert(record.date(), vec![record]);
         }
+
+        Ok(())
     }
 
-    fn record_recurrence(&mut self, record: RecurringRecord) {
+    fn record_recurrence(&mut self, record: RecurringRecord) -> Result<(), anyhow::Error> {
         self.recurring.push(record);
+        Ok(())
     }
 
     fn list_recurrence(&self) -> Vec<RecurringRecord> {
         self.recurring.clone()
     }
 
-    fn update_recurrence(&mut self) {
+    fn update_recurrence(&mut self) -> Result<(), anyhow::Error> {
         let now = chrono::Local::now();
 
         for recur in self.recurring.clone() {
@@ -109,10 +112,12 @@ impl DB for MemoryDB {
                         break;
                     }
                     let key = self.next_key();
-                    self.record(recur.record_from(key, dt.naive_local()));
+                    self.record(recur.record_from(key, dt.naive_local()))?;
                 }
             }
         }
+
+        Ok(())
     }
 
     fn list_today(&self, include_completed: bool) -> Vec<Record> {
