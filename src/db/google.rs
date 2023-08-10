@@ -70,7 +70,7 @@ impl GoogleLoader {
         Ok(MemoryDB::new())
     }
 
-    pub fn dump(&self, _db: &mut Box<MemoryDB>) -> Result<(), anyhow::Error> {
+    pub async fn dump(&self, _db: &mut Box<MemoryDB>) -> Result<(), anyhow::Error> {
         Ok(())
     }
 }
