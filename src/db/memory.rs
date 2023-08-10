@@ -77,8 +77,8 @@ impl DB for MemoryDB {
         Ok(())
     }
 
-    fn list_recurrence(&self) -> Vec<RecurringRecord> {
-        self.recurring.clone()
+    fn list_recurrence(&self) -> Result<Vec<RecurringRecord>, anyhow::Error> {
+        Ok(self.recurring.clone())
     }
 
     fn update_recurrence(&mut self) -> Result<(), anyhow::Error> {
@@ -120,8 +120,9 @@ impl DB for MemoryDB {
         Ok(())
     }
 
-    fn list_today(&self, include_completed: bool) -> Vec<Record> {
-        self.records
+    fn list_today(&self, include_completed: bool) -> Result<Vec<Record>, anyhow::Error> {
+        Ok(self
+            .records
             .get(&chrono::Local::now().date_naive())
             .unwrap_or(&Vec::new())
             .iter()
@@ -132,11 +133,12 @@ impl DB for MemoryDB {
                     Some(v.clone())
                 }
             })
-            .collect::<Vec<Record>>()
+            .collect::<Vec<Record>>())
     }
 
-    fn list_all(&self, include_completed: bool) -> Vec<Record> {
-        self.records
+    fn list_all(&self, include_completed: bool) -> Result<Vec<Record>, anyhow::Error> {
+        Ok(self
+            .records
             .iter()
             .flat_map(|(_, v)| v.clone())
             .filter_map(|v| {
@@ -146,10 +148,14 @@ impl DB for MemoryDB {
                     Some(v)
                 }
             })
-            .collect::<Vec<Record>>()
+            .collect::<Vec<Record>>())
     }
 
-    fn events_now(&mut self, last: chrono::Duration, include_completed: bool) -> Vec<Record> {
+    fn events_now(
+        &mut self,
+        last: chrono::Duration,
+        include_completed: bool,
+    ) -> Result<Vec<Record>, anyhow::Error> {
         let mut ret = Vec::new();
         let now = chrono::Local::now();
 
@@ -228,10 +234,10 @@ impl DB for MemoryDB {
             }
         }
 
-        ret
+        Ok(ret)
     }
 
-    fn complete_task(&mut self, primary_key: u64) {
+    fn complete_task(&mut self, primary_key: u64) -> Result<(), anyhow::Error> {
         for (_, list) in &mut self.records {
             for record in list {
                 if record.primary_key() == primary_key {
@@ -239,6 +245,8 @@ impl DB for MemoryDB {
                 }
             }
         }
+
+        Ok(())
     }
 }
 

@@ -178,25 +178,31 @@ impl DB for RemoteDB<'_> {
         Ok(())
     }
 
-    fn list_recurrence(&self) -> Vec<RecurringRecord> {
-        Vec::new()
+    fn list_recurrence(&self) -> Result<Vec<RecurringRecord>, anyhow::Error> {
+        Ok(Vec::new())
     }
 
     fn update_recurrence(&mut self) -> Result<(), anyhow::Error> {
         Ok(())
     }
 
-    fn list_today(&self, _include_completed: bool) -> Vec<Record> {
-        Vec::new()
+    fn list_today(&self, _include_completed: bool) -> Result<Vec<Record>, anyhow::Error> {
+        Ok(Vec::new())
     }
 
-    fn list_all(&self, _include_completed: bool) -> Vec<Record> {
-        Vec::new()
+    fn list_all(&self, _include_completed: bool) -> Result<Vec<Record>, anyhow::Error> {
+        Ok(Vec::new())
     }
 
-    fn events_now(&mut self, _last: chrono::Duration, _include_completed: bool) -> Vec<Record> {
-        Vec::new()
+    fn events_now(
+        &mut self,
+        _last: chrono::Duration,
+        _include_completed: bool,
+    ) -> Result<Vec<Record>, anyhow::Error> {
+        Ok(Vec::new())
     }
 
-    fn complete_task(&mut self, _primary_key: u64) {}
+    fn complete_task(&mut self, _primary_key: u64) -> Result<(), anyhow::Error> {
+        Ok(())
+    }
 }

@@ -219,11 +219,11 @@ async fn do_db<T>(
 }
 
 pub async fn list_recurrence() -> Result<Vec<RecurringRecord>, anyhow::Error> {
-    do_db(|db| Ok(db.list_recurrence())).await
+    do_db(|db| db.list_recurrence()).await
 }
 
 pub async fn complete_task(primary_key: u64) -> Result<(), anyhow::Error> {
-    do_db(|db| Ok(db.complete_task(primary_key))).await
+    do_db(|db| db.complete_task(primary_key)).await
 }
 
 pub async fn delete_event(primary_key: u64, recur: bool) -> Result<(), anyhow::Error> {
@@ -244,7 +244,7 @@ pub async fn events_now(
     include_completed: bool,
 ) -> Result<Vec<Record>, anyhow::Error> {
     do_db(|db| {
-        let mut events = db.events_now(last, include_completed);
+        let mut events = db.events_now(last, include_completed)?;
         events.sort_by(sort_events);
         Ok(events)
     })
@@ -257,9 +257,9 @@ pub async fn list_entries(
 ) -> Result<Vec<Record>, anyhow::Error> {
     do_db(|db| {
         let mut list = if all {
-            db.list_all(include_completed)
+            db.list_all(include_completed)?
         } else {
-            db.list_today(include_completed)
+            db.list_today(include_completed)?
         };
         list.sort_by(sort_events);
         Ok(list)
