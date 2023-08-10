@@ -15,6 +15,22 @@ impl MemoryDB {
         Box::new(Self::default())
     }
 
+    pub fn primary_key(&self) -> u64 {
+        self.primary_key
+    }
+
+    pub fn recurrence_key(&self) -> u64 {
+        self.recurrence_key
+    }
+
+    pub fn set_primary_key(&mut self, primary_key: u64) {
+        self.primary_key = primary_key;
+    }
+
+    pub fn set_recurrence_key(&mut self, primary_key: u64) {
+        self.recurrence_key = primary_key;
+    }
+
     pub fn delete(&mut self, primary_key: u64) {
         for (key, list) in self.records.clone() {
             let mut new = Vec::new();
