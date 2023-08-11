@@ -1,6 +1,7 @@
 use crate::{
     config::{Config, DBType},
-    db::memory::MemoryDB,
+    db::{memory::MemoryDB, RemoteClient},
+    record::{Record, RecurringRecord},
 };
 use anyhow::anyhow;
 use google_calendar::{
@@ -13,6 +14,11 @@ use google_calendar::{
 pub const CALENDAR_SCOPE: &str = "https://www.googleapis.com/auth/calendar";
 
 pub struct GoogleLoader {
+    client: Client,
+}
+
+pub struct GoogleClient {
+    #[allow(dead_code)]
     client: Client,
 }
 
@@ -104,6 +110,59 @@ impl GoogleLoader {
     }
 
     pub async fn dump(&self, _db: &mut Box<MemoryDB>) -> Result<(), anyhow::Error> {
+        Ok(())
+    }
+}
+
+impl GoogleClient {
+    pub fn new(client: Client) -> Self {
+        Self { client }
+    }
+}
+
+#[async_trait::async_trait]
+impl RemoteClient for GoogleClient {
+    async fn delete(&self, _id: String) -> Result<(), anyhow::Error> {
+        Ok(())
+    }
+
+    async fn delete_recurrence(&self, _id: String) -> Result<(), anyhow::Error> {
+        Ok(())
+    }
+
+    async fn record(&self, _record: Record) -> Result<(), anyhow::Error> {
+        Ok(())
+    }
+
+    async fn record_recurrence(&self, _record: RecurringRecord) -> Result<(), anyhow::Error> {
+        Ok(())
+    }
+
+    async fn list_recurrence(&self) -> Result<Vec<RecurringRecord>, anyhow::Error> {
+        Ok(Vec::new())
+    }
+
+    async fn update_recurrence(&self) -> Result<(), anyhow::Error> {
+        Ok(())
+    }
+
+    async fn list_today(&self, _include_completed: bool) -> Result<Vec<Record>, anyhow::Error> {
+        Ok(Vec::new())
+    }
+
+    async fn list_all(&self, _include_completed: bool) -> Result<Vec<Record>, anyhow::Error> {
+        Ok(Vec::new())
+    }
+
+    async fn events_now(
+        &self,
+        _last: chrono::Duration,
+        _include_completed: bool,
+    ) -> Result<Vec<Record>, anyhow::Error> {
+        Ok(Vec::new())
+    }
+
+    async fn complete_task(&self, _primary_key: u64) -> Result<(), anyhow::Error> {
         Ok(())
     }
 }
