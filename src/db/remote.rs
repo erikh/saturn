@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 use crate::{
     db::{RemoteClient, DB},
     record::{Record, RecurringRecord},
