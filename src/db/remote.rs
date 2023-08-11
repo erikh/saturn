@@ -177,30 +177,72 @@ impl DB for RemoteDB<'_> {
     }
 
     fn list_recurrence(&self) -> Result<Vec<RecurringRecord>, anyhow::Error> {
-        Ok(Vec::new())
+        let client = self.client.clone();
+
+        tokio::runtime::Handle::current().block_on(async move {
+            client
+                .expect("Client is not configured properly")
+                .list_recurrence()
+                .await
+        })
     }
 
     fn update_recurrence(&mut self) -> Result<(), anyhow::Error> {
-        Ok(())
+        let client = self.client.clone();
+
+        tokio::runtime::Handle::current().block_on(async move {
+            client
+                .expect("Client is not configured properly")
+                .update_recurrence()
+                .await
+        })
     }
 
-    fn list_today(&self, _include_completed: bool) -> Result<Vec<Record>, anyhow::Error> {
-        Ok(Vec::new())
+    fn list_today(&self, include_completed: bool) -> Result<Vec<Record>, anyhow::Error> {
+        let client = self.client.clone();
+
+        tokio::runtime::Handle::current().block_on(async move {
+            client
+                .expect("Client is not configured properly")
+                .list_today(include_completed)
+                .await
+        })
     }
 
-    fn list_all(&self, _include_completed: bool) -> Result<Vec<Record>, anyhow::Error> {
-        Ok(Vec::new())
+    fn list_all(&self, include_completed: bool) -> Result<Vec<Record>, anyhow::Error> {
+        let client = self.client.clone();
+
+        tokio::runtime::Handle::current().block_on(async move {
+            client
+                .expect("Client is not configured properly")
+                .list_all(include_completed)
+                .await
+        })
     }
 
     fn events_now(
         &mut self,
-        _last: chrono::Duration,
-        _include_completed: bool,
+        last: chrono::Duration,
+        include_completed: bool,
     ) -> Result<Vec<Record>, anyhow::Error> {
-        Ok(Vec::new())
+        let client = self.client.clone();
+
+        tokio::runtime::Handle::current().block_on(async move {
+            client
+                .expect("Client is not configured properly")
+                .events_now(last, include_completed)
+                .await
+        })
     }
 
-    fn complete_task(&mut self, _primary_key: u64) -> Result<(), anyhow::Error> {
-        Ok(())
+    fn complete_task(&mut self, primary_key: u64) -> Result<(), anyhow::Error> {
+        let client = self.client.clone();
+
+        tokio::runtime::Handle::current().block_on(async move {
+            client
+                .expect("Client is not configured properly")
+                .complete_task(primary_key)
+                .await
+        })
     }
 }
