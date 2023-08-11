@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 use crate::{
     config::{Config, DBType},
     db::memory::MemoryDB,
