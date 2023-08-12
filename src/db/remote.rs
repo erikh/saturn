@@ -14,6 +14,7 @@ pub struct RemoteDB<'a> {
     reverse_id_map: BTreeMap<u64, String>,
     recurring_id_map: BTreeMap<String, u64>,
     reverse_recurring_id_map: BTreeMap<u64, String>,
+    calendar_id: String,
     #[serde(skip)]
     client: Option<&'a dyn RemoteClient>,
 }
@@ -107,11 +108,12 @@ impl DB for RemoteDB<'_> {
     fn delete(&mut self, primary_key: u64) -> Result<(), anyhow::Error> {
         let client = self.client.clone();
         let id = self.lookup(primary_key).expect("Invalid ID");
+        let calendar_id = self.calendar_id.clone();
 
         tokio::runtime::Handle::current().block_on(async move {
             client
                 .expect("Client is not configured properly")
-                .delete(id)
+                .delete(calendar_id, id)
                 .await
         })?;
 
@@ -122,11 +124,12 @@ impl DB for RemoteDB<'_> {
     fn delete_recurrence(&mut self, primary_key: u64) -> Result<(), anyhow::Error> {
         let client = self.client.clone();
         let id = self.lookup(primary_key).expect("Invalid ID");
+        let calendar_id = self.calendar_id.clone();
 
         tokio::runtime::Handle::current().block_on(async move {
             client
                 .expect("Client is not configured properly")
-                .delete_recurrence(id)
+                .delete_recurrence(calendar_id, id)
                 .await
         })?;
 
@@ -137,6 +140,7 @@ impl DB for RemoteDB<'_> {
     fn record(&mut self, record: Record) -> Result<(), anyhow::Error> {
         let internal = record.internal_key();
         let key = record.primary_key();
+        let calendar_id = self.calendar_id.clone();
 
         if internal.is_none() {
             return Err(anyhow!("No remote key set"));
@@ -147,7 +151,7 @@ impl DB for RemoteDB<'_> {
         tokio::runtime::Handle::current().block_on(async move {
             client
                 .expect("Client is not configured properly")
-                .record(record)
+                .record(calendar_id, record)
                 .await
         })?;
 
@@ -158,6 +162,8 @@ impl DB for RemoteDB<'_> {
     fn record_recurrence(&mut self, record: RecurringRecord) -> Result<(), anyhow::Error> {
         let internal = record.internal_key();
         let recurrence = record.recurrence_key();
+        let calendar_id = self.calendar_id.clone();
+
         if internal.is_none() {
             return Err(anyhow!("No remote key set"));
         }
@@ -167,7 +173,7 @@ impl DB for RemoteDB<'_> {
         tokio::runtime::Handle::current().block_on(async move {
             client
                 .expect("Client is not configured properly")
-                .record_recurrence(record)
+                .record_recurrence(calendar_id, record)
                 .await
         })?;
 
@@ -177,44 +183,48 @@ impl DB for RemoteDB<'_> {
 
     fn list_recurrence(&self) -> Result<Vec<RecurringRecord>, anyhow::Error> {
         let client = self.client.clone();
+        let calendar_id = self.calendar_id.clone();
 
         tokio::runtime::Handle::current().block_on(async move {
             client
                 .expect("Client is not configured properly")
-                .list_recurrence()
+                .list_recurrence(calendar_id)
                 .await
         })
     }
 
     fn update_recurrence(&mut self) -> Result<(), anyhow::Error> {
         let client = self.client.clone();
+        let calendar_id = self.calendar_id.clone();
 
         tokio::runtime::Handle::current().block_on(async move {
             client
                 .expect("Client is not configured properly")
-                .update_recurrence()
+                .update_recurrence(calendar_id)
                 .await
         })
     }
 
     fn list_today(&self, include_completed: bool) -> Result<Vec<Record>, anyhow::Error> {
         let client = self.client.clone();
+        let calendar_id = self.calendar_id.clone();
 
         tokio::runtime::Handle::current().block_on(async move {
             client
                 .expect("Client is not configured properly")
-                .list_today(include_completed)
+                .list_today(calendar_id, include_completed)
                 .await
         })
     }
 
     fn list_all(&self, include_completed: bool) -> Result<Vec<Record>, anyhow::Error> {
         let client = self.client.clone();
+        let calendar_id = self.calendar_id.clone();
 
         tokio::runtime::Handle::current().block_on(async move {
             client
                 .expect("Client is not configured properly")
-                .list_all(include_completed)
+                .list_all(calendar_id, include_completed)
                 .await
         })
     }
@@ -225,22 +235,24 @@ impl DB for RemoteDB<'_> {
         include_completed: bool,
     ) -> Result<Vec<Record>, anyhow::Error> {
         let client = self.client.clone();
+        let calendar_id = self.calendar_id.clone();
 
         tokio::runtime::Handle::current().block_on(async move {
             client
                 .expect("Client is not configured properly")
-                .events_now(last, include_completed)
+                .events_now(calendar_id, last, include_completed)
                 .await
         })
     }
 
     fn complete_task(&mut self, primary_key: u64) -> Result<(), anyhow::Error> {
         let client = self.client.clone();
+        let calendar_id = self.calendar_id.clone();
 
         tokio::runtime::Handle::current().block_on(async move {
             client
                 .expect("Client is not configured properly")
-                .complete_task(primary_key)
+                .complete_task(calendar_id, primary_key)
                 .await
         })
     }

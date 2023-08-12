@@ -50,18 +50,42 @@ pub trait DB {
 
 #[async_trait::async_trait]
 pub trait RemoteClient: Sync {
-    async fn delete(&self, id: String) -> Result<(), anyhow::Error>;
-    async fn delete_recurrence(&self, id: String) -> Result<(), anyhow::Error>;
-    async fn record(&self, record: Record) -> Result<(), anyhow::Error>;
-    async fn record_recurrence(&self, record: RecurringRecord) -> Result<(), anyhow::Error>;
-    async fn list_recurrence(&self) -> Result<Vec<RecurringRecord>, anyhow::Error>;
-    async fn update_recurrence(&self) -> Result<(), anyhow::Error>;
-    async fn list_today(&self, include_completed: bool) -> Result<Vec<Record>, anyhow::Error>;
-    async fn list_all(&self, include_completed: bool) -> Result<Vec<Record>, anyhow::Error>;
+    async fn delete(&self, calendar_id: String, event_id: String) -> Result<(), anyhow::Error>;
+    async fn delete_recurrence(
+        &self,
+        calendar_id: String,
+        event_id: String,
+    ) -> Result<(), anyhow::Error>;
+    async fn record(&self, calendar_id: String, record: Record) -> Result<(), anyhow::Error>;
+    async fn record_recurrence(
+        &self,
+        calendar_id: String,
+        record: RecurringRecord,
+    ) -> Result<(), anyhow::Error>;
+    async fn list_recurrence(
+        &self,
+        calendar_id: String,
+    ) -> Result<Vec<RecurringRecord>, anyhow::Error>;
+    async fn update_recurrence(&self, calendar_id: String) -> Result<(), anyhow::Error>;
+    async fn list_today(
+        &self,
+        calendar_id: String,
+        include_completed: bool,
+    ) -> Result<Vec<Record>, anyhow::Error>;
+    async fn list_all(
+        &self,
+        calendar_id: String,
+        include_completed: bool,
+    ) -> Result<Vec<Record>, anyhow::Error>;
     async fn events_now(
         &self,
+        calendar_id: String,
         last: chrono::Duration,
         include_completed: bool,
     ) -> Result<Vec<Record>, anyhow::Error>;
-    async fn complete_task(&self, primary_key: u64) -> Result<(), anyhow::Error>;
+    async fn complete_task(
+        &self,
+        calendar_id: String,
+        primary_key: u64,
+    ) -> Result<(), anyhow::Error>;
 }

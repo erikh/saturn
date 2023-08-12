@@ -7,7 +7,7 @@ use anyhow::anyhow;
 use google_calendar::{
     calendar_list::CalendarList,
     events::Events,
-    types::{MinAccessRole, OrderBy},
+    types::{MinAccessRole, OrderBy, SendUpdates},
     Client,
 };
 
@@ -122,47 +122,81 @@ impl GoogleClient {
 
 #[async_trait::async_trait]
 impl RemoteClient for GoogleClient {
-    async fn delete(&self, _id: String) -> Result<(), anyhow::Error> {
+    async fn delete(&self, calendar_id: String, event_id: String) -> Result<(), anyhow::Error> {
+        let events = Events {
+            client: self.client.clone(),
+        };
+
+        match events
+            .delete(&calendar_id, &event_id, false, SendUpdates::All)
+            .await
+        {
+            Ok(_) => Ok(()),
+            Err(e) => Err(anyhow!(e)),
+        }
+    }
+
+    async fn delete_recurrence(
+        &self,
+        calendar_id: String,
+        event_id: String,
+    ) -> Result<(), anyhow::Error> {
+        self.delete(calendar_id, event_id).await
+    }
+
+    async fn record(&self, _calendar_id: String, _record: Record) -> Result<(), anyhow::Error> {
         Ok(())
     }
 
-    async fn delete_recurrence(&self, _id: String) -> Result<(), anyhow::Error> {
+    async fn record_recurrence(
+        &self,
+        _calendar_id: String,
+        _record: RecurringRecord,
+    ) -> Result<(), anyhow::Error> {
         Ok(())
     }
 
-    async fn record(&self, _record: Record) -> Result<(), anyhow::Error> {
-        Ok(())
-    }
-
-    async fn record_recurrence(&self, _record: RecurringRecord) -> Result<(), anyhow::Error> {
-        Ok(())
-    }
-
-    async fn list_recurrence(&self) -> Result<Vec<RecurringRecord>, anyhow::Error> {
+    async fn list_recurrence(
+        &self,
+        _calendar_id: String,
+    ) -> Result<Vec<RecurringRecord>, anyhow::Error> {
         Ok(Vec::new())
     }
 
-    async fn update_recurrence(&self) -> Result<(), anyhow::Error> {
+    async fn update_recurrence(&self, _calendar_id: String) -> Result<(), anyhow::Error> {
         Ok(())
     }
 
-    async fn list_today(&self, _include_completed: bool) -> Result<Vec<Record>, anyhow::Error> {
+    async fn list_today(
+        &self,
+        _calendar_id: String,
+        _include_completed: bool,
+    ) -> Result<Vec<Record>, anyhow::Error> {
         Ok(Vec::new())
     }
 
-    async fn list_all(&self, _include_completed: bool) -> Result<Vec<Record>, anyhow::Error> {
+    async fn list_all(
+        &self,
+        _calendar_id: String,
+        _include_completed: bool,
+    ) -> Result<Vec<Record>, anyhow::Error> {
         Ok(Vec::new())
     }
 
     async fn events_now(
         &self,
+        _calendar_id: String,
         _last: chrono::Duration,
         _include_completed: bool,
     ) -> Result<Vec<Record>, anyhow::Error> {
         Ok(Vec::new())
     }
 
-    async fn complete_task(&self, _primary_key: u64) -> Result<(), anyhow::Error> {
+    async fn complete_task(
+        &self,
+        _calendar_id: String,
+        _primary_key: u64,
+    ) -> Result<(), anyhow::Error> {
         Ok(())
     }
 }
