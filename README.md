@@ -200,12 +200,16 @@ Once you have the "Client ID" and "Client Secret", run this command:
 ```bash
 saturn config set-client <client id> <client secret>
 saturn config get-token
+saturn config db-type google
 ```
 
-The latter of these two commands will have you access a URL in your browser and
-make you login to the google account you wish to use, which must be listed in
-your "testing users" in the OAuth setup above. As a final step, it will call
-back into a web service the application starts, which will feed it the token.
+The `get-token` command will have you access a URL in your browser and make you
+login to the google account you wish to use, which must be listed in your
+"testing users" in the OAuth setup above. As a final step, it will call back
+into a web service the application starts, which will feed it the token.
+
+Setting the db-type will change the source of data. If you were using a local
+database and want to go back to it, `saturn config db-type unixfile`.
 
 I wish this were a little easier, but them's the ropes.
 
