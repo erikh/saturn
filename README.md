@@ -183,6 +183,9 @@ Google Calendar support is partially working, with OAuth credentials being
 setup properly. Additional work still needs to be done to address database
 work.
 
+This work is moving much slower than the rest of the product, so don't be
+surprised if there is incomplete, broken, or missing functionality.
+
 To use `saturn` with Google Calendar, you must create a Google Cloud account
 and assign an OAuth application to it. One is not provided automatically by
 using `saturn` to eliminate concerns of data provenance.
