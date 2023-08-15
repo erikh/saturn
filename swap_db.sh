@@ -1,4 +1,8 @@
 #!/usr/bin/env bash
+#
+# this allows you to easily save and restore your saturn db. Only works with
+# offline db modes.
+#
 
 set -eou pipefail
 

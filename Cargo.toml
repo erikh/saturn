@@ -11,6 +11,7 @@ authors = ["Erik Hollensbe <erik+github@hollensbe.org>"]
 console = "*"
 notify-rust = "*"
 anyhow = "*"
+async-recursion = "*"
 chrono = { version = "*", features = [ "serde" ] }
 chrono-tz = "*"
 rand = "*"
@@ -24,10 +25,12 @@ ttygrid = "*"
 nix = "*"
 serde_yaml = "*"
 tokio = { version = "*", features = [ "full" ] }
-google-calendar = "*"
+gcal = { version = "*", path = "../gcal" }
 davisjr = "*"
 url = "*"
 async-trait = "*"
+reqwest = { version = "*", features = [ "json" ]}
+uuid = { version = "*", features = [ "v4" ] }
 
 [dev-dependencies]
 tempfile = "*"

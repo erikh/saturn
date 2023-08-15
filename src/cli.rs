@@ -1,37 +1,14 @@
 use crate::{
-    config::{Config, DBType, CONFIG_FILENAME, DB_FILENAME},
-    db::{
-        google::{GoogleLoader, CALENDAR_SCOPE},
-        memory::MemoryDB,
-        unixfile::UnixFileLoader,
-        DB,
-    },
+    config::{Config, DBType},
     oauth::{oauth_listener, ClientParameters, State},
-    record::{Record, RecordType, RecurringRecord},
+    record::{Record, RecurringRecord},
 };
 use anyhow::anyhow;
 use chrono::{Datelike, Duration, Timelike};
 use fancy_duration::FancyDuration;
-use google_calendar::Client;
-use std::{env::var, path::PathBuf};
 use tokio::sync::Mutex;
 
-pub fn saturn_config() -> PathBuf {
-    PathBuf::from(var("HOME").unwrap_or("/".to_string())).join(CONFIG_FILENAME)
-}
-
-pub fn saturn_db() -> PathBuf {
-    PathBuf::from(
-        var("SATURN_DB").unwrap_or(
-            PathBuf::from(var("HOME").unwrap_or("/".to_string()))
-                .join(DB_FILENAME)
-                .to_str()
-                .unwrap()
-                .to_string(),
-        ),
-    )
-}
-
+#[derive(Debug, Clone)]
 pub struct EntryParser {
     args: Vec<String>,
 }
@@ -41,74 +18,13 @@ impl EntryParser {
         Self { args }
     }
 
-    pub async fn entry(&self) -> Result<(), anyhow::Error> {
-        let mut record = self.to_record()?;
-
-        do_db(|db| {
-            record.record.set_primary_key(db.next_key());
-
-            if let Some(mut recurrence) = record.recurrence {
-                let key = db.next_recurrence_key();
-                record.record.set_recurrence_key(Some(key));
-                recurrence.set_recurrence_key(key);
-                db.record_recurrence(recurrence)?;
-            }
-
-            db.record(record.record)
-        })
-        .await
-    }
-
     pub fn to_record(&self) -> Result<EntryRecord, anyhow::Error> {
         parse_entry(self.args.clone())
     }
 }
 
-fn sort_events(a: &Record, b: &Record) -> std::cmp::Ordering {
-    let cmp = a.date().cmp(&b.date());
-    if cmp == std::cmp::Ordering::Equal {
-        match a.record_type() {
-            RecordType::At => {
-                if let Some(a_at) = a.at() {
-                    if let Some(b_at) = b.at() {
-                        a_at.cmp(&b_at)
-                    } else if let Some(b_schedule) = b.scheduled() {
-                        a_at.cmp(&b_schedule.0)
-                    } else {
-                        std::cmp::Ordering::Equal
-                    }
-                } else {
-                    std::cmp::Ordering::Equal
-                }
-            }
-            RecordType::AllDay => {
-                if b.record_type() == RecordType::AllDay {
-                    a.primary_key().cmp(&b.primary_key())
-                } else {
-                    std::cmp::Ordering::Less
-                }
-            }
-            RecordType::Schedule => {
-                if let Some(a_schedule) = a.scheduled() {
-                    if let Some(b_schedule) = b.scheduled() {
-                        a_schedule.0.cmp(&b_schedule.0)
-                    } else if let Some(b_at) = b.at() {
-                        a_schedule.0.cmp(&b_at)
-                    } else {
-                        std::cmp::Ordering::Equal
-                    }
-                } else {
-                    std::cmp::Ordering::Equal
-                }
-            }
-        }
-    } else {
-        cmp
-    }
-}
-
 pub fn get_config() -> Result<Config, anyhow::Error> {
-    Config::load(saturn_config())
+    Config::load(None)
 }
 
 pub fn set_db_type(db_type: String) -> Result<(), anyhow::Error> {
@@ -124,7 +40,7 @@ pub fn set_db_type(db_type: String) -> Result<(), anyhow::Error> {
     };
 
     config.set_db_type(typ);
-    config.save(saturn_config())?;
+    config.save(None)?;
 
     Ok(())
 }
@@ -138,32 +54,28 @@ pub async fn get_access_token() -> Result<(), anyhow::Error> {
         ));
     }
 
-    let state = State::new(Mutex::new(ClientParameters {
+    let mut params = ClientParameters {
         client_id: config.client_id().unwrap(),
         client_secret: config.client_secret().unwrap(),
-        redirect_url: None,
-        access_key: None,
-    }));
+        ..Default::default()
+    };
+
+    let state = State::new(Mutex::new(params.clone()));
     let host = oauth_listener(state.clone()).await?;
-    let redirect_url = format!("http://{}", host);
+    params.redirect_url = Some(format!("http://{}", host));
 
-    let calendar = Client::new(
-        config.client_id().unwrap(),
-        config.client_secret().unwrap(),
-        redirect_url.clone(),
-        "",
-        "",
-    );
-
-    let url = calendar.user_consent_url(&[CALENDAR_SCOPE.to_string()]);
+    let url = crate::oauth::oauth_user_url(params.clone());
     println!("Click on this and login: {}", url);
 
     loop {
         let lock = state.lock().await;
         if lock.access_key.is_some() {
             config.set_access_token(lock.access_key.clone());
-            config.set_redirect_url(Some(redirect_url));
-            config.save(saturn_config())?;
+            config.set_access_token_expires_at(lock.expires_at.clone());
+            config.set_refresh_token(lock.refresh_token.clone());
+            config.set_refresh_token_expires_at(lock.refresh_token_expires_at.clone());
+            config.set_redirect_url(params.redirect_url.clone());
+            config.save(None)?;
             println!("Captured. Thanks!");
             return Ok(());
         }
@@ -175,96 +87,13 @@ pub async fn get_access_token() -> Result<(), anyhow::Error> {
 pub fn set_client_info(client_id: String, client_secret: String) -> Result<(), anyhow::Error> {
     let mut config = get_config()?;
     config.set_client_info(client_id, client_secret);
-    config.save(saturn_config())
+    config.save(None)
 }
 
 pub fn set_sync_window(duration: FancyDuration<Duration>) -> Result<(), anyhow::Error> {
     let mut config = get_config()?;
     config.set_sync_duration(Some(duration));
-    config.save(saturn_config())
-}
-
-async fn do_db<T>(
-    f: impl FnOnce(&mut Box<MemoryDB>) -> Result<T, anyhow::Error>,
-) -> Result<T, anyhow::Error> {
-    let config = Config::load(saturn_config())?;
-
-    match config.db_type() {
-        DBType::UnixFile => {
-            let filename = saturn_db();
-
-            let mut db = if std::fs::metadata(&filename).is_ok() {
-                UnixFileLoader::new(&filename).load().await?
-            } else {
-                MemoryDB::new()
-            };
-
-            let res = f(&mut db);
-
-            UnixFileLoader::new(&filename).dump(&mut db).await?;
-
-            res
-        }
-        DBType::Google => {
-            let loader = GoogleLoader::new(config)?;
-            let mut db = loader.load().await?;
-
-            let res = f(&mut db);
-
-            loader.dump(&mut db).await?;
-
-            res
-        }
-    }
-}
-
-pub async fn list_recurrence() -> Result<Vec<RecurringRecord>, anyhow::Error> {
-    do_db(|db| db.list_recurrence()).await
-}
-
-pub async fn complete_task(primary_key: u64) -> Result<(), anyhow::Error> {
-    do_db(|db| db.complete_task(primary_key)).await
-}
-
-pub async fn delete_event(primary_key: u64, recur: bool) -> Result<(), anyhow::Error> {
-    do_db(|db| {
-        if recur {
-            db.delete_recurrence(primary_key)?;
-        } else {
-            db.delete(primary_key)?;
-        }
-
-        Ok(())
-    })
-    .await
-}
-
-pub async fn events_now(
-    last: Duration,
-    include_completed: bool,
-) -> Result<Vec<Record>, anyhow::Error> {
-    do_db(|db| {
-        let mut events = db.events_now(last, include_completed)?;
-        events.sort_by(sort_events);
-        Ok(events)
-    })
-    .await
-}
-
-pub async fn list_entries(
-    all: bool,
-    include_completed: bool,
-) -> Result<Vec<Record>, anyhow::Error> {
-    do_db(|db| {
-        let mut list = if all {
-            db.list_all(include_completed)?
-        } else {
-            db.list_today(include_completed)?
-        };
-        list.sort_by(sort_events);
-        Ok(list)
-    })
-    .await
+    config.save(None)
 }
 
 enum EntryState {
@@ -283,6 +112,16 @@ enum EntryState {
 pub struct EntryRecord {
     record: Record,
     recurrence: Option<RecurringRecord>,
+}
+
+impl EntryRecord {
+    pub fn record(&self) -> Record {
+        self.record.clone()
+    }
+
+    pub fn recurrence(&self) -> Option<RecurringRecord> {
+        self.recurrence.clone()
+    }
 }
 
 fn parse_entry(args: Vec<String>) -> Result<EntryRecord, anyhow::Error> {

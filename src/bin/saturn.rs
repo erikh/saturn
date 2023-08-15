@@ -3,9 +3,10 @@ use clap::{Parser, Subcommand};
 use fancy_duration::FancyDuration;
 use saturn::{
     cli::{
-        complete_task, delete_event, events_now, get_access_token, list_entries, list_recurrence,
-        set_client_info, set_db_type, set_sync_window, EntryParser,
+        get_access_token, get_config, set_client_info, set_db_type, set_sync_window, EntryParser,
     },
+    config::{Config, DBType},
+    db::{google::GoogleClient, memory::MemoryDB, remote::RemoteDB, DB},
     record::{Record, RecurringRecord, Schedule},
 };
 use ttygrid::{add_line, grid, header};
@@ -37,6 +38,10 @@ enum ConfigCommand {
         about = "Set the synchronization window for remote requests. Window will be both added to the leading and trailing duration."
     )]
     SetSyncWindow { window: String },
+    #[command(about = "List Calendar Summaries and their IDs")]
+    ListCalendars,
+    #[command(about = "Set the calendar ID for remote requests.")]
+    SetCalendarID { id: String },
 }
 
 #[derive(Debug, Subcommand)]
@@ -223,9 +228,27 @@ fn print_recurring(entries: Vec<RecurringRecord>) {
     println!("{}", grid.display().unwrap());
 }
 
-#[tokio::main]
-async fn main() -> Result<(), anyhow::Error> {
-    let cli = ArgParser::parse();
+fn set_calendar_id(id: String, mut config: Config) -> Result<(), anyhow::Error> {
+    config.set_calendar_id(id);
+    config.save(None)
+}
+
+async fn list_calendars(mut client: GoogleClient) -> Result<(), anyhow::Error> {
+    let list = client.list_calendars().await?;
+    let mut grid = grid!(header!("ID"), header!("SUMMARY"));
+    for item in list {
+        add_line!(grid, item.id, item.summary).unwrap();
+    }
+    println!("{}", grid.display().unwrap());
+    Ok(())
+}
+
+async fn process_google(cli: ArgParser, config: Config) -> Result<(), anyhow::Error> {
+    let client = GoogleClient::new(config.clone())?;
+
+    let mut db = RemoteDB::new(config.calendar_id(), client.clone());
+    db.load().await?;
+
     match cli.command {
         Command::Config { command } => match command {
             ConfigCommand::SetClient {
@@ -237,9 +260,21 @@ async fn main() -> Result<(), anyhow::Error> {
                 set_sync_window(FancyDuration::<chrono::Duration>::parse(&window)?)?
             }
             ConfigCommand::DBType { db_type } => set_db_type(db_type)?,
+            ConfigCommand::ListCalendars => {
+                list_calendars(client).await?;
+            }
+            ConfigCommand::SetCalendarID { id } => {
+                set_calendar_id(id, config)?;
+            }
         },
-        Command::Complete { id } => complete_task(id).await?,
-        Command::Delete { id, recur } => delete_event(id, recur).await?,
+        Command::Complete { id } => db.complete_task(id).await?,
+        Command::Delete { id, recur } => {
+            if recur {
+                db.delete_recurrence(id).await?
+            } else {
+                db.delete(id).await?
+            }
+        }
         Command::Notify {
             well,
             timeout,
@@ -255,7 +290,7 @@ async fn main() -> Result<(), anyhow::Error> {
             notification.summary("Calendar Event");
             notification.timeout(timeout);
 
-            for entry in events_now(get_well(well)?, include_completed).await? {
+            for entry in db.events_now(get_well(well)?, include_completed).await? {
                 if let Some(at) = entry.at() {
                     notification.body(&format_at(entry, at)).show()?;
                 } else if let Some(schedule) = entry.scheduled() {
@@ -269,21 +304,122 @@ async fn main() -> Result<(), anyhow::Error> {
             well,
             include_completed,
         } => {
-            print_entries(events_now(get_well(well)?, include_completed).await?);
+            print_entries(db.events_now(get_well(well)?, include_completed).await?);
         }
         Command::List { all, recur } => {
             if recur {
-                print_recurring(list_recurrence().await?);
+                print_recurring(db.list_recurrence().await?);
             } else {
-                print_entries(list_entries(all, all).await?);
+                if all {
+                    print_entries(db.list_all(false).await?);
+                } else {
+                    print_entries(db.list_today(false).await?);
+                }
             }
         }
         Command::Today {} => {
-            print_entries(list_entries(false, false).await?);
+            print_entries(db.list_today(false).await?);
         }
         Command::Entry { args } => {
-            EntryParser::new(args).entry().await?;
+            db.record_entry(EntryParser::new(args)).await?;
         }
     }
+
+    db.dump().await?;
+
     Ok(())
+}
+
+async fn process_file(cli: ArgParser) -> Result<(), anyhow::Error> {
+    let mut db = MemoryDB::new();
+    db.load().await?;
+
+    match cli.command {
+        Command::Config { command } => match command {
+            ConfigCommand::SetClient {
+                client_id,
+                client_secret,
+            } => set_client_info(client_id, client_secret)?,
+            ConfigCommand::GetToken {} => get_access_token().await?,
+            ConfigCommand::SetSyncWindow { window } => {
+                set_sync_window(FancyDuration::<chrono::Duration>::parse(&window)?)?
+            }
+            ConfigCommand::DBType { db_type } => set_db_type(db_type)?,
+            ConfigCommand::ListCalendars => {
+                eprintln!("Not supported in unixfile mode");
+            }
+            ConfigCommand::SetCalendarID { .. } => {
+                eprintln!("Not supported in unixfile mode");
+            }
+        },
+        Command::Complete { id } => db.complete_task(id).await?,
+        Command::Delete { id, recur } => {
+            if recur {
+                db.delete_recurrence(id).await?
+            } else {
+                db.delete(id).await?
+            }
+        }
+        Command::Notify {
+            well,
+            timeout,
+            include_completed,
+        } => {
+            let timeout = timeout.map_or(std::time::Duration::new(60, 0), |t| {
+                fancy_duration::FancyDuration::<std::time::Duration>::parse(&t)
+                    .expect("Invalid Duration")
+                    .duration()
+            });
+
+            let mut notification = notify_rust::Notification::new();
+            notification.summary("Calendar Event");
+            notification.timeout(timeout);
+
+            for entry in db.events_now(get_well(well)?, include_completed).await? {
+                if let Some(at) = entry.at() {
+                    notification.body(&format_at(entry, at)).show()?;
+                } else if let Some(schedule) = entry.scheduled() {
+                    notification
+                        .body(&format_scheduled(entry, schedule))
+                        .show()?;
+                }
+            }
+        }
+        Command::Now {
+            well,
+            include_completed,
+        } => {
+            print_entries(db.events_now(get_well(well)?, include_completed).await?);
+        }
+        Command::List { all, recur } => {
+            if recur {
+                print_recurring(db.list_recurrence().await?);
+            } else {
+                if all {
+                    print_entries(db.list_all(false).await?);
+                } else {
+                    print_entries(db.list_today(false).await?);
+                }
+            }
+        }
+        Command::Today {} => {
+            print_entries(db.list_today(false).await?);
+        }
+        Command::Entry { args } => {
+            db.record_entry(EntryParser::new(args)).await?;
+        }
+    }
+
+    Ok(())
+}
+
+#[tokio::main]
+async fn main() -> Result<(), anyhow::Error> {
+    let cli = ArgParser::parse();
+
+    let config = get_config().unwrap_or_default();
+    match config.db_type() {
+        DBType::UnixFile => process_file(cli).await,
+        DBType::Google => process_google(cli, config).await,
+    }
 }

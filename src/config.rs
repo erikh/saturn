@@ -1,3 +1,4 @@
+use crate::filenames::saturn_config;
 use chrono::Duration;
 use fancy_duration::FancyDuration;
 use serde::{Deserialize, Serialize};
@@ -13,12 +14,17 @@ pub enum DBType {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+// FIXME add default duration for calendar items
 pub struct Config {
     db_type: DBType,
     access_token: Option<String>,
+    access_token_expires_at: Option<chrono::NaiveDateTime>,
+    refresh_token: Option<String>,
+    refresh_token_expires_at: Option<chrono::NaiveDateTime>,
     client_info: Option<(String, String)>,
     redirect_url: Option<String>,
     sync_duration: Option<FancyDuration<Duration>>,
+    calendar_id: String,
 }
 
 impl Default for Config {
@@ -26,44 +32,82 @@ impl Default for Config {
         Self {
             db_type: DBType::UnixFile,
             access_token: None,
+            access_token_expires_at: None,
+            refresh_token: None,
+            refresh_token_expires_at: None,
             redirect_url: None,
             client_info: None,
             sync_duration: None,
+            calendar_id: "primary".to_string(),
         }
     }
 }
 
 impl Config {
-    pub fn load(filename: std::path::PathBuf) -> Result<Self, anyhow::Error> {
+    pub fn load(filename: Option<std::path::PathBuf>) -> Result<Self, anyhow::Error> {
+        let path = filename.unwrap_or(saturn_config());
         let mut io = std::fs::OpenOptions::new();
         io.read(true);
 
-        match io.open(filename) {
+        match io.open(path) {
             Ok(io) => Ok(serde_yaml::from_reader(io)?),
             Err(_) => Ok(Self::default()),
         }
     }
 
-    pub fn save(&self, filename: std::path::PathBuf) -> Result<(), anyhow::Error> {
+    pub fn save(&self, filename: Option<std::path::PathBuf>) -> Result<(), anyhow::Error> {
+        let path = filename.unwrap_or(saturn_config());
         let mut io = std::fs::OpenOptions::new();
         io.write(true);
         io.truncate(true);
         io.create(true);
-        let io = io.open(filename)?;
+        let io = io.open(path)?;
 
         Ok(serde_yaml::to_writer(io, self)?)
+    }
+
+    pub fn set_calendar_id(&mut self, calendar_id: String) {
+        self.calendar_id = calendar_id;
     }
 
     pub fn set_access_token(&mut self, access_token: Option<String>) {
         self.access_token = access_token;
     }
 
+    pub fn set_access_token_expires_at(&mut self, expires_at: Option<chrono::NaiveDateTime>) {
+        self.access_token_expires_at = expires_at;
+    }
+
+    pub fn set_refresh_token(&mut self, refresh_token: Option<String>) {
+        self.refresh_token = refresh_token;
+    }
+
+    pub fn set_refresh_token_expires_at(&mut self, expires_at: Option<chrono::NaiveDateTime>) {
+        self.refresh_token_expires_at = expires_at;
+    }
+
     pub fn access_token(&self) -> Option<String> {
         self.access_token.clone()
     }
 
+    pub fn access_token_expires_at(&self) -> Option<chrono::NaiveDateTime> {
+        self.access_token_expires_at.clone()
+    }
+
+    pub fn refresh_token(&self) -> Option<String> {
+        self.refresh_token.clone()
+    }
+
+    pub fn refresh_token_expires_at(&self) -> Option<chrono::NaiveDateTime> {
+        self.refresh_token_expires_at.clone()
+    }
+
     pub fn set_redirect_url(&mut self, redirect_url: Option<String>) {
         self.redirect_url = redirect_url;
+    }
+
+    pub fn calendar_id(&self) -> String {
+        self.calendar_id.clone()
     }
 
     pub fn redirect_url(&self) -> Option<String> {

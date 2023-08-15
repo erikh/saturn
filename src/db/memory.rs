@@ -1,9 +1,13 @@
 use crate::{
     db::DB,
+    filenames::saturn_db,
     record::{Record, RecurringRecord},
 };
+use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
+
+use super::unixfile::UnixFileLoader;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct MemoryDB {
@@ -14,12 +18,26 @@ pub struct MemoryDB {
 }
 
 impl MemoryDB {
-    pub fn new() -> Box<Self> {
-        Box::new(Self::default())
+    pub fn new() -> Self {
+        Self::default()
     }
 }
 
+#[async_trait]
 impl DB for MemoryDB {
+    async fn load(&mut self) -> Result<(), anyhow::Error> {
+        let db: Self = UnixFileLoader::new(&saturn_db()).load().await;
+        self.primary_key = db.primary_key;
+        self.records = db.records;
+        self.recurrence_key = db.recurrence_key;
+        self.recurring = db.recurring;
+        Ok(())
+    }
+
+    async fn dump(&self) -> Result<(), anyhow::Error> {
+        UnixFileLoader::new(&saturn_db()).dump(self.clone()).await
+    }
+
     fn primary_key(&self) -> u64 {
         self.primary_key
     }
@@ -36,7 +54,7 @@ impl DB for MemoryDB {
         self.recurrence_key = primary_key;
     }
 
-    fn delete(&mut self, primary_key: u64) -> Result<(), anyhow::Error> {
+    async fn delete(&mut self, primary_key: u64) -> Result<(), anyhow::Error> {
         for (key, list) in self.records.clone() {
             let mut new = Vec::new();
             for record in list {
@@ -50,7 +68,7 @@ impl DB for MemoryDB {
         Ok(())
     }
 
-    fn delete_recurrence(&mut self, primary_key: u64) -> Result<(), anyhow::Error> {
+    async fn delete_recurrence(&mut self, primary_key: u64) -> Result<(), anyhow::Error> {
         let mut new = Vec::new();
 
         for entry in &self.recurring {
@@ -64,7 +82,7 @@ impl DB for MemoryDB {
         Ok(())
     }
 
-    fn record(&mut self, record: Record) -> Result<(), anyhow::Error> {
+    async fn record(&mut self, record: Record) -> Result<(), anyhow::Error> {
         if let Some(item) = self.records.get_mut(&record.date()) {
             item.push(record);
         } else {
@@ -74,16 +92,24 @@ impl DB for MemoryDB {
         Ok(())
     }
 
-    fn record_recurrence(&mut self, record: RecurringRecord) -> Result<(), anyhow::Error> {
+    async fn record_recurrence(&mut self, record: RecurringRecord) -> Result<(), anyhow::Error> {
         self.recurring.push(record);
         Ok(())
     }
 
-    fn list_recurrence(&self) -> Result<Vec<RecurringRecord>, anyhow::Error> {
+    async fn insert_record(&mut self, record: Record) -> Result<(), anyhow::Error> {
+        self.record(record).await
+    }
+
+    async fn insert_recurrence(&mut self, record: RecurringRecord) -> Result<(), anyhow::Error> {
+        self.record_recurrence(record).await
+    }
+
+    async fn list_recurrence(&mut self) -> Result<Vec<RecurringRecord>, anyhow::Error> {
         Ok(self.recurring.clone())
     }
 
-    fn update_recurrence(&mut self) -> Result<(), anyhow::Error> {
+    async fn update_recurrence(&mut self) -> Result<(), anyhow::Error> {
         let now = chrono::Local::now();
 
         for recur in self.recurring.clone() {
@@ -114,7 +140,8 @@ impl DB for MemoryDB {
                         break;
                     }
                     let key = self.next_key();
-                    self.record(recur.record_from(key, dt.naive_local()))?;
+                    self.record(recur.record_from(key, dt.naive_local()))
+                        .await?;
                 }
             }
         }
@@ -122,7 +149,7 @@ impl DB for MemoryDB {
         Ok(())
     }
 
-    fn list_today(&self, include_completed: bool) -> Result<Vec<Record>, anyhow::Error> {
+    async fn list_today(&mut self, include_completed: bool) -> Result<Vec<Record>, anyhow::Error> {
         Ok(self
             .records
             .get(&chrono::Local::now().date_naive())
@@ -138,7 +165,7 @@ impl DB for MemoryDB {
             .collect::<Vec<Record>>())
     }
 
-    fn list_all(&self, include_completed: bool) -> Result<Vec<Record>, anyhow::Error> {
+    async fn list_all(&mut self, include_completed: bool) -> Result<Vec<Record>, anyhow::Error> {
         Ok(self
             .records
             .iter()
@@ -153,7 +180,7 @@ impl DB for MemoryDB {
             .collect::<Vec<Record>>())
     }
 
-    fn events_now(
+    async fn events_now(
         &mut self,
         last: chrono::Duration,
         include_completed: bool,
@@ -239,7 +266,7 @@ impl DB for MemoryDB {
         Ok(ret)
     }
 
-    fn complete_task(&mut self, primary_key: u64) -> Result<(), anyhow::Error> {
+    async fn complete_task(&mut self, primary_key: u64) -> Result<(), anyhow::Error> {
         for (_, list) in &mut self.records {
             for record in list {
                 if record.primary_key() == primary_key {
@@ -284,19 +311,17 @@ mod tests {
                         ))
                         .clone(),
                 )
+                .await
                 .is_ok());
         }
 
         let f = tempfile::NamedTempFile::new().unwrap();
         assert!(UnixFileLoader::new(&f.path().to_path_buf())
-            .dump(&mut db)
+            .dump(db.clone())
             .await
             .is_ok());
 
-        let res = UnixFileLoader::new(&f.path().to_path_buf()).load().await;
-        assert!(res.is_ok());
-
-        let db2 = res.unwrap();
+        let db2: MemoryDB = UnixFileLoader::new(&f.path().to_path_buf()).load().await;
         assert_eq!(db.primary_key, db2.primary_key);
         assert_eq!(db.records, db2.records);
     }

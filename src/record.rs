@@ -83,6 +83,7 @@ pub struct Record {
     primary_key: u64,
     recurrence_key: Option<u64>,
     internal_key: Option<String>,
+    internal_recurrence_key: Option<String>,
     date: chrono::NaiveDate,
     typ: RecordType,
     at: Option<chrono::NaiveTime>,
@@ -101,6 +102,7 @@ impl Default for Record {
             primary_key: 0,
             recurrence_key: None,
             internal_key: None,
+            internal_recurrence_key: None,
             date: now.date_naive(),
             typ: RecordType::AllDay,
             at: None,
@@ -121,6 +123,10 @@ impl Record {
 
     pub fn recurrence_key(&self) -> Option<u64> {
         self.recurrence_key
+    }
+
+    pub fn internal_recurrence_key(&self) -> Option<String> {
+        self.internal_recurrence_key.clone()
     }
 
     pub fn internal_key(&self) -> Option<String> {
@@ -183,8 +189,12 @@ impl Record {
         Self::default()
     }
 
-    pub fn record(&self, mut db: crate::db::memory::MemoryDB) -> Result<(), anyhow::Error> {
-        db.record(self.clone())
+    pub async fn record(&self, mut db: crate::db::memory::MemoryDB) -> Result<(), anyhow::Error> {
+        db.record(self.clone()).await
+    }
+
+    pub fn set_internal_recurrence_key(&mut self, internal_recurrence_key: Option<String>) {
+        self.internal_recurrence_key = internal_recurrence_key
     }
 
     pub fn set_primary_key(&mut self, primary_key: u64) -> &mut Self {

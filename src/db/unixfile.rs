@@ -1,5 +1,6 @@
-use crate::db::{memory::MemoryDB, DB};
+use crate::db::DB;
 use anyhow::anyhow;
+use serde::{Deserialize, Serialize};
 use std::os::unix::io::FromRawFd;
 
 pub struct UnixFileLoader<'a>(pub &'a std::path::PathBuf);
@@ -9,7 +10,17 @@ impl<'a> UnixFileLoader<'a> {
         Self(filename)
     }
 
-    pub async fn load(&self) -> Result<Box<MemoryDB>, anyhow::Error> {
+    pub async fn load<T>(&self) -> T
+    where
+        T: DB + Serialize + for<'de> Deserialize<'de> + Default,
+    {
+        self.load_with_locking().await.unwrap_or_default()
+    }
+
+    async fn load_with_locking<T>(&self) -> Result<T, anyhow::Error>
+    where
+        T: DB + Serialize + for<'de> Deserialize<'de>,
+    {
         unsafe {
             let fd = nix::libc::open(
                 std::ffi::CString::from_vec_unchecked(self.0.to_str().unwrap().as_bytes().to_vec())
@@ -34,13 +45,14 @@ impl<'a> UnixFileLoader<'a> {
                 .to_string()));
             }
 
-            let mut res: MemoryDB = ciborium::from_reader(std::fs::File::from_raw_fd(fd))?;
-            res.update_recurrence()?;
-            Ok(Box::new(res))
+            Ok(ciborium::from_reader(std::fs::File::from_raw_fd(fd))?)
         }
     }
 
-    pub async fn dump(&self, db: &mut Box<MemoryDB>) -> Result<(), anyhow::Error> {
+    pub async fn dump<T>(&self, mut db: T) -> Result<(), anyhow::Error>
+    where
+        T: DB + Serialize + for<'de> Deserialize<'de>,
+    {
         unsafe {
             let fd = nix::libc::open(
                 std::ffi::CString::from_vec_unchecked(self.0.to_str().unwrap().as_bytes().to_vec())
@@ -79,12 +91,9 @@ impl<'a> UnixFileLoader<'a> {
                 .to_string()));
             }
 
-            db.update_recurrence()?;
+            db.update_recurrence().await?;
 
-            Ok(ciborium::into_writer(
-                db.as_ref(),
-                std::fs::File::from_raw_fd(fd),
-            )?)
+            Ok(ciborium::into_writer(&db, std::fs::File::from_raw_fd(fd))?)
         }
     }
 }

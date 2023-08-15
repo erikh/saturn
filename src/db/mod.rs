@@ -1,20 +1,20 @@
 pub mod google;
+pub mod google_macros;
 pub mod memory;
 pub mod remote;
 pub mod unixfile;
 
-use crate::record::{Record, RecurringRecord};
+use crate::{
+    cli::EntryParser,
+    record::{Record, RecurringRecord},
+};
+use async_trait::async_trait;
 
-#[async_trait::async_trait]
-pub trait DBLoader<T>
-where
-    T: DB + serde::Serialize + for<'a> serde::Deserialize<'a>,
-{
-    async fn load(&self) -> Result<Box<T>, anyhow::Error>;
-    async fn dump(&self, db: &mut Box<T>) -> Result<(), anyhow::Error>;
-}
+#[async_trait]
+pub trait DB: Send {
+    async fn load(&mut self) -> Result<(), anyhow::Error>;
+    async fn dump(&self) -> Result<(), anyhow::Error>;
 
-pub trait DB {
     fn next_key(&mut self) -> u64 {
         let key = self.primary_key() + 1;
         self.set_primary_key(key);
@@ -32,59 +32,82 @@ pub trait DB {
     fn recurrence_key(&self) -> u64;
     fn set_recurrence_key(&mut self, primary_key: u64);
 
-    fn delete(&mut self, primary_key: u64) -> Result<(), anyhow::Error>;
-    fn delete_recurrence(&mut self, primary_key: u64) -> Result<(), anyhow::Error>;
-    fn record(&mut self, record: Record) -> Result<(), anyhow::Error>;
-    fn record_recurrence(&mut self, record: RecurringRecord) -> Result<(), anyhow::Error>;
-    fn list_recurrence(&self) -> Result<Vec<RecurringRecord>, anyhow::Error>;
-    fn update_recurrence(&mut self) -> Result<(), anyhow::Error>;
-    fn list_today(&self, include_completed: bool) -> Result<Vec<Record>, anyhow::Error>;
-    fn list_all(&self, include_completed: bool) -> Result<Vec<Record>, anyhow::Error>;
-    fn events_now(
+    async fn record_entry(&mut self, entry: EntryParser) -> Result<(), anyhow::Error> {
+        let record = entry.to_record()?;
+        let recurrence = record.recurrence();
+        let mut record = record.record();
+        record.set_primary_key(self.next_key());
+
+        if let Some(mut recurrence) = recurrence {
+            let key = self.next_recurrence_key();
+            record.set_recurrence_key(Some(key));
+            recurrence.set_recurrence_key(key);
+            self.record_recurrence(recurrence).await?;
+        }
+
+        self.insert_record(record).await?;
+        Ok(())
+    }
+
+    async fn delete(&mut self, primary_key: u64) -> Result<(), anyhow::Error>;
+    async fn delete_recurrence(&mut self, primary_key: u64) -> Result<(), anyhow::Error>;
+    async fn record(&mut self, record: Record) -> Result<(), anyhow::Error>;
+    async fn record_recurrence(&mut self, record: RecurringRecord) -> Result<(), anyhow::Error>;
+    async fn insert_record(&mut self, record: Record) -> Result<(), anyhow::Error>;
+    async fn insert_recurrence(&mut self, record: RecurringRecord) -> Result<(), anyhow::Error>;
+    async fn list_recurrence(&mut self) -> Result<Vec<RecurringRecord>, anyhow::Error>;
+    async fn update_recurrence(&mut self) -> Result<(), anyhow::Error>;
+    async fn list_today(&mut self, include_completed: bool) -> Result<Vec<Record>, anyhow::Error>;
+    async fn list_all(&mut self, include_completed: bool) -> Result<Vec<Record>, anyhow::Error>;
+    async fn events_now(
         &mut self,
         last: chrono::Duration,
         include_completed: bool,
     ) -> Result<Vec<Record>, anyhow::Error>;
-    fn complete_task(&mut self, primary_key: u64) -> Result<(), anyhow::Error>;
+    async fn complete_task(&mut self, primary_key: u64) -> Result<(), anyhow::Error>;
 }
 
-#[async_trait::async_trait]
-pub trait RemoteClient: Sync {
-    async fn delete(&self, calendar_id: String, event_id: String) -> Result<(), anyhow::Error>;
+#[async_trait]
+pub trait RemoteClient {
+    async fn delete(&mut self, calendar_id: String, event_id: String) -> Result<(), anyhow::Error>;
     async fn delete_recurrence(
-        &self,
+        &mut self,
         calendar_id: String,
         event_id: String,
     ) -> Result<(), anyhow::Error>;
-    async fn record(&self, calendar_id: String, record: Record) -> Result<(), anyhow::Error>;
+    async fn record(
+        &mut self,
+        calendar_id: String,
+        record: Record,
+    ) -> Result<String, anyhow::Error>;
     async fn record_recurrence(
-        &self,
+        &mut self,
         calendar_id: String,
         record: RecurringRecord,
-    ) -> Result<(), anyhow::Error>;
+    ) -> Result<String, anyhow::Error>;
     async fn list_recurrence(
-        &self,
+        &mut self,
         calendar_id: String,
     ) -> Result<Vec<RecurringRecord>, anyhow::Error>;
-    async fn update_recurrence(&self, calendar_id: String) -> Result<(), anyhow::Error>;
+    async fn update_recurrence(&mut self, calendar_id: String) -> Result<(), anyhow::Error>;
     async fn list_today(
-        &self,
+        &mut self,
         calendar_id: String,
         include_completed: bool,
     ) -> Result<Vec<Record>, anyhow::Error>;
     async fn list_all(
-        &self,
+        &mut self,
         calendar_id: String,
         include_completed: bool,
     ) -> Result<Vec<Record>, anyhow::Error>;
     async fn events_now(
-        &self,
+        &mut self,
         calendar_id: String,
         last: chrono::Duration,
         include_completed: bool,
     ) -> Result<Vec<Record>, anyhow::Error>;
     async fn complete_task(
-        &self,
+        &mut self,
         calendar_id: String,
         primary_key: u64,
     ) -> Result<(), anyhow::Error>;
