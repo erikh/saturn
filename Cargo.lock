@@ -792,6 +792,8 @@ dependencies = [
 [[package]]
 name = "gcal"
 version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0720e307c31e410b58129691544884e4d3857d5e8b6406039a11b9a0e5d68d70"
 dependencies = [
  "anyhow",
  "chrono",
@@ -1679,7 +1681,6 @@ dependencies = [
  "ciborium",
  "clap",
  "console",
- "davisjr",
  "fancy-duration",
  "gcal",
  "nix 0.27.1",
@@ -1693,8 +1694,6 @@ dependencies = [
  "tempfile",
  "tokio",
  "ttygrid",
- "url",
- "uuid",
 ]
 
 [[package]]

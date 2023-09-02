@@ -24,12 +24,9 @@ ttygrid = "*"
 nix = "*"
 serde_yaml = "*"
 tokio = { version = "*", features = [ "full" ] }
-gcal = { version = "*", path = "../gcal" }
-davisjr = "*"
-url = "*"
+gcal = "*"
 async-trait = "*"
 reqwest = { version = "*", features = [ "json" ]}
-uuid = { version = "*", features = [ "v4" ] }
 
 [dev-dependencies]
 tempfile = "*"
