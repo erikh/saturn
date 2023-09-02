@@ -280,6 +280,8 @@ async fn process_google(cli: ArgParser, config: Config) -> Result<(), anyhow::Er
             timeout,
             include_completed,
         } => {
+            let now = chrono::Local::now();
+
             let timeout = timeout.map_or(std::time::Duration::new(60, 0), |t| {
                 fancy_duration::FancyDuration::<std::time::Duration>::parse(&t)
                     .expect("Invalid Duration")
@@ -290,13 +292,23 @@ async fn process_google(cli: ArgParser, config: Config) -> Result<(), anyhow::Er
             notification.summary("Calendar Event");
             notification.timeout(timeout);
 
-            for entry in db.events_now(get_well(well)?, include_completed).await? {
+            for entry in db
+                .events_now(get_well(well.clone())?, include_completed)
+                .await?
+            {
                 if let Some(at) = entry.at() {
                     notification.body(&format_at(entry, at)).show()?;
                 } else if let Some(schedule) = entry.scheduled() {
-                    notification
-                        .body(&format_scheduled(entry, schedule))
-                        .show()?;
+                    let start = chrono::NaiveDateTime::new(now.date_naive(), schedule.0);
+                    let lower = start - get_well(well.clone())?;
+                    let upper = start + get_well(well.clone())?;
+                    let local = now.naive_local();
+
+                    if lower < local && local < upper {
+                        notification
+                            .body(&format_scheduled(entry, schedule))
+                            .show()?;
+                    }
                 }
             }
         }
@@ -365,6 +377,8 @@ async fn process_file(cli: ArgParser) -> Result<(), anyhow::Error> {
             timeout,
             include_completed,
         } => {
+            let now = chrono::Local::now();
+
             let timeout = timeout.map_or(std::time::Duration::new(60, 0), |t| {
                 fancy_duration::FancyDuration::<std::time::Duration>::parse(&t)
                     .expect("Invalid Duration")
@@ -375,13 +389,25 @@ async fn process_file(cli: ArgParser) -> Result<(), anyhow::Error> {
             notification.summary("Calendar Event");
             notification.timeout(timeout);
 
-            for entry in db.events_now(get_well(well)?, include_completed).await? {
+            for entry in db
+                .events_now(get_well(well.clone())?, include_completed)
+                .await?
+            {
                 if let Some(at) = entry.at() {
                     notification.body(&format_at(entry, at)).show()?;
                 } else if let Some(schedule) = entry.scheduled() {
-                    notification
-                        .body(&format_scheduled(entry, schedule))
-                        .show()?;
+                    let start = chrono::NaiveDateTime::new(now.date_naive(), schedule.0);
+                    let lower = start - get_well(well.clone())?;
+                    let upper = start + get_well(well.clone())?;
+                    let local = now.naive_local();
+
+                    eprintln!("{} {} {} {}", start, lower, upper, local);
+
+                    if lower < local && local < upper {
+                        notification
+                            .body(&format_scheduled(entry, schedule))
+                            .show()?;
+                    }
                 }
             }
         }
