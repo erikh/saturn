@@ -2,13 +2,13 @@ use crate::{
     config::{Config, DBType},
     db::RemoteClient,
     do_client,
-    oauth::{request_access_token, AccessToken},
     record::{Record, RecordType, RecurringRecord},
 };
 use anyhow::anyhow;
 use async_trait::async_trait;
 use chrono::Timelike;
 use gcal::{
+    oauth::{request_access_token, AccessToken},
     resources::{
         CalendarListClient, CalendarListItem, Event, EventCalendarDate, EventClient, EventStatus,
     },

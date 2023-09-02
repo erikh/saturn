@@ -1,6 +1,7 @@
 use crate::filenames::saturn_config;
 use chrono::Duration;
 use fancy_duration::FancyDuration;
+use gcal::ClientParameters;
 use serde::{Deserialize, Serialize};
 
 pub const CONFIG_FILENAME: &str = ".saturn.conf";
@@ -25,6 +26,20 @@ pub struct Config {
     redirect_url: Option<String>,
     sync_duration: Option<FancyDuration<Duration>>,
     calendar_id: String,
+}
+
+impl Into<ClientParameters> for Config {
+    fn into(self) -> ClientParameters {
+        ClientParameters {
+            client_id: self.client_id().unwrap_or_default(),
+            client_secret: self.client_secret().unwrap_or_default(),
+            redirect_url: self.redirect_url(),
+            access_key: self.access_token(),
+            expires_at: self.access_token_expires_at(),
+            refresh_token: self.refresh_token(),
+            refresh_token_expires_at: self.refresh_token_expires_at(),
+        }
+    }
 }
 
 impl Default for Config {

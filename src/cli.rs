@@ -1,11 +1,11 @@
 use crate::{
     config::{Config, DBType},
-    oauth::{oauth_listener, ClientParameters, State},
     record::{Record, RecurringRecord},
 };
 use anyhow::anyhow;
 use chrono::{Datelike, Duration, Timelike};
 use fancy_duration::FancyDuration;
+use gcal::{oauth_listener, oauth_user_url, ClientParameters, State};
 use tokio::sync::Mutex;
 
 #[derive(Debug, Clone)]
@@ -64,7 +64,7 @@ pub async fn get_access_token() -> Result<(), anyhow::Error> {
     let host = oauth_listener(state.clone()).await?;
     params.redirect_url = Some(format!("http://{}", host));
 
-    let url = crate::oauth::oauth_user_url(params.clone());
+    let url = oauth_user_url(params.clone());
     println!("Click on this and login: {}", url);
 
     loop {
