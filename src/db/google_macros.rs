@@ -3,7 +3,7 @@ macro_rules! do_client {
     ($obj:ident, $block:block) => {
         'end: loop {
             if let Some(expires) = $obj.config.access_token_expires_at() {
-                if expires - chrono::Duration::minutes(1) < chrono::Local::now().naive_local() {
+                if expires - chrono::Duration::hours(1) < chrono::Local::now().naive_utc() {
                     $obj.refresh_access_token().await?;
                 }
             }
