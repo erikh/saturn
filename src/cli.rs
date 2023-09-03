@@ -316,27 +316,13 @@ fn parse_time(s: String) -> Result<chrono::NaiveTime, anyhow::Error> {
                         _ => Err(anyhow!("Cannot parse time")),
                     }
                 } else {
-                    Err(anyhow!("Cannot parse time"))
+                    Ok(chrono::NaiveTime::from_hms_opt(hour, minute, 0).expect("Invalid Time"))
                 }
             } else {
                 let hour = parts[0].parse()?;
                 let minute = parts[1].parse()?;
 
-                if chrono::Local::now().hour() >= 12 {
-                    Ok(chrono::NaiveTime::from_hms_opt(
-                        if hour == 12 { 12 } else { hour + 12 },
-                        minute,
-                        0,
-                    )
-                    .expect("Invalid Time"))
-                } else {
-                    Ok(chrono::NaiveTime::from_hms_opt(
-                        if hour == 12 { 0 } else { hour },
-                        minute,
-                        0,
-                    )
-                    .expect("Invalid Time"))
-                }
+                Ok(chrono::NaiveTime::from_hms_opt(hour, minute, 0).expect("Invalid Time"))
             }
         }
         1 => {
