@@ -24,7 +24,7 @@ pub struct GoogleClient {
     config: Config,
 }
 
-pub fn record_to_event(calendar_id: String, record: Record) -> Event {
+pub fn record_to_event(calendar_id: String, record: &mut Record) -> Event {
     let start = match record.record_type() {
         RecordType::At => Some(EventCalendarDate {
             date_time: Some(
@@ -116,7 +116,7 @@ impl GoogleClient {
         }
 
         let client = Client::new(
-            config.access_token().expect("You must have an access token to make calls. Use `saturn config get-token` to retreive one."),
+            config.access_token().expect("You must have an access token to make calls. Use `saturn config get-token` to retrieve one."),
         )?;
 
         Ok(Self {
@@ -185,16 +185,17 @@ impl GoogleClient {
                     .await?;
 
                 if !instances.items.is_empty() {
-                    let new_event = &mut instances.items.last().unwrap().clone();
-                    if let Some(new_start) = &new_event.start {
-                        if let Some(new_start) = &new_start.date_time {
-                            if let Ok(new_start) =
-                                new_start.parse::<chrono::DateTime<chrono::Local>>()
-                            {
-                                if new_start > start && new_start < end {
-                                    new_event.calendar_id = event.calendar_id;
-                                    event = new_event.clone();
-                                    changed = true;
+                    for new_event in instances.items {
+                        if let Some(new_start) = &new_event.start {
+                            if let Some(new_start) = &new_start.date_time {
+                                if let Ok(new_start) =
+                                    new_start.parse::<chrono::DateTime<chrono::Local>>()
+                                {
+                                    if new_start > start && new_start < end {
+                                        event = new_event.clone();
+                                        changed = true;
+                                        break;
+                                    }
                                 }
                             }
                         }
@@ -361,9 +362,9 @@ impl RemoteClient for GoogleClient {
     async fn record(
         &mut self,
         calendar_id: String,
-        record: Record,
+        mut record: Record,
     ) -> Result<String, anyhow::Error> {
-        let event = record_to_event(calendar_id, record);
+        let event = record_to_event(calendar_id, &mut record);
         let client = EventClient::new(self.client());
 
         let event = do_client!(self, { client.insert(event.clone()) })?;
@@ -378,7 +379,7 @@ impl RemoteClient for GoogleClient {
     async fn record_recurrence(
         &mut self,
         calendar_id: String,
-        record: RecurringRecord,
+        mut record: RecurringRecord,
     ) -> Result<String, anyhow::Error> {
         if record.recurrence().duration() < chrono::Duration::days(1) {
             return Err(anyhow!(
@@ -405,9 +406,38 @@ impl RemoteClient for GoogleClient {
 
     async fn list_recurrence(
         &mut self,
-        _calendar_id: String,
+        calendar_id: String,
     ) -> Result<Vec<RecurringRecord>, anyhow::Error> {
-        Ok(Vec::new())
+        let list = EventClient::new(self.client());
+        let now = chrono::Local::now();
+
+        let events = do_client!(self, {
+            list.list(
+                calendar_id.clone(),
+                now - chrono::Duration::days(7),
+                now + chrono::Duration::days(1),
+            )
+        })?;
+
+        let mut v = Vec::new();
+
+        for event in &events {
+            if let Some(recurrence) = &event.recurrence {
+                let mut record = self.event_to_record(event.clone()).await?;
+                record.set_internal_recurrence_key(event.recurring_event_id.clone());
+                for recur in recurrence {
+                    match RecurringRecord::from_rrule(record.clone(), recur.to_string()) {
+                        Ok(x) => {
+                            v.push(x);
+                            break;
+                        }
+                        Err(_) => {}
+                    }
+                }
+            }
+        }
+
+        Ok(v)
     }
 
     async fn update_recurrence(&mut self, _calendar_id: String) -> Result<(), anyhow::Error> {

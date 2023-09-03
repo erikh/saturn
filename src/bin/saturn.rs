@@ -208,7 +208,7 @@ fn print_recurring(entries: Vec<RecurringRecord>) {
 
     let mut grid = grid!(header!("INTERVAL"), header!("DETAIL"), header!("ID"));
 
-    for entry in entries {
+    for mut entry in entries {
         add_line!(
             grid,
             entry.recurrence().to_string(),

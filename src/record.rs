@@ -1,4 +1,5 @@
 use crate::db::DB;
+use anyhow::anyhow;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
@@ -21,6 +22,40 @@ pub struct RecurringRecord {
     internal_key: Option<String>,
 }
 
+#[derive(Clone, Debug)]
+enum RuleFrequency {
+    Daily,
+    Monthly,
+    Weekly,
+    Yearly,
+}
+
+impl ToString for RuleFrequency {
+    fn to_string(&self) -> String {
+        match self {
+            RuleFrequency::Daily => "daily",
+            RuleFrequency::Monthly => "monthly",
+            RuleFrequency::Yearly => "yearly",
+            RuleFrequency::Weekly => "weekly",
+        }
+        .to_uppercase()
+    }
+}
+
+impl std::str::FromStr for RuleFrequency {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().as_str() {
+            "daily" => Ok(RuleFrequency::Daily),
+            "yearly" => Ok(RuleFrequency::Yearly),
+            "monthly" => Ok(RuleFrequency::Monthly),
+            "weekly" => Ok(RuleFrequency::Weekly),
+            _ => Err(anyhow!("Invalid frequency {}", s)),
+        }
+    }
+}
+
 impl RecurringRecord {
     pub fn new(
         record: Record,
@@ -32,6 +67,49 @@ impl RecurringRecord {
             recurrence_key: 0,
             internal_key: None,
         }
+    }
+
+    pub fn from_rrule(record: Record, rrule: String) -> Result<Self, anyhow::Error> {
+        let parts = rrule.split(":").collect::<Vec<&str>>();
+
+        if parts[0] == "RRULE" {
+            let tokens = parts[1]
+                .split(";")
+                .map(|s| s.split("=").collect::<Vec<&str>>());
+            let mut freq: Option<RuleFrequency> = None;
+            let mut interval: Option<i64> = None;
+
+            for pair in tokens {
+                match pair[0] {
+                    "FREQ" => {
+                        freq = Some(pair[1].parse()?);
+                    }
+                    "INTERVAL" => {
+                        interval = Some(pair[1].parse()?);
+                    }
+                    _ => {}
+                }
+
+                if freq.is_some() && interval.is_some() {
+                    break;
+                }
+            }
+
+            if freq.is_some() && interval.is_some() {
+                let interval = interval.unwrap();
+                return Ok(Self::new(
+                    record,
+                    fancy_duration::FancyDuration::new(match freq.unwrap() {
+                        RuleFrequency::Daily => chrono::Duration::days(interval),
+                        RuleFrequency::Yearly => chrono::Duration::weeks(interval) * 52,
+                        RuleFrequency::Weekly => chrono::Duration::weeks(interval),
+                        RuleFrequency::Monthly => chrono::Duration::days(interval) * 30,
+                    }),
+                ));
+            }
+        }
+
+        Err(anyhow!("Recurring data cannot be parsed"))
     }
 
     pub fn to_rrule(&self) -> String {
@@ -48,8 +126,8 @@ impl RecurringRecord {
         format!("RRULE:FREQ={};INTERVAL={}", freq.0, freq.1)
     }
 
-    pub fn record(&self) -> Record {
-        self.record.clone()
+    pub fn record(&mut self) -> &mut Record {
+        &mut self.record
     }
 
     pub fn recurrence(&self) -> fancy_duration::FancyDuration<chrono::Duration> {
@@ -58,6 +136,10 @@ impl RecurringRecord {
 
     pub fn recurrence_key(&self) -> u64 {
         self.recurrence_key
+    }
+
+    pub fn set_record(&mut self, record: Record) {
+        self.record = record;
     }
 
     pub fn set_recurrence_key(&mut self, key: u64) {
