@@ -1,11 +1,13 @@
 # saturn: a calendar for CLI nerds
 
-This is all still very new and should be treated as such.
+This is all still very new and should be treated as such. It is strongly
+suggested that if you like where this is heading, that you come to the issues
+list and voice your ideas and concerns.
 
 Saturn provides you with a CLI interface to calendaring much in the way
 [taskwarrior](https://github.com/GothenburgBitFactory/taskwarrior) does with
 tasks. It also provides you with several methods to query and notify yourself
-of important appointments.
+of important appointments. It can act standalone or integrate fully with Google Calendar.
 
 [Here](https://asciinema.org/a/XkRCXcgucQCRYassutGLMlWqq) is a demo of it in action.
 
@@ -177,14 +179,13 @@ them. Until they are added, they will not have IDs nor can they be manipulated.
 Commands like `now` and `notify` which only perform read operations also adjust
 this data, so they can fire notifications properly for new tasks.
 
-## Google Calendar Support (ongoing work)
+## Google Calendar Support
 
-Google Calendar support is partially working, with OAuth credentials being
-setup properly. Additional work still needs to be done to address database
-work.
-
-This work is moving much slower than the rest of the product, so don't be
-surprised if there is incomplete, broken, or missing functionality.
+Google Calendar support is working, with OAuth credentials being
+setup properly and limited control of the calendar is possible within the realm
+of what saturn currently supports. More is anticipated to be built atop this
+framework. Do not be surprised if functionality is confusing or missing. Please
+put in issues with your concerns, thanks!
 
 To use `saturn` with Google Calendar, you must create a Google Cloud account
 and assign an OAuth application to it. One is not provided automatically by
@@ -208,20 +209,25 @@ login to the google account you wish to use, which must be listed in your
 "testing users" in the OAuth setup above. As a final step, it will call back
 into a web service the application starts, which will feed it the token.
 
+Your token will expire if you do not use the tool regularly. Stuffing `saturn
+notify` in cron will alleviate this a bit.
+
 Setting the db-type will change the source of data. If you were using a local
 database and want to go back to it, `saturn config db-type unixfile`.
 
-I wish this were a little easier, but them's the ropes.
+Notifications setup in Google Calendar are not honored yet. This will be
+resolved soon!
 
-## Future Plans
+Other things we want to do that aren't here yet:
 
--   google calendar support (maybe proton too)
+-   Fields (URLs, Locations, etc)
+-   Attendees
 
 ## Target Platform
 
-Due to flock(2) use, which to the best of my knowledge is the only reason,
-Windows probably does not work properly. Patches welcome if there are windows
-users who'd like to use it.
+For the unixfile DB type, Due to flock(2) use, which to the best of my
+knowledge is the only reason, Windows probably does not work properly. Patches
+welcome if there are windows users who'd like to use it.
 
 ## Author
 
