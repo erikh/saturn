@@ -380,7 +380,7 @@ impl RemoteClient for GoogleClient {
         &mut self,
         calendar_id: String,
         mut record: RecurringRecord,
-    ) -> Result<String, anyhow::Error> {
+    ) -> Result<(String, String), anyhow::Error> {
         if record.recurrence().duration() < chrono::Duration::days(1) {
             return Err(anyhow!(
                 "Google Calendar supports a minimum granularity of 1 day"
@@ -398,10 +398,12 @@ impl RemoteClient for GoogleClient {
         let event = do_client!(self, { client.insert(event.clone()) })?;
 
         if let Some(id) = event.id {
-            Ok(id)
-        } else {
-            Err(anyhow!("Event could not be saved").into())
+            if let Some(recurring_id) = event.recurring_event_id {
+                return Ok((id, recurring_id));
+            }
         }
+
+        Err(anyhow!("Event could not be saved").into())
     }
 
     async fn list_recurrence(
@@ -411,7 +413,7 @@ impl RemoteClient for GoogleClient {
         let list = EventClient::new(self.client());
         let now = chrono::Local::now();
 
-        let events = do_client!(self, {
+        let mut events = do_client!(self, {
             list.list(
                 calendar_id.clone(),
                 now - chrono::Duration::days(7),
@@ -421,14 +423,21 @@ impl RemoteClient for GoogleClient {
 
         let mut v = Vec::new();
 
-        for event in &events {
+        for event in &mut events {
             if let Some(recurrence) = &event.recurrence {
+                event.calendar_id = Some(calendar_id.clone());
                 let mut record = self.event_to_record(event.clone()).await?;
                 record.set_internal_recurrence_key(event.recurring_event_id.clone());
                 for recur in recurrence {
                     match RecurringRecord::from_rrule(record.clone(), recur.to_string()) {
                         Ok(x) => {
-                            v.push(x);
+                            if let Some(status) = event.status.clone() {
+                                if !matches!(status, EventStatus::Cancelled) {
+                                    v.push(x);
+                                }
+                            } else {
+                                v.push(x);
+                            }
                             break;
                         }
                         Err(_) => {}

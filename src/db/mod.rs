@@ -84,7 +84,7 @@ pub trait RemoteClient {
         &mut self,
         calendar_id: String,
         record: RecurringRecord,
-    ) -> Result<String, anyhow::Error>;
+    ) -> Result<(String, String), anyhow::Error>;
     async fn list_recurrence(
         &mut self,
         calendar_id: String,

@@ -109,9 +109,7 @@ impl<T: RemoteClient + Send + Sync + Clone + Default> RemoteDB<T> {
         let pk = if let Some(pk) = pk {
             pk
         } else {
-            let key = self.primary_key();
-            self.set_primary_key(key + 1);
-            key
+            self.next_key()
         };
 
         self.add_internal(pk, internal_key);
@@ -133,17 +131,14 @@ impl<T: RemoteClient + Send + Sync + Clone + Default> RemoteDB<T> {
     ) -> Result<Vec<Record>, anyhow::Error> {
         for record in &mut records {
             if let Some(internal_recurrence_key) = record.internal_recurrence_key() {
-                let key = self.recurrence_key();
+                let key = self.next_recurrence_key();
                 self.record_internal_recurrence(internal_recurrence_key, key)?;
-                self.set_recurrence_key(key + 1);
             }
 
             if let Some(internal_key) = record.internal_key() {
-                let pk = self.lookup_internal(internal_key.clone());
-                record.set_primary_key(self.record_internal(internal_key, pk)?);
-            } else {
-                self.record(record.clone()).await?;
-                record.set_primary_key(self.record_internal(record.internal_key().unwrap(), None)?);
+                record.set_primary_key(
+                    self.record_internal(internal_key.clone(), self.lookup_internal(internal_key))?,
+                );
             }
         }
 
@@ -163,9 +158,8 @@ impl<T: RemoteClient + Send + Sync + Clone + Default> RemoteDB<T> {
                     record.record().set_recurrence_key(Some(internal));
                     internal
                 } else {
-                    let key = self.recurrence_key();
+                    let key = self.next_recurrence_key();
                     record.set_recurrence_key(key);
-                    self.set_recurrence_key(key + 1);
                     key
                 };
 
@@ -173,15 +167,9 @@ impl<T: RemoteClient + Send + Sync + Clone + Default> RemoteDB<T> {
             }
 
             if let Some(internal_key) = record.internal_key() {
-                let pk = self.lookup_internal(internal_key.clone());
-                self.record_internal(internal_key, pk)?;
-                record.record().set_primary_key(pk.unwrap());
-            } else {
-                let key = record.record().internal_key().unwrap();
-                record
-                    .record()
-                    .set_primary_key(self.record_internal(key, None)?);
-                self.record(record.record().clone()).await?;
+                record.record().set_primary_key(
+                    self.record_internal(internal_key.clone(), self.lookup_internal(internal_key))?,
+                );
             }
 
             v.push(record.clone());
@@ -218,8 +206,8 @@ impl<T: RemoteClient + Send + Sync + Clone + Default> DB for RemoteDB<T> {
         self.recurrence_key
     }
 
-    fn set_recurrence_key(&mut self, primary_key: u64) {
-        self.recurrence_key = primary_key;
+    fn set_recurrence_key(&mut self, recurrence_key: u64) {
+        self.recurrence_key = recurrence_key;
     }
 
     async fn delete(&mut self, primary_key: u64) -> Result<(), anyhow::Error> {
@@ -286,14 +274,15 @@ impl<T: RemoteClient + Send + Sync + Clone + Default> DB for RemoteDB<T> {
     ) -> Result<(), anyhow::Error> {
         let calendar_id = self.calendar_id.clone();
 
-        let res = self
+        let (key, recurrence_key) = self
             .client
             .clone()
             .unwrap()
             .record_recurrence(calendar_id, record.clone())
             .await?;
 
-        self.add(res, record.record().primary_key());
+        self.add_recurring(recurrence_key, record.record().primary_key());
+        self.add(key, record.record().primary_key());
         Ok(())
     }
 
