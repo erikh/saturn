@@ -34,6 +34,20 @@ impl RecurringRecord {
         }
     }
 
+    pub fn to_rrule(&self) -> String {
+        let recur = self.recurrence.duration();
+
+        let freq = if recur < chrono::Duration::days(30) {
+            ("DAILY", recur.num_days())
+        } else if recur < chrono::Duration::weeks(52) {
+            ("MONTHLY", recur.num_days() / 30)
+        } else {
+            ("YEARLY", recur.num_weeks() * 52)
+        };
+
+        format!("RRULE:FREQ={};INTERVAL={}", freq.0, freq.1)
+    }
+
     pub fn record(&self) -> Record {
         self.record.clone()
     }

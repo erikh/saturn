@@ -14,6 +14,7 @@ use gcal::{
     },
     Client, ClientError,
 };
+use std::collections::BTreeSet;
 
 pub const CALENDAR_SCOPE: &str = "https://www.googleapis.com/auth/calendar";
 
@@ -32,6 +33,7 @@ pub fn record_to_event(calendar_id: String, record: Record) -> Event {
                     .with_timezone(&chrono_tz::UTC)
                     .to_rfc3339(),
             ),
+            time_zone: Some("UTC".to_string()),
             ..Default::default()
         }),
         RecordType::Schedule => {
@@ -41,6 +43,7 @@ pub fn record_to_event(calendar_id: String, record: Record) -> Event {
                 .with_timezone(&chrono_tz::UTC);
             Some(EventCalendarDate {
                 date_time: Some(dt.to_rfc3339()),
+                time_zone: Some("UTC".to_string()),
                 ..Default::default()
             })
         }
@@ -51,6 +54,7 @@ pub fn record_to_event(calendar_id: String, record: Record) -> Event {
                 .date_naive();
             Some(EventCalendarDate {
                 date: Some(date.format("%Y-%m-%d").to_string()),
+                time_zone: Some("UTC".to_string()),
                 ..Default::default()
             })
         }
@@ -63,6 +67,7 @@ pub fn record_to_event(calendar_id: String, record: Record) -> Event {
                     .with_timezone(&chrono_tz::UTC)
                     .to_rfc3339(),
             ),
+            time_zone: Some("UTC".to_string()),
             ..Default::default()
         }),
         RecordType::Schedule => {
@@ -73,6 +78,7 @@ pub fn record_to_event(calendar_id: String, record: Record) -> Event {
 
             Some(EventCalendarDate {
                 date_time: Some(dt.to_rfc3339()),
+                time_zone: Some("UTC".to_string()),
                 ..Default::default()
             })
         }
@@ -371,10 +377,30 @@ impl RemoteClient for GoogleClient {
 
     async fn record_recurrence(
         &mut self,
-        _calendar_id: String,
-        _record: RecurringRecord,
+        calendar_id: String,
+        record: RecurringRecord,
     ) -> Result<String, anyhow::Error> {
-        Ok(String::new())
+        if record.recurrence().duration() < chrono::Duration::days(1) {
+            return Err(anyhow!(
+                "Google Calendar supports a minimum granularity of 1 day"
+            ));
+        }
+
+        let mut event = record_to_event(calendar_id, record.record());
+
+        let mut recurrence = BTreeSet::default();
+        recurrence.insert(record.to_rrule());
+
+        event.recurrence = Some(recurrence);
+
+        let client = EventClient::new(self.client());
+        let event = do_client!(self, { client.insert(event.clone()) })?;
+
+        if let Some(id) = event.id {
+            Ok(id)
+        } else {
+            Err(anyhow!("Event could not be saved").into())
+        }
     }
 
     async fn list_recurrence(

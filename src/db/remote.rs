@@ -3,7 +3,6 @@ use crate::{
     filenames::saturn_db,
     record::{Record, RecurringRecord},
 };
-use anyhow::anyhow;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -252,21 +251,16 @@ impl<T: RemoteClient + Send + Sync + Clone + Default> DB for RemoteDB<T> {
     }
 
     async fn insert_recurrence(&mut self, record: RecurringRecord) -> Result<(), anyhow::Error> {
-        let internal = record.internal_key();
-        let recurrence = record.recurrence_key();
         let calendar_id = self.calendar_id.clone();
 
-        if internal.is_none() {
-            return Err(anyhow!("No remote key set"));
-        }
-
-        self.client
+        let res = self
+            .client
             .clone()
             .unwrap()
-            .record_recurrence(calendar_id, record)
+            .record_recurrence(calendar_id, record.clone())
             .await?;
 
-        self.add_recurring(internal.unwrap(), recurrence);
+        self.add(res, record.record().primary_key());
         Ok(())
     }
 
