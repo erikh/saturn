@@ -129,6 +129,34 @@ impl GoogleClient {
         do_client!(self, { listclient.list() })
     }
 
+    pub async fn refresh_access_token(&mut self) -> Result<(), anyhow::Error> {
+        let res: Result<AccessToken, ClientError> =
+            request_access_token(self.config.clone().into(), None, None, true)
+                .await
+                .map_err(|e| e.into());
+        let token = res?;
+        self.config.set_access_token(Some(token.access_token));
+        self.config.set_access_token_expires_at(Some(
+            chrono::Local::now().naive_utc() + chrono::Duration::seconds(token.expires_in),
+        ));
+
+        if let Some(refresh_token) = token.refresh_token {
+            self.config.set_refresh_token(Some(refresh_token));
+            if let Some(expires_in) = token.refresh_token_expires_in {
+                self.config.set_refresh_token_expires_at(Some(
+                    chrono::Local::now().naive_utc() + chrono::Duration::seconds(expires_in),
+                ));
+            } else {
+                self.config.set_refresh_token_expires_at(Some(
+                    chrono::Local::now().naive_utc() + chrono::Duration::seconds(3600),
+                ));
+            }
+        }
+
+        self.config.save(None)?;
+        Ok(())
+    }
+
     async fn perform_list(
         &mut self,
         calendar_id: String,
