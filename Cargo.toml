@@ -1,6 +1,6 @@
 [package]
 name = "saturn-cli"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 description = "saturn is a command-line interface to calendaring, supporting Google Calendar"
 authors = ["Erik Hollensbe <erik+github@hollensbe.org>"]
