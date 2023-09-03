@@ -90,11 +90,13 @@ macro_rules! process_cli {
                 if recur {
                     print_recurring($db.list_recurrence().await?);
                 } else {
-                    if all {
-                        print_entries($db.list_all(false).await?);
+                    let mut list = if all {
+                        $db.list_all(false).await?
                     } else {
-                        print_entries($db.list_today(false).await?);
-                    }
+                        $db.list_today(false).await?
+                    };
+                    list.sort_by($crate::cli::sort_records);
+                    print_entries(list);
                 }
             }
             Command::Today {} => {

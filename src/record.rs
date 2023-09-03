@@ -145,6 +145,7 @@ impl RecurringRecord {
 
     pub fn set_recurrence_key(&mut self, key: u64) {
         self.recurrence_key = key;
+        self.record().set_recurrence_key(Some(key));
     }
 
     pub fn internal_key(&self) -> Option<String> {
@@ -152,13 +153,15 @@ impl RecurringRecord {
     }
 
     pub fn set_internal_key(&mut self, key: Option<String>) {
-        self.internal_key = key
+        self.internal_key = key.clone();
+        self.record().set_internal_recurrence_key(key);
     }
 
     pub fn record_from(&self, primary_key: u64, from: chrono::NaiveDateTime) -> Record {
         let mut record = self.record.clone();
         record.set_primary_key(primary_key);
         record.set_recurrence_key(Some(self.recurrence_key));
+        record.set_internal_recurrence_key(self.internal_key.clone());
         record.set_date(from.date());
         match record.record_type() {
             RecordType::At => {

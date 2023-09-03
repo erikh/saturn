@@ -6,7 +6,7 @@ use saturn_cli::{
         get_access_token, get_config, set_client_info, set_db_type, set_sync_window, EntryParser,
     },
     config::{Config, DBType},
-    db::{google::GoogleClient, memory::MemoryDB, remote::RemoteDB, DB},
+    db::{google::GoogleClient, memory::MemoryDB, remote::RemoteDBClient, DB},
     process_cli,
     record::{Record, RecurringRecord, Schedule},
 };
@@ -247,7 +247,7 @@ async fn list_calendars(mut client: GoogleClient) -> Result<(), anyhow::Error> {
 async fn process_google(cli: ArgParser, config: Config) -> Result<(), anyhow::Error> {
     let client = GoogleClient::new(config.clone())?;
 
-    let mut db = RemoteDB::new(config.calendar_id(), client.clone());
+    let mut db = RemoteDBClient::new(config.calendar_id(), client.clone());
     process_cli!(cli, config, db, Some(client.clone()));
 
     Ok(())

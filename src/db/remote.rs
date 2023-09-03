@@ -7,8 +7,14 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
-#[derive(Clone, Serialize, Deserialize, Default)]
-pub struct RemoteDB<T: RemoteClient + Send + Sync + Default> {
+#[derive(Debug, Clone)]
+pub struct RemoteDBClient<T: RemoteClient + Send + Sync + Default + std::fmt::Debug> {
+    client: T,
+    db: RemoteDB,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct RemoteDB {
     primary_key: u64,
     recurrence_key: u64,
     id_map: BTreeMap<String, u64>,
@@ -16,16 +22,21 @@ pub struct RemoteDB<T: RemoteClient + Send + Sync + Default> {
     recurring_id_map: BTreeMap<String, u64>,
     reverse_recurring_id_map: BTreeMap<u64, String>,
     calendar_id: String,
-    #[serde(skip)]
-    client: Option<T>,
 }
 
-impl<T: RemoteClient + Send + Sync + Default> RemoteDB<T> {
+impl<T: RemoteClient + Send + Sync + Default + std::fmt::Debug> RemoteDBClient<T> {
     pub fn new(calendar_id: String, client: T) -> Self {
+        let db = RemoteDB::new(calendar_id);
+
         // assuming this call convention is honored, client will always be "some" when actually
         // used, and will only be empty when deserialized.
+        Self { client, db }
+    }
+}
+
+impl RemoteDB {
+    pub fn new(calendar_id: String) -> Self {
         Self {
-            client: Some(client),
             primary_key: 0,
             recurrence_key: 0,
             id_map: BTreeMap::default(),
@@ -100,7 +111,7 @@ impl<T: RemoteClient + Send + Sync + Default> RemoteDB<T> {
     }
 }
 
-impl<T: RemoteClient + Send + Sync + Clone + Default> RemoteDB<T> {
+impl RemoteDB {
     fn record_internal(
         &mut self,
         internal_key: String,
@@ -116,15 +127,6 @@ impl<T: RemoteClient + Send + Sync + Clone + Default> RemoteDB<T> {
         Ok(pk)
     }
 
-    fn record_internal_recurrence(
-        &mut self,
-        internal_recurrence_key: String,
-        recurrence_key: u64,
-    ) -> Result<(), anyhow::Error> {
-        self.add_recurring_internal(recurrence_key, internal_recurrence_key);
-        Ok(())
-    }
-
     async fn record_updates(
         &mut self,
         mut records: Vec<Record>,
@@ -132,7 +134,8 @@ impl<T: RemoteClient + Send + Sync + Clone + Default> RemoteDB<T> {
         for record in &mut records {
             if let Some(internal_recurrence_key) = record.internal_recurrence_key() {
                 let key = self.next_recurrence_key();
-                self.record_internal_recurrence(internal_recurrence_key, key)?;
+                self.set_recurrence_key(key);
+                self.add_recurring_internal(key, internal_recurrence_key);
             }
 
             if let Some(internal_key) = record.internal_key() {
@@ -151,25 +154,33 @@ impl<T: RemoteClient + Send + Sync + Clone + Default> RemoteDB<T> {
     ) -> Result<Vec<RecurringRecord>, anyhow::Error> {
         let mut v = Vec::new();
         for record in &mut records {
-            if let Some(internal_recurrence_key) = record.record().internal_recurrence_key() {
+            if let Some(internal_recurrence_key) = record.internal_key() {
                 let key = if let Some(internal) =
                     self.recurring_lookup_internal(internal_recurrence_key.clone())
                 {
+                    record.set_recurrence_key(internal);
                     record.record().set_recurrence_key(Some(internal));
                     internal
                 } else {
                     let key = self.next_recurrence_key();
                     record.set_recurrence_key(key);
+                    record.record().set_recurrence_key(Some(key));
                     key
                 };
 
-                self.record_internal_recurrence(internal_recurrence_key, key)?;
+                self.add_recurring(internal_recurrence_key.clone(), key);
+            } else {
+                let key = self.next_recurrence_key();
+                record.record().set_recurrence_key(Some(key));
+                record.set_recurrence_key(key);
             }
 
-            if let Some(internal_key) = record.internal_key() {
+            if let Some(internal_key) = record.record().internal_key() {
                 record.record().set_primary_key(
                     self.record_internal(internal_key.clone(), self.lookup_internal(internal_key))?,
                 );
+            } else {
+                record.record().set_primary_key(self.next_key());
             }
 
             v.push(record.clone());
@@ -178,8 +189,9 @@ impl<T: RemoteClient + Send + Sync + Clone + Default> RemoteDB<T> {
         Ok(v)
     }
 }
+
 #[async_trait]
-impl<T: RemoteClient + Send + Sync + Clone + Default> DB for RemoteDB<T> {
+impl DB for RemoteDB {
     async fn load(&mut self) -> Result<(), anyhow::Error> {
         let db: Self = UnixFileLoader::new(&saturn_db()).load().await;
         self.primary_key = db.primary_key;
@@ -187,6 +199,7 @@ impl<T: RemoteClient + Send + Sync + Clone + Default> DB for RemoteDB<T> {
         self.id_map = db.id_map;
         self.reverse_id_map = db.reverse_id_map;
         self.recurring_id_map = db.recurring_id_map;
+        self.reverse_recurring_id_map = db.reverse_recurring_id_map;
         self.update_recurrence().await
     }
 
@@ -211,31 +224,112 @@ impl<T: RemoteClient + Send + Sync + Clone + Default> DB for RemoteDB<T> {
     }
 
     async fn delete(&mut self, primary_key: u64) -> Result<(), anyhow::Error> {
-        let id = self.lookup(primary_key).expect("Invalid ID");
-        let calendar_id = self.calendar_id.clone();
-
-        self.client.clone().unwrap().delete(calendar_id, id).await?;
-
         self.remove_by_internal_id(primary_key);
         Ok(())
     }
 
-    async fn delete_recurrence(&mut self, primary_key: u64) -> Result<(), anyhow::Error> {
-        let id = self.lookup(primary_key).expect("Invalid ID");
-        let calendar_id = self.calendar_id.clone();
+    async fn delete_recurrence(&mut self, recurrence_key: u64) -> Result<(), anyhow::Error> {
+        self.remove_recurring_by_internal_id(recurrence_key);
+        // FIXME leaves a garbage record in the PK table
+        Ok(())
+    }
 
-        self.client
-            .clone()
-            .unwrap()
-            .delete_recurrence(calendar_id, id)
-            .await?;
+    async fn record(&mut self, _record: Record) -> Result<(), anyhow::Error> {
+        Ok(())
+    }
 
-        self.remove_by_internal_id(primary_key);
+    async fn record_recurrence(&mut self, _record: RecurringRecord) -> Result<(), anyhow::Error> {
+        Ok(())
+    }
+
+    async fn insert_record(&mut self, _record: Record) -> Result<(), anyhow::Error> {
+        Ok(())
+    }
+
+    async fn insert_recurrence(&mut self, _record: RecurringRecord) -> Result<(), anyhow::Error> {
+        Ok(())
+    }
+
+    async fn list_recurrence(&mut self) -> Result<Vec<RecurringRecord>, anyhow::Error> {
+        Ok(Default::default())
+    }
+
+    async fn update_recurrence(&mut self) -> Result<(), anyhow::Error> {
+        Ok(())
+    }
+
+    async fn list_today(&mut self, _include_completed: bool) -> Result<Vec<Record>, anyhow::Error> {
+        Ok(Default::default())
+    }
+
+    async fn list_all(&mut self, _include_completed: bool) -> Result<Vec<Record>, anyhow::Error> {
+        Ok(Default::default())
+    }
+
+    async fn events_now(
+        &mut self,
+        _last: chrono::Duration,
+        _include_completed: bool,
+    ) -> Result<Vec<Record>, anyhow::Error> {
+        Ok(Default::default())
+    }
+
+    async fn complete_task(&mut self, _primary_key: u64) -> Result<(), anyhow::Error> {
+        Ok(())
+    }
+}
+
+#[async_trait]
+impl<T: RemoteClient + Send + Sync + Default + std::fmt::Debug> DB for RemoteDBClient<T> {
+    async fn load(&mut self) -> Result<(), anyhow::Error> {
+        self.db.load().await
+    }
+
+    async fn dump(&self) -> Result<(), anyhow::Error> {
+        self.db.dump().await
+    }
+
+    fn primary_key(&self) -> u64 {
+        self.db.primary_key()
+    }
+
+    fn set_primary_key(&mut self, primary_key: u64) {
+        self.db.set_primary_key(primary_key)
+    }
+
+    fn recurrence_key(&self) -> u64 {
+        self.db.recurrence_key()
+    }
+
+    fn set_recurrence_key(&mut self, recurrence_key: u64) {
+        self.db.set_recurrence_key(recurrence_key);
+    }
+
+    async fn delete(&mut self, primary_key: u64) -> Result<(), anyhow::Error> {
+        let id = self.db.lookup(primary_key).expect("Invalid ID");
+        let calendar_id = self.db.calendar_id.clone();
+
+        self.client.delete(calendar_id, id).await?;
+        self.db.delete(primary_key).await?;
+        Ok(())
+    }
+
+    async fn delete_recurrence(&mut self, recurrence_key: u64) -> Result<(), anyhow::Error> {
+        let id = self
+            .db
+            .recurring_lookup(recurrence_key)
+            .expect("Invalid ID");
+        let calendar_id = self.db.calendar_id.clone();
+
+        self.client.delete_recurrence(calendar_id, id).await?;
+
+        self.db.delete_recurrence(recurrence_key).await?;
+        // FIXME leaves a garbage record in the PK table
         Ok(())
     }
 
     async fn record(&mut self, record: Record) -> Result<(), anyhow::Error> {
-        if !self.reverse_id_map.contains_key(&record.primary_key()) {
+        if let None = self.db.lookup(record.primary_key()) {
             self.insert_record(record).await
         } else {
             Ok(())
@@ -243,10 +337,7 @@ impl<T: RemoteClient + Send + Sync + Clone + Default> DB for RemoteDB<T> {
     }
 
     async fn record_recurrence(&mut self, record: RecurringRecord) -> Result<(), anyhow::Error> {
-        if !self
-            .reverse_recurring_id_map
-            .contains_key(&record.recurrence_key())
-        {
+        if let None = self.db.recurring_lookup(record.recurrence_key()) {
             self.insert_recurrence(record).await
         } else {
             Ok(())
@@ -255,16 +346,11 @@ impl<T: RemoteClient + Send + Sync + Clone + Default> DB for RemoteDB<T> {
 
     async fn insert_record(&mut self, record: Record) -> Result<(), anyhow::Error> {
         let key = record.primary_key();
-        let calendar_id = self.calendar_id.clone();
+        let calendar_id = self.db.calendar_id.clone();
 
-        let internal_key = self
-            .client
-            .clone()
-            .unwrap()
-            .record(calendar_id, record)
-            .await?;
+        let internal_key = self.client.record(calendar_id, record).await?;
 
-        self.add(internal_key, key);
+        self.db.add(internal_key, key);
         Ok(())
     }
 
@@ -272,67 +358,53 @@ impl<T: RemoteClient + Send + Sync + Clone + Default> DB for RemoteDB<T> {
         &mut self,
         mut record: RecurringRecord,
     ) -> Result<(), anyhow::Error> {
-        let calendar_id = self.calendar_id.clone();
+        let calendar_id = self.db.calendar_id.clone();
 
         let (key, recurrence_key) = self
             .client
-            .clone()
-            .unwrap()
             .record_recurrence(calendar_id, record.clone())
             .await?;
 
-        self.add_recurring(recurrence_key, record.record().primary_key());
-        self.add(key, record.record().primary_key());
+        record.record().set_internal_key(Some(key));
+
+        self.db
+            .add_recurring(recurrence_key, record.recurrence_key());
+        self.insert_record(record.record().clone()).await?;
         Ok(())
     }
 
     async fn list_recurrence(&mut self) -> Result<Vec<RecurringRecord>, anyhow::Error> {
-        let calendar_id = self.calendar_id.clone();
+        let calendar_id = self.db.calendar_id.clone();
 
-        self.record_recurring_updates(
-            self.client
-                .clone()
-                .unwrap()
-                .list_recurrence(calendar_id)
-                .await?,
-        )
-        .await
-    }
-
-    async fn update_recurrence(&mut self) -> Result<(), anyhow::Error> {
-        let calendar_id = self.calendar_id.clone();
-
-        self.client
-            .clone()
-            .unwrap()
-            .update_recurrence(calendar_id)
+        self.db
+            .record_recurring_updates(self.client.list_recurrence(calendar_id).await?)
             .await
     }
 
-    async fn list_today(&mut self, include_completed: bool) -> Result<Vec<Record>, anyhow::Error> {
-        let calendar_id = self.calendar_id.clone();
+    async fn update_recurrence(&mut self) -> Result<(), anyhow::Error> {
+        let calendar_id = self.db.calendar_id.clone();
 
-        self.record_updates(
-            self.client
-                .clone()
-                .unwrap()
-                .list_today(calendar_id, include_completed)
-                .await?,
-        )
-        .await
+        self.client.update_recurrence(calendar_id).await
+    }
+
+    async fn list_today(&mut self, include_completed: bool) -> Result<Vec<Record>, anyhow::Error> {
+        let calendar_id = self.db.calendar_id.clone();
+
+        self.db
+            .record_updates(
+                self.client
+                    .list_today(calendar_id, include_completed)
+                    .await?,
+            )
+            .await
     }
 
     async fn list_all(&mut self, include_completed: bool) -> Result<Vec<Record>, anyhow::Error> {
-        let calendar_id = self.calendar_id.clone();
+        let calendar_id = self.db.calendar_id.clone();
 
-        self.record_updates(
-            self.client
-                .clone()
-                .unwrap()
-                .list_all(calendar_id, include_completed)
-                .await?,
-        )
-        .await
+        self.db
+            .record_updates(self.client.list_all(calendar_id, include_completed).await?)
+            .await
     }
 
     async fn events_now(
@@ -340,25 +412,20 @@ impl<T: RemoteClient + Send + Sync + Clone + Default> DB for RemoteDB<T> {
         last: chrono::Duration,
         include_completed: bool,
     ) -> Result<Vec<Record>, anyhow::Error> {
-        let calendar_id = self.calendar_id.clone();
+        let calendar_id = self.db.calendar_id.clone();
 
-        self.record_updates(
-            self.client
-                .clone()
-                .unwrap()
-                .events_now(calendar_id, last, include_completed)
-                .await?,
-        )
-        .await
+        self.db
+            .record_updates(
+                self.client
+                    .events_now(calendar_id, last, include_completed)
+                    .await?,
+            )
+            .await
     }
 
     async fn complete_task(&mut self, primary_key: u64) -> Result<(), anyhow::Error> {
-        let calendar_id = self.calendar_id.clone();
+        let calendar_id = self.db.calendar_id.clone();
 
-        self.client
-            .clone()
-            .unwrap()
-            .complete_task(calendar_id, primary_key)
-            .await
+        self.client.complete_task(calendar_id, primary_key).await
     }
 }

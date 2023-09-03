@@ -1,6 +1,6 @@
 use crate::{
     config::{Config, DBType},
-    record::{Record, RecurringRecord},
+    record::{Record, RecordType, RecurringRecord},
 };
 use anyhow::anyhow;
 use chrono::{Datelike, Duration, Timelike};
@@ -20,6 +20,49 @@ impl EntryParser {
 
     pub fn to_record(&self) -> Result<EntryRecord, anyhow::Error> {
         parse_entry(self.args.clone())
+    }
+}
+
+pub fn sort_records(a: &Record, b: &Record) -> std::cmp::Ordering {
+    let cmp = a.date().cmp(&b.date());
+    if cmp == std::cmp::Ordering::Equal {
+        match a.record_type() {
+            RecordType::At => {
+                if let Some(a_at) = a.at() {
+                    if let Some(b_at) = b.at() {
+                        a_at.cmp(&b_at)
+                    } else if let Some(b_schedule) = b.scheduled() {
+                        a_at.cmp(&b_schedule.0)
+                    } else {
+                        std::cmp::Ordering::Equal
+                    }
+                } else {
+                    std::cmp::Ordering::Equal
+                }
+            }
+            RecordType::AllDay => {
+                if b.record_type() == RecordType::AllDay {
+                    a.primary_key().cmp(&b.primary_key())
+                } else {
+                    std::cmp::Ordering::Less
+                }
+            }
+            RecordType::Schedule => {
+                if let Some(a_schedule) = a.scheduled() {
+                    if let Some(b_schedule) = b.scheduled() {
+                        a_schedule.0.cmp(&b_schedule.0)
+                    } else if let Some(b_at) = b.at() {
+                        a_schedule.0.cmp(&b_at)
+                    } else {
+                        std::cmp::Ordering::Equal
+                    }
+                } else {
+                    std::cmp::Ordering::Equal
+                }
+            }
+        }
+    } else {
+        cmp
     }
 }
 
