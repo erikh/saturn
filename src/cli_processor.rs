@@ -1,3 +1,4 @@
+// this is a very filthy macro. be careful when modifying it.
 #[macro_export]
 macro_rules! process_cli {
     ($cli:ident, $config:ident, $db:ident) => {
