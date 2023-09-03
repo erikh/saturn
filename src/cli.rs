@@ -226,19 +226,10 @@ fn parse_entry(args: Vec<String>) -> Result<EntryRecord, anyhow::Error> {
         }
     }
 
-    if let Some(recurrence) = recurrence {
-        let rr = RecurringRecord::new(record.clone(), recurrence);
-
-        Ok(EntryRecord {
-            record,
-            recurrence: Some(rr),
-        })
-    } else {
-        Ok(EntryRecord {
-            record,
-            recurrence: None,
-        })
-    }
+    Ok(EntryRecord {
+        record: record.clone(),
+        recurrence: recurrence.map_or_else(|| None, |x| Some(RecurringRecord::new(record, x))),
+    })
 }
 
 fn parse_date(s: String) -> Result<chrono::NaiveDate, anyhow::Error> {
