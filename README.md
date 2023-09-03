@@ -215,7 +215,8 @@ login to the google account you wish to use, which must be listed in your
 into a web service the application starts, which will feed it the token.
 
 Your token will expire if you do not use the tool regularly. Stuffing `saturn
-notify` in cron will alleviate this a bit.
+notify` in cron will alleviate this a bit. To get a new key, use `saturn
+config get-token` and follow the prompts. No other settings need to change.
 
 Setting the db-type will change the source of data. If you were using a local
 database and want to go back to it, `saturn config db-type unixfile`.
