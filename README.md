@@ -13,11 +13,10 @@ of important appointments. It can act standalone or integrate fully with Google 
 
 ## Installation
 
-There is currently no crate, please use the `--git` method of installing crates
-with cargo:
+Install with cargo:
 
 ```
-cargo install --git https://github.com/erikh/saturn
+cargo install saturn-cli
 ```
 
 ## Entry language
