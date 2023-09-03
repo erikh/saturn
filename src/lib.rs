@@ -4,3 +4,4 @@ pub mod config;
 pub mod db;
 pub mod filenames;
 pub mod record;
+pub mod ui;
