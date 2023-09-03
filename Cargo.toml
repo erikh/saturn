@@ -8,12 +8,10 @@ authors = ["Erik Hollensbe <erik+github@hollensbe.org>"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-console = "*"
 notify-rust = "*"
 anyhow = "*"
 chrono = { version = "*", features = [ "serde" ] }
 chrono-tz = "*"
-rand = "*"
 serde = "*"
 serde_derive = "*"
 ciborium = "*"
@@ -30,3 +28,4 @@ reqwest = { version = "*", features = [ "json" ]}
 
 [dev-dependencies]
 tempfile = "*"
+rand = "*"
