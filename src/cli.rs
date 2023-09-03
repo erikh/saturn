@@ -368,7 +368,23 @@ fn parse_time(s: String) -> Result<chrono::NaiveTime, anyhow::Error> {
                         _ => Err(anyhow!("Cannot parse time")),
                     }
                 } else {
-                    Err(anyhow!("Cannot parse time"))
+                    if chrono::Local::now().hour() >= 12 {
+                        Ok(chrono::NaiveTime::from_hms_opt(
+                            if hour == 12 { 12 } else { hour + 12 },
+                            0,
+                            0,
+                        )
+                        .expect("Invalid Time"))
+                    } else {
+                        Ok(
+                            chrono::NaiveTime::from_hms_opt(
+                                if hour == 12 { 0 } else { hour },
+                                0,
+                                0,
+                            )
+                            .expect("Invalid Time"),
+                        )
+                    }
                 }
             } else {
                 Err(anyhow!("Cannot parse time"))
