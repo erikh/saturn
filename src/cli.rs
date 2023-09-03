@@ -276,6 +276,29 @@ fn parse_date(s: String) -> Result<chrono::NaiveDate, anyhow::Error> {
     }
 }
 
+fn twelve_hour_time(pm: bool, hour: u32, minute: u32, _seconds: u32) -> chrono::NaiveTime {
+    let new_hour = if pm { 12 } else { 0 };
+
+    chrono::NaiveTime::from_hms_opt(
+        if hour == 12 {
+            new_hour
+        } else {
+            hour + new_hour
+        },
+        minute,
+        0,
+    )
+    .expect("Invalid Time")
+}
+
+fn pm_time(hour: u32, minute: u32, seconds: u32) -> chrono::NaiveTime {
+    twelve_hour_time(true, hour, minute, seconds)
+}
+
+fn am_time(hour: u32, minute: u32, seconds: u32) -> chrono::NaiveTime {
+    twelve_hour_time(false, hour, minute, seconds)
+}
+
 fn parse_time(s: String) -> Result<chrono::NaiveTime, anyhow::Error> {
     let regex = regex::Regex::new(r#"[:.]"#)?;
     let split = regex.split(&s);
@@ -301,18 +324,8 @@ fn parse_time(s: String) -> Result<chrono::NaiveTime, anyhow::Error> {
 
                 if let Some(designation) = captures.get(2) {
                     match designation.as_str() {
-                        "pm" | "PM" => Ok(chrono::NaiveTime::from_hms_opt(
-                            if hour == 12 { 12 } else { hour + 12 },
-                            minute,
-                            0,
-                        )
-                        .expect("Invalid Time")),
-                        "am" | "AM" => Ok(chrono::NaiveTime::from_hms_opt(
-                            if hour == 12 { 0 } else { hour },
-                            minute,
-                            0,
-                        )
-                        .expect("Invalid Time")),
+                        "pm" | "PM" => Ok(pm_time(hour, minute, 0)),
+                        "am" | "AM" => Ok(am_time(hour, minute, 0)),
                         _ => Err(anyhow!("Cannot parse time")),
                     }
                 } else {
@@ -336,54 +349,22 @@ fn parse_time(s: String) -> Result<chrono::NaiveTime, anyhow::Error> {
 
                 if let Some(designation) = captures.get(2) {
                     match designation.as_str() {
-                        "pm" | "PM" => Ok(chrono::NaiveTime::from_hms_opt(
-                            if hour == 12 { 12 } else { hour + 12 },
-                            0,
-                            0,
-                        )
-                        .expect("Invalid Time")),
-                        "am" | "AM" => Ok(chrono::NaiveTime::from_hms_opt(
-                            if hour == 12 { 0 } else { hour },
-                            0,
-                            0,
-                        )
-                        .expect("Invalid Time")),
+                        "pm" | "PM" => Ok(pm_time(hour, 0, 0)),
+                        "am" | "AM" => Ok(am_time(hour, 0, 0)),
                         "" => {
                             if chrono::Local::now().hour() >= 12 {
-                                Ok(chrono::NaiveTime::from_hms_opt(
-                                    if hour == 12 { 12 } else { hour + 12 },
-                                    0,
-                                    0,
-                                )
-                                .expect("Invalid Time"))
+                                Ok(pm_time(hour, 0, 0))
                             } else {
-                                Ok(chrono::NaiveTime::from_hms_opt(
-                                    if hour == 12 { 0 } else { hour },
-                                    0,
-                                    0,
-                                )
-                                .expect("Invalid Time"))
+                                Ok(am_time(hour, 0, 0))
                             }
                         }
                         _ => Err(anyhow!("Cannot parse time")),
                     }
                 } else {
                     if chrono::Local::now().hour() >= 12 {
-                        Ok(chrono::NaiveTime::from_hms_opt(
-                            if hour == 12 { 12 } else { hour + 12 },
-                            0,
-                            0,
-                        )
-                        .expect("Invalid Time"))
+                        Ok(pm_time(hour, 0, 0))
                     } else {
-                        Ok(
-                            chrono::NaiveTime::from_hms_opt(
-                                if hour == 12 { 0 } else { hour },
-                                0,
-                                0,
-                            )
-                            .expect("Invalid Time"),
-                        )
+                        Ok(am_time(hour, 0, 0))
                     }
                 }
             } else {
