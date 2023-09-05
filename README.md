@@ -11,7 +11,9 @@ of important appointments. It can act standalone or integrate fully with Google 
 
 [Here](https://asciinema.org/a/XkRCXcgucQCRYassutGLMlWqq) is a demo of it in action.
 
-Saturn is also now providing a TUI as a separate program; `sui` will present a calendar in a terminal window and allow you to interact with it in similar ways to `saturn`. See below for the list of commands.
+Now in pre-release, Saturn is also now providing a TUI as a separate program;
+`sui` will present a calendar in a terminal window and allow you to interact
+with it in similar ways to `saturn`. See below for the list of commands.
 
 Here is what it looks like:
 
