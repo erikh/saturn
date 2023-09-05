@@ -108,3 +108,42 @@ macro_rules! process_cli {
         $db.dump().await?;
     };
 }
+
+#[macro_export]
+macro_rules! list_ui {
+    ($db:ident, $list_type:ident) => {{
+        $db.load().await?;
+        let all = match $list_type {
+            crate::ui::types::ListType::All => $db.list_all(true).await?,
+            crate::ui::types::ListType::Today => $db.list_today(true).await?,
+        };
+        $db.dump().await?;
+        Ok(all)
+    }};
+}
+
+#[macro_export]
+macro_rules! process_ui_command {
+    ($db:ident, $command:ident) => {{
+        if $command.is_some() {
+            $db.load().await?;
+            match $command.unwrap() {
+                crate::ui::types::CommandType::Delete(items) => {
+                    for item in items {
+                        $db.delete(item).await?
+                    }
+                }
+                crate::ui::types::CommandType::Entry(entry) => {
+                    let parts = entry
+                        .split(' ')
+                        .filter(|x| !x.is_empty())
+                        .map(|s| s.to_string())
+                        .collect::<Vec<String>>();
+                    $db.record_entry(crate::cli::EntryParser::new(parts))
+                        .await?;
+                }
+            };
+            $db.dump().await?;
+        }
+    }};
+}

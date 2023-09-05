@@ -11,6 +11,14 @@ of important appointments. It can act standalone or integrate fully with Google 
 
 [Here](https://asciinema.org/a/XkRCXcgucQCRYassutGLMlWqq) is a demo of it in action.
 
+Now in pre-release, Saturn is also now providing a TUI as a separate program;
+`sui` will present a calendar in a terminal window and allow you to interact
+with it in similar ways to `saturn`. See below for the list of commands.
+
+Here is what it looks like:
+
+<img src="tui.png"/>
+
 ## Installation
 
 Install with cargo:
@@ -228,6 +236,15 @@ Other things we want to do that aren't here yet:
 
 -   Fields (URLs, Locations, etc)
 -   Attendees
+
+## TUI Commands
+
+The TUI accepts several commands at the prompt; this command-set will grow with time. To interact with it, just type and hit enter to send a command.
+
+- `e` or `entry`: Process an entry in `saturn entry` format.
+- `d` or `delete`: Delete all the IDs provided (separate them with spaces)
+- `show today` will show today's calendar items, where `show all` will show the entire calendar (the default).
+- `quit` will exit the program.
 
 ## Target Platform
 

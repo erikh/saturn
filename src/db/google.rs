@@ -47,17 +47,20 @@ pub fn record_to_event(calendar_id: String, record: &mut Record) -> Event {
                 ..Default::default()
             })
         }
-        RecordType::AllDay => {
-            let date = record
-                .datetime()
+        RecordType::AllDay => Some(EventCalendarDate {
+            date_time: Some(
+                chrono::NaiveDateTime::new(
+                    record.date(),
+                    chrono::NaiveTime::from_hms_opt(0, 0, 0).unwrap(),
+                )
+                .and_local_timezone(chrono::Local::now().timezone())
+                .unwrap()
                 .with_timezone(&chrono_tz::UTC)
-                .date_naive();
-            Some(EventCalendarDate {
-                date: Some(date.format("%Y-%m-%d").to_string()),
-                time_zone: Some("UTC".to_string()),
-                ..Default::default()
-            })
-        }
+                .to_rfc3339(),
+            ),
+            time_zone: Some("UTC".to_string()),
+            ..Default::default()
+        }),
     };
 
     let end = match record.record_type() {
@@ -82,7 +85,20 @@ pub fn record_to_event(calendar_id: String, record: &mut Record) -> Event {
                 ..Default::default()
             })
         }
-        RecordType::AllDay => start.clone(),
+        RecordType::AllDay => Some(EventCalendarDate {
+            date_time: Some(
+                (chrono::NaiveDateTime::new(
+                    record.date(),
+                    chrono::NaiveTime::from_hms_opt(0, 0, 0).unwrap(),
+                ) + chrono::Duration::days(1))
+                .and_local_timezone(chrono::Local::now().timezone())
+                .unwrap()
+                .with_timezone(&chrono_tz::UTC)
+                .to_rfc3339(),
+            ),
+            time_zone: Some("UTC".to_string()),
+            ..Default::default()
+        }),
     };
 
     let mut event = Event::default();
@@ -287,7 +303,19 @@ impl GoogleClient {
             None => false,
         };
 
-        let schedule = if !has_start_time && !has_end_time {
+        let schedule = if has_start_time
+            && has_end_time
+            && (start_time.unwrap() + chrono::Duration::days(1))
+                == event
+                    .end
+                    .clone()
+                    .unwrap()
+                    .date_time
+                    .unwrap()
+                    .parse::<chrono::DateTime<chrono::Local>>()
+                    .expect("Couldn't parse time")
+                    .naive_local()
+        {
             RecordType::AllDay
         } else if has_start_time && has_end_time {
             RecordType::Schedule
@@ -460,8 +488,12 @@ impl RemoteClient for GoogleClient {
     ) -> Result<Vec<Record>, anyhow::Error> {
         let now = chrono::Local::now();
 
-        self.perform_list(calendar_id, now, now + chrono::Duration::days(1))
-            .await
+        self.perform_list(
+            calendar_id,
+            now - chrono::Duration::days(1),
+            now + chrono::Duration::days(1),
+        )
+        .await
     }
 
     async fn list_all(
@@ -479,8 +511,8 @@ impl RemoteClient for GoogleClient {
                 .unwrap()
                 .with_second(0)
                 .unwrap())
-                - chrono::Duration::days(7),
-            (now + chrono::Duration::days(1))
+                - chrono::Duration::days(30),
+            (now + chrono::Duration::days(30))
                 .with_hour(0)
                 .unwrap()
                 .with_minute(0)
