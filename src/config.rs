@@ -28,16 +28,16 @@ pub struct Config {
     calendar_id: String,
 }
 
-impl Into<ClientParameters> for Config {
-    fn into(self) -> ClientParameters {
-        ClientParameters {
-            client_id: self.client_id().unwrap_or_default(),
-            client_secret: self.client_secret().unwrap_or_default(),
-            redirect_url: self.redirect_url(),
-            access_key: self.access_token(),
-            expires_at: self.access_token_expires_at(),
-            refresh_token: self.refresh_token(),
-            refresh_token_expires_at: self.refresh_token_expires_at(),
+impl From<Config> for ClientParameters {
+    fn from(value: Config) -> Self {
+        Self {
+            client_id: value.client_id().unwrap_or_default(),
+            client_secret: value.client_secret().unwrap_or_default(),
+            redirect_url: value.redirect_url(),
+            access_key: value.access_token(),
+            expires_at: value.access_token_expires_at(),
+            refresh_token: value.refresh_token(),
+            refresh_token_expires_at: value.refresh_token_expires_at(),
         }
     }
 }
@@ -106,7 +106,7 @@ impl Config {
     }
 
     pub fn access_token_expires_at(&self) -> Option<chrono::NaiveDateTime> {
-        self.access_token_expires_at.clone()
+        self.access_token_expires_at
     }
 
     pub fn refresh_token(&self) -> Option<String> {
@@ -114,7 +114,7 @@ impl Config {
     }
 
     pub fn refresh_token_expires_at(&self) -> Option<chrono::NaiveDateTime> {
-        self.refresh_token_expires_at.clone()
+        self.refresh_token_expires_at
     }
 
     pub fn set_redirect_url(&mut self, redirect_url: Option<String>) {

@@ -35,7 +35,7 @@ pub async fn draw_loop<'a>(
 
     loop {
         let mut lock = state.lock().await;
-        let redraw = lock.redraw.clone();
+        let redraw = lock.redraw;
 
         if redraw {
             lock.redraw = false;
@@ -96,7 +96,8 @@ pub async fn read_input<'a>(
                         } else {
                             x.trim_start_matches("d ")
                         }
-                        .split(" ");
+                        .split(' ')
+                        .filter(|x| !x.is_empty());
 
                         let mut v = Vec::new();
 
@@ -148,7 +149,7 @@ pub async fn read_input<'a>(
     Ok(())
 }
 
-pub fn render_app<'a>(
+pub fn render_app(
     state: ProtectedState<'static>,
     frame: &mut ratatui::Frame<'_, CrosstermBackend<Stdout>>,
     buf: String,
@@ -275,7 +276,7 @@ pub async fn build_calendar<'a>(
                 }),
             );
             rows.push(Row::new(
-                ["", "", "", "", "", "", "", "", ""].map(|x| Cell::from(x)),
+                ["", "", "", "", "", "", "", "", ""].map(Cell::from),
             ));
             last_row = Vec::new();
             last_row.push(String::new());
@@ -390,7 +391,7 @@ pub async fn build_events<'a>(
                     } else {
                         Cell::from(r.datetime().format("%m/%d %H:%M").to_string())
                     },
-                    Cell::from(format!("{}", r.detail())),
+                    Cell::from(r.detail().to_string()),
                 ]))
             } else {
                 None

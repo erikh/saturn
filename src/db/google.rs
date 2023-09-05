@@ -120,15 +120,15 @@ pub fn record_to_event(calendar_id: String, record: &mut Record) -> Event {
 impl GoogleClient {
     pub fn new(config: Config) -> Result<Self, anyhow::Error> {
         if !matches!(config.db_type(), DBType::Google) {
-            return Err(anyhow!("DBType must be set to google").into());
+            return Err(anyhow!("DBType must be set to google"));
         }
 
         if !config.has_client() {
-            return Err(anyhow!("Must have client information configured").into());
+            return Err(anyhow!("Must have client information configured"));
         }
 
         if config.access_token().is_none() {
-            return Err(anyhow!("Must have access token captured").into());
+            return Err(anyhow!("Must have access token captured"));
         }
 
         let client = Client::new(
@@ -400,7 +400,7 @@ impl RemoteClient for GoogleClient {
         if let Some(id) = event.id {
             Ok(id)
         } else {
-            Err(anyhow!("Event could not be saved").into())
+            Err(anyhow!("Event could not be saved"))
         }
     }
 
@@ -431,7 +431,7 @@ impl RemoteClient for GoogleClient {
             }
         }
 
-        Err(anyhow!("Event could not be saved").into())
+        Err(anyhow!("Event could not be saved"))
     }
 
     async fn list_recurrence(
@@ -457,18 +457,15 @@ impl RemoteClient for GoogleClient {
                 let mut record = self.event_to_record(event.clone()).await?;
                 record.set_internal_recurrence_key(event.recurring_event_id.clone());
                 for recur in recurrence {
-                    match RecurringRecord::from_rrule(record.clone(), recur.to_string()) {
-                        Ok(x) => {
-                            if let Some(status) = event.status.clone() {
-                                if !matches!(status, EventStatus::Cancelled) {
-                                    v.push(x);
-                                }
-                            } else {
+                    if let Ok(x) = RecurringRecord::from_rrule(record.clone(), recur.to_string()) {
+                        if let Some(status) = event.status.clone() {
+                            if !matches!(status, EventStatus::Cancelled) {
                                 v.push(x);
                             }
-                            break;
+                        } else {
+                            v.push(x);
                         }
-                        Err(_) => {}
+                        break;
                     }
                 }
             }

@@ -70,12 +70,12 @@ impl RecurringRecord {
     }
 
     pub fn from_rrule(record: Record, rrule: String) -> Result<Self, anyhow::Error> {
-        let parts = rrule.split(":").collect::<Vec<&str>>();
+        let parts = rrule.split(':').collect::<Vec<&str>>();
 
         if parts[0] == "RRULE" {
             let tokens = parts[1]
-                .split(";")
-                .map(|s| s.split("=").collect::<Vec<&str>>());
+                .split(';')
+                .map(|s| s.split('=').collect::<Vec<&str>>());
             let mut freq: Option<RuleFrequency> = None;
             let mut interval: Option<i64> = None;
 
@@ -95,17 +95,18 @@ impl RecurringRecord {
                 }
             }
 
-            if freq.is_some() && interval.is_some() {
-                let interval = interval.unwrap();
-                return Ok(Self::new(
-                    record,
-                    fancy_duration::FancyDuration::new(match freq.unwrap() {
-                        RuleFrequency::Daily => chrono::Duration::days(interval),
-                        RuleFrequency::Yearly => chrono::Duration::weeks(interval) * 52,
-                        RuleFrequency::Weekly => chrono::Duration::weeks(interval),
-                        RuleFrequency::Monthly => chrono::Duration::days(interval) * 30,
-                    }),
-                ));
+            if let Some(freq) = freq {
+                if let Some(interval) = interval {
+                    return Ok(Self::new(
+                        record,
+                        fancy_duration::FancyDuration::new(match freq {
+                            RuleFrequency::Daily => chrono::Duration::days(interval),
+                            RuleFrequency::Yearly => chrono::Duration::weeks(interval) * 52,
+                            RuleFrequency::Weekly => chrono::Duration::weeks(interval),
+                            RuleFrequency::Monthly => chrono::Duration::days(interval) * 30,
+                        }),
+                    ));
+                }
             }
         }
 

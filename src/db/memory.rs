@@ -215,12 +215,11 @@ impl DB for MemoryDB {
                 if (schedule.0 - last) < now.time() && (schedule.1 + last) > now.time() {
                     ret.push(item.clone())
                 }
-            } else if item.all_day() {
-                if item.date() - chrono::Duration::days(1) == now.date_naive()
-                    && now.time() > chrono::NaiveTime::from_hms_opt(23, 59, 0).unwrap() - last
-                {
-                    ret.push(item.clone())
-                }
+            } else if item.all_day()
+                && item.date() - chrono::Duration::days(1) == now.date_naive()
+                && now.time() > chrono::NaiveTime::from_hms_opt(23, 59, 0).unwrap() - last
+            {
+                ret.push(item.clone())
             }
 
             if let Some(notifications) = item.notifications() {
@@ -230,29 +229,23 @@ impl DB for MemoryDB {
                 for notification in notifications {
                     if notification < now.time() {
                         if let Some(at) = item.at() {
-                            if now.time() < at {
-                                if !pushed {
-                                    ret.push(item.clone());
-                                    pushed = true
-                                }
+                            if now.time() < at && !pushed {
+                                ret.push(item.clone());
+                                pushed = true
                             }
                         } else if let Some(schedule) = item.scheduled() {
-                            if now.time() < schedule.0 {
-                                if !pushed {
-                                    ret.push(item.clone());
-                                    pushed = true
-                                }
+                            if now.time() < schedule.0 && !pushed {
+                                ret.push(item.clone());
+                                pushed = true
                             }
-                        } else if item.all_day() {
-                            if item.date() - chrono::Duration::days(1) == now.date_naive()
-                                && now.time()
-                                    > chrono::NaiveTime::from_hms_opt(23, 59, 0).unwrap() - last
-                            {
-                                if !pushed {
-                                    ret.push(item.clone());
-                                    pushed = true;
-                                }
-                            }
+                        } else if item.all_day()
+                            && item.date() - chrono::Duration::days(1) == now.date_naive()
+                            && now.time()
+                                > chrono::NaiveTime::from_hms_opt(23, 59, 0).unwrap() - last
+                            && !pushed
+                        {
+                            ret.push(item.clone());
+                            pushed = true;
                         }
                     } else {
                         new.push(notification);
@@ -267,7 +260,7 @@ impl DB for MemoryDB {
     }
 
     async fn complete_task(&mut self, primary_key: u64) -> Result<(), anyhow::Error> {
-        for (_, list) in &mut self.records {
+        for list in self.records.values_mut() {
             for record in list {
                 if record.primary_key() == primary_key {
                     record.set_completed(true);

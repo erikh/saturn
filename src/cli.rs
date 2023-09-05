@@ -71,9 +71,9 @@ pub async fn get_access_token() -> Result<(), anyhow::Error> {
         let lock = state.lock().await;
         if lock.access_key.is_some() {
             config.set_access_token(lock.access_key.clone());
-            config.set_access_token_expires_at(lock.expires_at.clone());
+            config.set_access_token_expires_at(lock.expires_at);
             config.set_refresh_token(lock.refresh_token.clone());
-            config.set_refresh_token_expires_at(lock.refresh_token_expires_at.clone());
+            config.set_refresh_token_expires_at(lock.refresh_token_expires_at);
             config.set_redirect_url(params.redirect_url.clone());
             config.save(None)?;
             println!("Captured. Thanks!");
@@ -263,7 +263,7 @@ fn parse_date(s: String) -> Result<chrono::NaiveDate, anyhow::Error> {
                     .expect("Invalid Date"),
             )
         }
-        _ => return Err(anyhow!("Cannot parse date")),
+        _ => Err(anyhow!("Cannot parse date")),
     }
 }
 
@@ -303,7 +303,7 @@ fn parse_time(s: String) -> Result<chrono::NaiveTime, anyhow::Error> {
         )
         .expect("Invalid Time")),
         2 => {
-            let regex = regex::Regex::new(r#"(\d+)(\D+)"#)?;
+            let regex = regex::Regex::new(r"(\d+)(\D+)")?;
             if let Some(captures) = regex.captures(parts[1]) {
                 let hour: u32 = parts[0].parse()?;
 
@@ -319,12 +319,10 @@ fn parse_time(s: String) -> Result<chrono::NaiveTime, anyhow::Error> {
                         "am" | "AM" => Ok(am_time(hour, minute, 0)),
                         _ => Err(anyhow!("Cannot parse time")),
                     }
+                } else if chrono::Local::now().hour() >= 12 {
+                    Ok(pm_time(hour, minute, 0))
                 } else {
-                    if chrono::Local::now().hour() >= 12 {
-                        Ok(pm_time(hour, minute, 0))
-                    } else {
-                        Ok(am_time(hour, minute, 0))
-                    }
+                    Ok(am_time(hour, minute, 0))
                 }
             } else {
                 let hour: u32 = parts[0].parse()?;
@@ -338,7 +336,7 @@ fn parse_time(s: String) -> Result<chrono::NaiveTime, anyhow::Error> {
             }
         }
         1 => {
-            let regex = regex::Regex::new(r#"(\d+)(\D*)"#)?;
+            let regex = regex::Regex::new(r"(\d+)(\D*)")?;
             if let Some(captures) = regex.captures(parts[0]) {
                 let hour: u32 = if let Some(hour) = captures.get(1) {
                     hour.as_str().parse()?
@@ -359,12 +357,10 @@ fn parse_time(s: String) -> Result<chrono::NaiveTime, anyhow::Error> {
                         }
                         _ => Err(anyhow!("Cannot parse time")),
                     }
+                } else if chrono::Local::now().hour() >= 12 {
+                    Ok(pm_time(hour, 0, 0))
                 } else {
-                    if chrono::Local::now().hour() >= 12 {
-                        Ok(pm_time(hour, 0, 0))
-                    } else {
-                        Ok(am_time(hour, 0, 0))
-                    }
+                    Ok(am_time(hour, 0, 0))
                 }
             } else {
                 Err(anyhow!("Cannot parse time"))
