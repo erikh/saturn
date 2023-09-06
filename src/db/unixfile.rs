@@ -93,7 +93,8 @@ impl<'a> UnixFileLoader<'a> {
 
             db.update_recurrence().await?;
 
-            Ok(ciborium::into_writer(&db, std::fs::File::from_raw_fd(fd))?)
+            ciborium::into_writer(&db, std::fs::File::from_raw_fd(fd))?;
+            Ok(())
         }
     }
 }

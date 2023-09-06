@@ -78,7 +78,12 @@ pub async fn read_input<'a>(
                     let state = state.clone();
                     tokio::spawn(async move {
                         state.add_notification("Updating state").await;
-                        state.update_state().await.expect("Could not update state");
+                        match state.update_state().await {
+                            Ok(_) => {}
+                            Err(e) => {
+                                state.add_notification(&format!("Error: {}", e)).await;
+                            }
+                        }
                     });
                 }
                 "show all" => {
@@ -86,7 +91,12 @@ pub async fn read_input<'a>(
                     let state = state.clone();
                     tokio::spawn(async move {
                         state.add_notification("Updating state").await;
-                        state.update_state().await.expect("Could not update state");
+                        match state.update_state().await {
+                            Ok(_) => {}
+                            Err(e) => {
+                                state.add_notification(&format!("Error: {}", e)).await;
+                            }
+                        }
                     });
                 }
                 x => {
@@ -97,11 +107,12 @@ pub async fn read_input<'a>(
                             x.trim_start_matches("d ")
                         }
                         .split(' ')
-                        .filter(|x| !x.is_empty());
+                        .filter(|x| !x.is_empty())
+                        .collect::<Vec<&str>>();
 
                         let mut v = Vec::new();
 
-                        for id in ids {
+                        for id in &ids {
                             if id.is_empty() {
                                 continue;
                             }
@@ -113,11 +124,22 @@ pub async fn read_input<'a>(
                             };
                         }
 
+                        let command = if !ids.is_empty() && ids[0].starts_with("recur") {
+                            CommandType::DeleteRecurring(v)
+                        } else {
+                            CommandType::Delete(v)
+                        };
+
                         let state = state.clone();
                         tokio::spawn(async move {
-                            state.lock().await.command = Some(CommandType::Delete(v));
+                            state.lock().await.command = Some(command);
                             state.add_notification("Updating state").await;
-                            state.update_state().await.expect("Could not update state");
+                            match state.update_state().await {
+                                Ok(_) => {}
+                                Err(e) => {
+                                    state.add_notification(&format!("Error: {}", e)).await;
+                                }
+                            }
                         });
                     } else if x.starts_with("e ") || x.starts_with("entry ") {
                         let x = x.to_string();
@@ -133,7 +155,12 @@ pub async fn read_input<'a>(
                                 .to_string(),
                             ));
                             state.add_notification("Updating state").await;
-                            state.update_state().await.expect("Could not update state");
+                            match state.update_state().await {
+                                Ok(_) => {}
+                                Err(e) => {
+                                    state.add_notification(&format!("Error: {}", e)).await;
+                                }
+                            }
                         });
                     } else {
                         state.add_notification("Invalid Command").await;

@@ -1,7 +1,7 @@
 use crate::{
     cli::get_config,
     config::{Config, DBType},
-    db::{google::GoogleClient, memory::MemoryDB, remote::RemoteDB, DB},
+    db::{google::GoogleClient, memory::MemoryDB, remote::RemoteDBClient, DB},
     list_ui, process_ui_command,
     record::Record,
 };
@@ -35,7 +35,7 @@ impl<'a> ProtectedState<'a> {
     pub async fn list_google(&self, config: Config) -> Result<Vec<Record>, anyhow::Error> {
         let client = GoogleClient::new(config.clone())?;
 
-        let mut db = RemoteDB::new(config.calendar_id(), client.clone());
+        let mut db = RemoteDBClient::new(config.calendar_id(), client.clone());
         let list_type = self.lock().await.list_type.clone();
         list_ui!(db, list_type)
     }
@@ -49,7 +49,7 @@ impl<'a> ProtectedState<'a> {
     pub async fn command_google(&self, config: Config) -> Result<(), anyhow::Error> {
         let client = GoogleClient::new(config.clone())?;
 
-        let mut db = RemoteDB::new(config.calendar_id(), client.clone());
+        let mut db = RemoteDBClient::new(config.calendar_id(), client.clone());
         let command = self.lock().await.command.clone();
         process_ui_command!(db, command);
         self.lock().await.command = None;
@@ -80,6 +80,8 @@ impl<'a> ProtectedState<'a> {
             DBType::Google => self.list_google(config).await,
         }
         .expect("Could not read DB");
+
+        list.sort_by(crate::cli::sort_records);
 
         let mut inner = self.lock().await;
         inner.records.clear();

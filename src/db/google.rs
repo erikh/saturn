@@ -240,7 +240,7 @@ impl GoogleClient {
         let mut record = Record::default();
 
         record.set_internal_key(event.id.clone());
-        record.set_internal_recurrence_key(event.recurring_event_id.clone());
+        record.set_internal_recurrence_key(event.id.clone());
 
         let start = event.start.clone();
 
@@ -383,7 +383,12 @@ impl RemoteClient for GoogleClient {
         calendar_id: String,
         event_id: String,
     ) -> Result<(), anyhow::Error> {
-        self.delete(calendar_id, event_id).await?;
+        let events = EventClient::new(self.client());
+        let mut event = Event::default();
+        event.id = Some(event_id);
+        event.calendar_id = Some(calendar_id);
+
+        do_client!(self, { events.delete(event.clone()) })?;
         Ok(())
     }
 
@@ -425,10 +430,8 @@ impl RemoteClient for GoogleClient {
         let client = EventClient::new(self.client());
         let event = do_client!(self, { client.insert(event.clone()) })?;
 
-        if let Some(id) = event.id {
-            if let Some(recurring_id) = event.recurring_event_id {
-                return Ok((id, recurring_id));
-            }
+        if let Some(id) = event.clone().id {
+            return Ok((id.clone(), id));
         }
 
         Err(anyhow!("Event could not be saved"))
@@ -444,8 +447,8 @@ impl RemoteClient for GoogleClient {
         let mut events = do_client!(self, {
             list.list(
                 calendar_id.clone(),
-                now - chrono::Duration::days(7),
-                now + chrono::Duration::days(1),
+                now - chrono::Duration::days(30),
+                now + chrono::Duration::days(30),
             )
         })?;
 
@@ -454,10 +457,12 @@ impl RemoteClient for GoogleClient {
         for event in &mut events {
             if let Some(recurrence) = &event.recurrence {
                 event.calendar_id = Some(calendar_id.clone());
-                let mut record = self.event_to_record(event.clone()).await?;
-                record.set_internal_recurrence_key(event.recurring_event_id.clone());
+                let record = self.event_to_record(event.clone()).await?;
                 for recur in recurrence {
-                    if let Ok(x) = RecurringRecord::from_rrule(record.clone(), recur.to_string()) {
+                    if let Ok(mut x) =
+                        RecurringRecord::from_rrule(record.clone(), recur.to_string())
+                    {
+                        x.set_internal_key(event.id.clone());
                         if let Some(status) = event.status.clone() {
                             if !matches!(status, EventStatus::Cancelled) {
                                 v.push(x);
@@ -465,7 +470,6 @@ impl RemoteClient for GoogleClient {
                         } else {
                             v.push(x);
                         }
-                        break;
                     }
                 }
             }
