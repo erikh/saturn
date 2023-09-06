@@ -430,10 +430,8 @@ impl RemoteClient for GoogleClient {
         let client = EventClient::new(self.client());
         let event = do_client!(self, { client.insert(event.clone()) })?;
 
-        if let Some(id) = event.id {
-            if let Some(recurring_id) = event.recurring_event_id {
-                return Ok((id, recurring_id));
-            }
+        if let Some(id) = event.clone().id {
+            return Ok((id.clone(), id));
         }
 
         Err(anyhow!("Event could not be saved"))

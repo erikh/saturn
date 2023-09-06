@@ -135,6 +135,11 @@ macro_rules! process_ui_command {
                         $db.delete(item).await?
                     }
                 }
+                $crate::ui::types::CommandType::DeleteRecurring(items) => {
+                    for item in items {
+                        $db.delete_recurrence(item).await?
+                    }
+                }
                 $crate::ui::types::CommandType::Entry(entry) => {
                     let parts = entry
                         .split(' ')
