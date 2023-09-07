@@ -39,9 +39,9 @@ macro_rules! process_cli {
             Command::Delete { ids, recur } => {
                 for id in ids {
                     if recur {
-                        $db.delete_recurrence(id).await?
+                        $db.delete_recurrence(id).await?;
                     } else {
-                        $db.delete(id).await?
+                        $db.delete(id).await?;
                     }
                 }
             }
@@ -120,8 +120,11 @@ macro_rules! list_ui {
         let all = match $list_type {
             $crate::ui::types::ListType::All => $db.list_all(true).await?,
             $crate::ui::types::ListType::Today => $db.list_today(true).await?,
+            $crate::ui::types::ListType::Recurring => Vec::new(),
         };
+
         $db.dump().await?;
+
         Ok(all)
     }};
 }
@@ -139,7 +142,7 @@ macro_rules! process_ui_command {
                 }
                 $crate::ui::types::CommandType::DeleteRecurring(items) => {
                     for item in items {
-                        $db.delete_recurrence(item).await?
+                        $db.delete_recurrence(item).await?;
                     }
                 }
                 $crate::ui::types::CommandType::Entry(entry) => {

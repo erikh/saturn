@@ -43,14 +43,15 @@ pub trait DB: Send {
             record.set_recurrence_key(Some(key));
             recurrence.set_recurrence_key(key);
             self.record_recurrence(recurrence).await?;
+        } else {
+            self.record(record).await?;
         }
 
-        self.insert_record(record).await?;
         Ok(())
     }
 
     async fn delete(&mut self, primary_key: u64) -> Result<(), anyhow::Error>;
-    async fn delete_recurrence(&mut self, primary_key: u64) -> Result<(), anyhow::Error>;
+    async fn delete_recurrence(&mut self, primary_key: u64) -> Result<Vec<String>, anyhow::Error>;
     async fn record(&mut self, record: Record) -> Result<(), anyhow::Error>;
     async fn record_recurrence(&mut self, record: RecurringRecord) -> Result<(), anyhow::Error>;
     async fn insert_record(&mut self, record: Record) -> Result<(), anyhow::Error>;
@@ -74,7 +75,7 @@ pub trait RemoteClient {
         &mut self,
         calendar_id: String,
         event_id: String,
-    ) -> Result<(), anyhow::Error>;
+    ) -> Result<Vec<String>, anyhow::Error>;
     async fn record(
         &mut self,
         calendar_id: String,

@@ -68,7 +68,7 @@ impl DB for MemoryDB {
         Ok(())
     }
 
-    async fn delete_recurrence(&mut self, primary_key: u64) -> Result<(), anyhow::Error> {
+    async fn delete_recurrence(&mut self, primary_key: u64) -> Result<Vec<String>, anyhow::Error> {
         let mut new = Vec::new();
 
         for entry in &self.recurring {
@@ -79,7 +79,7 @@ impl DB for MemoryDB {
 
         self.recurring.clear();
         self.recurring.append(&mut new);
-        Ok(())
+        Ok(Vec::new())
     }
 
     async fn record(&mut self, record: Record) -> Result<(), anyhow::Error> {
