@@ -59,7 +59,7 @@ enum Command {
         about = "Also `d`. Delete an event by ID. Pass `-r` to delete recurring IDs"
     )]
     Delete {
-        id: u64,
+        ids: Vec<u64>,
         #[arg(short = 'r', long)]
         recur: bool,
     },
