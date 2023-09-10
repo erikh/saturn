@@ -60,17 +60,28 @@ enum Command {
     )]
     Delete {
         ids: Vec<u64>,
-        #[arg(short = 'r', long)]
+        #[arg(short = 'r', long, help = "Delete recurring tasks by ID")]
         recur: bool,
     },
     #[command(about = "Send a visual notification when your appointment has arrived")]
     Notify {
-        #[arg(short = 'w', long)]
+        #[arg(
+            short = 'w',
+            long,
+            help = "Window to consider whether notifying for something"
+        )]
         well: Option<String>,
-        #[arg(short = 't', long, default_value = "10s")]
+        #[arg(
+            short = 't',
+            long,
+            default_value = "10s",
+            help = "Notification timeout"
+        )]
         timeout: Option<String>,
-        #[arg(short = 'c', long)]
+        #[arg(short = 'c', long, help = "Include completed tasks (unixfile only)")]
         include_completed: bool,
+        #[arg(short = 'i', long, help = "Icon in XDG desktop format")]
+        icon: Option<String>,
     },
     #[command(alias = "e", about = "Also `e`. Enter a new entry into the calendar")]
     Entry { args: Vec<String> },
@@ -81,9 +92,9 @@ enum Command {
         about = "Also `l`. List today's calendar by default, or --all to show the full calendar"
     )]
     List {
-        #[arg(short = 'r', long)]
+        #[arg(short = 'r', long, help = "List recurring tasks")]
         recur: bool,
-        #[arg(short = 'a', long)]
+        #[arg(short = 'a', long, help = "List all tasks, not just today's")]
         all: bool,
     },
     #[command(
@@ -91,9 +102,13 @@ enum Command {
         about = "Also `n`. Show the tasks that are important now, including notifications"
     )]
     Now {
-        #[arg(short = 'w', long)]
+        #[arg(
+            short = 'w',
+            long,
+            help = "Window to consider whether notifying for something"
+        )]
         well: Option<String>,
-        #[arg(short = 'c', long)]
+        #[arg(short = 'c', long, help = "Include completed tasks (unixfile only)")]
         include_completed: bool,
     },
 }
