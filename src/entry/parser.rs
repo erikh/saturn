@@ -85,9 +85,7 @@ pub fn parse_entry(args: Vec<String>) -> Result<EntryRecord, anyhow::Error> {
                     } else if let Some(scheduled) = record.scheduled() {
                         record.add_notification(scheduled.0 - duration.duration());
                     } else if record.all_day() {
-                        record.add_notification(
-                            chrono::NaiveTime::from_hms_opt(0, 0, 0).unwrap() - duration.duration(),
-                        );
+                        record.add_notification(time(0, 0) - duration.duration());
                     } else {
                         return Err(anyhow!(
                             "No time was scheduled to base this notification off of"
@@ -150,16 +148,18 @@ fn parse_date(s: String) -> Result<chrono::NaiveDate, anyhow::Error> {
 fn twelve_hour_time(pm: bool, hour: u32, minute: u32, _seconds: u32) -> chrono::NaiveTime {
     let new_hour = if pm { 12 } else { 0 };
 
-    chrono::NaiveTime::from_hms_opt(
+    time(
         if hour == 12 {
             new_hour
         } else {
             hour + new_hour
         },
         minute,
-        0,
     )
-    .expect("Invalid Time")
+}
+
+fn time(hour: u32, minute: u32) -> chrono::NaiveTime {
+    chrono::NaiveTime::from_hms_opt(hour, minute, 0).expect("Invalid Time")
 }
 
 fn pm_time(hour: u32, minute: u32, seconds: u32) -> chrono::NaiveTime {
@@ -174,8 +174,8 @@ fn parse_time(s: String) -> Result<chrono::NaiveTime, anyhow::Error> {
     let s = s.trim();
 
     match s.to_lowercase().as_str() {
-        "midnight" => return Ok(chrono::NaiveTime::from_hms_opt(0, 0, 0).unwrap()),
-        "noon" => return Ok(chrono::NaiveTime::from_hms_opt(12, 0, 0).unwrap()),
+        "midnight" => return Ok(time(0, 0)),
+        "noon" => return Ok(time(12, 0)),
         _ => {}
     }
 
