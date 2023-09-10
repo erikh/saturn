@@ -114,7 +114,7 @@ designations for each unit. Example: `2h15m12s`, is "2 hours, 15 minutes, and
 ## Querying
 
 **NOTE**: For Google Calendar, all listings that are unbounded time-wise have a
-current maximum bound of seven days back, plus one day ahead. This is to ensure
+current maximum bound of 30 days back, plus 30 days ahead. This is to ensure
 we grab all the results if possible in a single fetch, as well as not destroy
 your network each time you want to query this information for old or large
 calendars. `saturn` is not currently capable of backing up your Google Calendar.
