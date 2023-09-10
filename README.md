@@ -89,6 +89,8 @@ Dates can be represented a number of ways:
 -   `hour:minute[pm|am]` represents the current 12 hour time with appropriate time of day designation.
 -   `hour[pm|am]` represents the top of the hour in 12 hour time with the appropriate time of day designation.
 -   `hour` represents the top of the hour in 12 hour time with the current time of day designation.
+-   `midnight` can be used to refer to `00:00` or `12:00am`
+-   `noon` can be used to refer to `12:00` or `12:00pm`.
 
 #### Durations
 
