@@ -193,50 +193,55 @@ impl GoogleClient {
 
         for mut event in events {
             if event.recurrence.is_some() {
-                let mut changed = false;
                 event.calendar_id = Some(calendar_id.clone());
 
                 let instances = EventClient::new(self.client())
                     .instances(event.clone())
                     .await?;
 
-                if !instances.items.is_empty() {
-                    for new_event in instances.items {
-                        if let Some(new_start) = &new_event.start {
-                            if let Some(new_start) = &new_start.date_time {
-                                if let Ok(new_start) =
-                                    new_start.parse::<chrono::DateTime<chrono::Local>>()
-                                {
-                                    if new_start > start && new_start < end {
-                                        event = new_event.clone();
-                                        changed = true;
-                                        break;
+                for new_event in instances.items {
+                    if let Some(new_start) = &new_event.start {
+                        if let Some(new_start) = &new_start.date {
+                            if let Ok(new_start) = new_start.parse::<chrono::NaiveDate>() {
+                                if new_start > start.date_naive() && new_start < end.date_naive() {
+                                    if let Some(status) = new_event.status.clone() {
+                                        if !matches!(status, EventStatus::Cancelled) {
+                                            records.push(self.event_to_record(new_event)?);
+                                        }
+                                    }
+                                }
+                            }
+                        } else if let Some(new_start) = &new_start.date_time {
+                            if let Ok(new_start) =
+                                new_start.parse::<chrono::DateTime<chrono::Local>>()
+                            {
+                                if new_start > start && new_start < end {
+                                    if let Some(status) = new_event.status.clone() {
+                                        if !matches!(status, EventStatus::Cancelled) {
+                                            records.push(self.event_to_record(new_event)?);
+                                        }
                                     }
                                 }
                             }
                         }
                     }
                 }
-
-                if !changed {
-                    continue;
-                }
-            }
-
-            event.calendar_id = Some(calendar_id.clone());
-            if let Some(status) = event.status.clone() {
-                if !matches!(status, EventStatus::Cancelled) {
-                    records.push(self.event_to_record(event).await?)
-                }
             } else {
-                records.push(self.event_to_record(event).await?)
+                event.calendar_id = Some(calendar_id.clone());
+                if let Some(status) = event.status.clone() {
+                    if !matches!(status, EventStatus::Cancelled) {
+                        records.push(self.event_to_record(event)?)
+                    }
+                } else {
+                    records.push(self.event_to_record(event)?)
+                }
             }
         }
 
         Ok(records)
     }
 
-    pub async fn event_to_record(&self, event: Event) -> Result<Record, ClientError> {
+    pub fn event_to_record(&self, event: Event) -> Result<Record, ClientError> {
         let mut record = Record::default();
 
         record.set_internal_key(event.id.clone());
@@ -275,22 +280,22 @@ impl GoogleClient {
                 start.map_or_else(
                     || None,
                     |x| {
-                        x.date_time.map_or_else(
+                        x.date.map_or_else(
                             || None,
                             |y| {
-                                y.parse::<chrono::DateTime<chrono::Local>>()
-                                    .map_or_else(|_| None, |z| Some(z.date_naive()))
+                                y.parse::<chrono::NaiveDate>()
+                                    .map_or_else(|_| None, |z| Some(z))
                             },
                         )
                     },
                 )
             },
             |x| {
-                x.date_time.map_or_else(
+                x.date.map_or_else(
                     || None,
                     |y| {
-                        y.parse::<chrono::DateTime<chrono::Local>>()
-                            .map_or_else(|_| None, |z| Some(z.date_naive()))
+                        y.parse::<chrono::NaiveDate>()
+                            .map_or_else(|_| None, |z| Some(z))
                     },
                 )
             },
@@ -328,8 +333,8 @@ impl GoogleClient {
         record.set_record_type(schedule.clone());
 
         let now = chrono::Local::now();
-        let date = date.unwrap_or(now.date_naive());
         let start_time = start_time.unwrap_or(now.naive_local());
+        let date = date.unwrap_or(start_time.date());
 
         match schedule {
             RecordType::AllDay => {
@@ -338,10 +343,10 @@ impl GoogleClient {
             }
             RecordType::At => {
                 record.set_at(Some(start_time.time()));
-                record.set_date(date);
+                record.set_date(start_time.date());
             }
             RecordType::Schedule => {
-                record.set_date(date);
+                record.set_date(start_time.date());
                 record.set_scheduled(Some((
                     start_time.time(),
                     event.end.map_or_else(
@@ -382,14 +387,21 @@ impl RemoteClient for GoogleClient {
         &mut self,
         calendar_id: String,
         event_id: String,
-    ) -> Result<(), anyhow::Error> {
+    ) -> Result<Vec<String>, anyhow::Error> {
         let events = EventClient::new(self.client());
         let mut event = Event::default();
         event.id = Some(event_id);
-        event.calendar_id = Some(calendar_id);
+        event.calendar_id = Some(calendar_id.clone());
+
+        let list = events.instances(event.clone()).await?;
 
         do_client!(self, { events.delete(event.clone()) })?;
-        Ok(())
+
+        Ok(list
+            .items
+            .iter()
+            .filter_map(|x| x.id.clone())
+            .collect::<Vec<String>>())
     }
 
     async fn record(
@@ -457,7 +469,7 @@ impl RemoteClient for GoogleClient {
         for event in &mut events {
             if let Some(recurrence) = &event.recurrence {
                 event.calendar_id = Some(calendar_id.clone());
-                let record = self.event_to_record(event.clone()).await?;
+                let record = self.event_to_record(event.clone())?;
                 for recur in recurrence {
                     if let Ok(mut x) =
                         RecurringRecord::from_rrule(record.clone(), recur.to_string())

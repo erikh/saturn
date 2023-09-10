@@ -73,34 +73,60 @@ pub async fn read_input<'a>(
         if buf.ends_with('\n') {
             match buf.trim() {
                 "quit" => break 'input,
-                "show today" => {
-                    state.lock().await.list_type = ListType::Today;
-                    let state = state.clone();
-                    tokio::spawn(async move {
-                        state.add_notification("Updating state").await;
-                        match state.update_state().await {
-                            Ok(_) => {}
-                            Err(e) => {
-                                state.add_notification(&format!("Error: {}", e)).await;
-                            }
-                        }
-                    });
-                }
-                "show all" => {
-                    state.lock().await.list_type = ListType::All;
-                    let state = state.clone();
-                    tokio::spawn(async move {
-                        state.add_notification("Updating state").await;
-                        match state.update_state().await {
-                            Ok(_) => {}
-                            Err(e) => {
-                                state.add_notification(&format!("Error: {}", e)).await;
-                            }
-                        }
-                    });
-                }
                 x => {
-                    if x.starts_with("d ") || x.starts_with("delete ") {
+                    if x.starts_with("s ") || x.starts_with("show ") {
+                        let m = if x.starts_with("show ") {
+                            x.trim_start_matches("show ")
+                        } else {
+                            x.trim_start_matches("s ")
+                        };
+                        match m {
+                            "all" | "a" => {
+                                state.lock().await.list_type = ListType::All;
+                                let state = state.clone();
+                                tokio::spawn(async move {
+                                    state.add_notification("Updating state").await;
+                                    match state.update_state().await {
+                                        Ok(_) => {}
+                                        Err(e) => {
+                                            state.add_notification(&format!("Error: {}", e)).await;
+                                        }
+                                    }
+                                });
+                            }
+                            "today" | "t" => {
+                                state.lock().await.list_type = ListType::Today;
+                                let state = state.clone();
+                                tokio::spawn(async move {
+                                    state.add_notification("Updating state").await;
+                                    match state.update_state().await {
+                                        Ok(_) => {}
+                                        Err(e) => {
+                                            state.add_notification(&format!("Error: {}", e)).await;
+                                        }
+                                    }
+                                });
+                            }
+                            "recur" | "recurring" | "recurrence" | "r" => {
+                                state.lock().await.list_type = ListType::Recurring;
+                                let state = state.clone();
+                                tokio::spawn(async move {
+                                    state.add_notification("Updating state").await;
+                                    match state.update_state().await {
+                                        Ok(_) => {}
+                                        Err(e) => {
+                                            state.add_notification(&format!("Error: {}", e)).await;
+                                        }
+                                    }
+                                });
+                            }
+                            _ => {
+                                state
+                                    .add_notification(&format!("Invalid Command '{}'", x))
+                                    .await
+                            }
+                        }
+                    } else if x.starts_with("d ") || x.starts_with("delete ") {
                         let ids = if x.starts_with("delete ") {
                             x.trim_start_matches("delete ")
                         } else {
@@ -113,7 +139,7 @@ pub async fn read_input<'a>(
                         let mut v = Vec::new();
 
                         for id in &ids {
-                            if id.is_empty() {
+                            if id.is_empty() || *id == "recur" {
                                 continue;
                             }
                             match id.parse::<u64>() {
@@ -124,8 +150,8 @@ pub async fn read_input<'a>(
                             };
                         }
 
-                        let command = if !ids.is_empty() && ids[0].starts_with("recur") {
-                            CommandType::DeleteRecurring(v)
+                        let command = if !ids.is_empty() && ids[0] == "recur" && ids.len() > 1 {
+                            CommandType::DeleteRecurring(v[1..v.len()].to_vec())
                         } else {
                             CommandType::Delete(v)
                         };
@@ -366,39 +392,53 @@ pub async fn build_events<'a>(
     let begin = begin - chrono::Duration::days(begin.weekday().number_from_sunday() as i64 - 1);
 
     let mut inner = state.lock().await;
-    let rows = inner
-        .records
-        .iter()
-        .filter_map(|r| {
-            if (r.all_day()
-                && chrono::NaiveDateTime::new(
-                    r.date(),
-                    chrono::NaiveTime::from_hms_opt(0, 0, 0).unwrap(),
-                ) > begin)
-                || r.datetime().naive_local() > begin
-            {
-                let mut row = Row::new(vec![
-                    Cell::from(format!("{}", r.primary_key())),
-                    if r.all_day() {
-                        Cell::from(r.date().format("%m/%d [Day]").to_string())
-                    } else {
-                        Cell::from(r.datetime().format("%m/%d %H:%M").to_string())
-                    },
-                    Cell::from(r.detail().to_string()),
-                ]);
-
-                if (r.all_day() && r.date() == chrono::Local::now().date_naive())
-                    || r.datetime().date_naive() == chrono::Local::now().date_naive()
+    let rows = match inner.list_type {
+        ListType::All | ListType::Today => inner
+            .records
+            .iter()
+            .filter_map(|r| {
+                if (r.all_day()
+                    && chrono::NaiveDateTime::new(
+                        r.date(),
+                        chrono::NaiveTime::from_hms_opt(0, 0, 0).unwrap(),
+                    ) > begin)
+                    || r.datetime().naive_local() > begin
                 {
-                    row = row.underlined()
-                }
+                    let mut row = Row::new(vec![
+                        Cell::from(format!("{}", r.primary_key())),
+                        if r.all_day() {
+                            Cell::from(r.date().format("%m/%d [Day]").to_string())
+                        } else {
+                            Cell::from(r.datetime().format("%m/%d %H:%M").to_string())
+                        },
+                        Cell::from(r.detail().to_string()),
+                    ]);
 
-                Some(row)
-            } else {
-                None
-            }
-        })
-        .collect::<Vec<Row>>();
+                    if (r.all_day() && r.date() == chrono::Local::now().date_naive())
+                        || r.datetime().date_naive() == chrono::Local::now().date_naive()
+                    {
+                        row = row.underlined()
+                    }
+
+                    Some(row)
+                } else {
+                    None
+                }
+            })
+            .collect::<Vec<Row>>(),
+        ListType::Recurring => inner
+            .recurring_records
+            .iter()
+            .map(|r| {
+                Row::new(vec![
+                    Cell::from(format!("{}", r.recurrence_key())),
+                    Cell::from(r.recurrence().to_string()),
+                    // going to hell for this
+                    Cell::from((&mut r.clone()).record().detail().to_string()),
+                ])
+            })
+            .collect::<Vec<Row>>(),
+    };
 
     let table = Arc::new(
         Table::new(rows.clone())
@@ -409,6 +449,7 @@ pub async fn build_events<'a>(
                     .title(match inner.list_type {
                         ListType::All => "All Events",
                         ListType::Today => "Today's Events",
+                        ListType::Recurring => "Recurring Events",
                     }),
             )
             .widths(&[

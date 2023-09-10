@@ -3,6 +3,7 @@ pub enum ListType {
     #[default]
     All,
     Today,
+    Recurring,
 }
 
 #[derive(Debug, Clone)]
