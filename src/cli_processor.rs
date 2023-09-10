@@ -49,6 +49,7 @@ macro_rules! process_cli {
                 well,
                 timeout,
                 include_completed,
+                icon,
             } => {
                 let now = chrono::Local::now();
 
@@ -67,7 +68,12 @@ macro_rules! process_cli {
                     .await?
                 {
                     if let Some(at) = entry.at() {
-                        notification.body(&format_at(entry, at)).show()?;
+                        let mut n = notification.body(&format_at(entry, at));
+                        if let Some(icon) = icon.clone() {
+                            n = n.icon(&icon);
+                        }
+
+                        n.show()?;
                     } else if let Some(schedule) = entry.scheduled() {
                         let start = chrono::NaiveDateTime::new(now.date_naive(), schedule.0);
                         let lower = start - get_well(well.clone())?;
@@ -75,9 +81,12 @@ macro_rules! process_cli {
                         let local = now.naive_local();
 
                         if lower < local && local < upper {
-                            notification
-                                .body(&format_scheduled(entry, schedule))
-                                .show()?;
+                            let mut n = notification.body(&format_scheduled(entry, schedule));
+                            if let Some(icon) = icon.clone() {
+                                n = n.icon(&icon);
+                            }
+
+                            n.show()?;
                         }
                     }
                 }
