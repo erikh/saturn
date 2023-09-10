@@ -188,17 +188,22 @@ Recurring tasks start their entry with the "recur" keyword and a duration.
 Every time the program is run and touches the database, it will look to add
 recurring tasks. Recurring tasks are based off the last task that was saved,
 and every recurrence up to the current point will be added in the absence of
-them. Until they are added, they will not have IDs nor can they be manipulated.
-Commands like `now` and `notify` which only perform read operations also adjust
-this data, so they can fire notifications properly for new tasks.
+them. In the Unix file implementation (not Google Calendar, which is
+responsible for creating its own recurring events) Until they are added, they
+will not have IDs nor can they be manipulated. Commands like `now` and `notify`
+which only perform read operations also adjust this data, so they can fire
+notifications properly for new tasks.
 
 ## Google Calendar Support
 
-Google Calendar support is working, with OAuth credentials being
-setup properly and limited control of the calendar is possible within the realm
-of what saturn currently supports. More is anticipated to be built atop this
-framework. Do not be surprised if functionality is confusing or missing. Please
-put in issues with your concerns, thanks!
+Google Calendar support is working, with OAuth credentials being setup properly
+and limited control of the calendar is possible within the realm of what saturn
+currently supports. More is anticipated to be built atop this framework. Do not
+be surprised if functionality is confusing or missing. Please put in issues
+with your concerns, thanks!
+
+`sui` also works beautifully with Google Calendar, providing a compelling, if
+primitive replacement for the web UI.
 
 To use `saturn` with Google Calendar, you must create a Google Cloud account
 and assign an OAuth application to it. One is not provided automatically by
@@ -241,10 +246,10 @@ Other things we want to do that aren't here yet:
 
 The TUI accepts several commands at the prompt; this command-set will grow with time. To interact with it, just type and hit enter to send a command.
 
-- `e` or `entry`: Process an entry in `saturn entry` format.
-- `d` or `delete`: Delete all the IDs provided (separate them with spaces)
-- `show today` will show today's calendar items, where `show all` will show the entire calendar (the default).
-- `quit` will exit the program.
+-   `e` or `entry`: Process an entry in `saturn entry` format.
+-   `d` or `delete`: Delete all the IDs provided (separate them with spaces)
+-   `show today` will show today's calendar items, where `show all` will show the entire calendar (the default).
+-   `quit` will exit the program.
 
 ## Target Platform
 
