@@ -114,7 +114,8 @@ macro_rules! process_cli {
                 print_entries($db.list_today(false).await?);
             }
             Command::Entry { args } => {
-                $db.record_entry(EntryParser::new(args)).await?;
+                $db.record_entry($crate::entry::EntryParser::new(args))
+                    .await?;
             }
         }
 
@@ -160,7 +161,7 @@ macro_rules! process_ui_command {
                         .filter(|x| !x.is_empty())
                         .map(|s| s.to_string())
                         .collect::<Vec<String>>();
-                    $db.record_entry($crate::cli::EntryParser::new(parts))
+                    $db.record_entry($crate::entry::EntryParser::new(parts))
                         .await?;
                 }
             };

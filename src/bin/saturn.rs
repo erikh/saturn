@@ -2,9 +2,7 @@ use anyhow::anyhow;
 use clap::{Parser, Subcommand};
 use fancy_duration::FancyDuration;
 use saturn_cli::{
-    cli::{
-        get_access_token, get_config, set_client_info, set_db_type, set_sync_window, EntryParser,
-    },
+    cli::{get_access_token, get_config, set_client_info, set_db_type, set_sync_window},
     config::{Config, DBType},
     db::{google::GoogleClient, memory::MemoryDB, remote::RemoteDBClient, DB},
     process_cli,

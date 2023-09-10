@@ -5,7 +5,7 @@ pub mod remote;
 pub mod unixfile;
 
 use crate::{
-    cli::EntryParser,
+    entry::EntryParser,
     record::{Record, RecurringRecord},
 };
 use async_trait::async_trait;
