@@ -28,6 +28,9 @@ Here is what it looks like:
         -   [Times](#times)
         -   [Durations](#durations)
 -   [Querying](#querying)
+    -   [Listing](#listing)
+    -   [Notifying](#notifying)
+    -   [Deletion and Mutation](#deletion-and-mutation)
 -   [Database &amp; Configuration File](#database--configuration-file)
 -   [Leveraging the well features with a periodic scheduler](#leveraging-the-well-features-with-a-periodic-scheduler)
 -   [Recurring tasks](#recurring-tasks)
@@ -116,6 +119,8 @@ we grab all the results if possible in a single fetch, as well as not destroy
 your network each time you want to query this information for old or large
 calendars. `saturn` is not currently capable of backing up your Google Calendar.
 
+### Listing
+
 ```
 saturn list [--all]
 ```
@@ -135,7 +140,7 @@ Durations are specified in
 
 `saturn n` is an alias for `saturn now`.
 
-Likewise,
+### Notifying
 
 ```
 saturn notify [--well=<duration>] [--timeout=<duration>]
@@ -151,11 +156,14 @@ same text.
 
 <img style="width:50%" src="notification.png" />
 
+### Deletion and Mutation
+
 ```
 saturn delete <ids...>
 ```
 
 Will delete a calendar record by ID, which is listed with the listing tools.
+Pass `-r` to delete a recurring task.
 
 ```
 saturn complete <id>
@@ -163,6 +171,8 @@ saturn complete <id>
 
 Will mark a task as "completed". Completed tasks get a visual notification and
 are automatically excluded from listing without the `--all` flag.
+
+Does not work with Google Calendar.
 
 ## Database & Configuration File
 
