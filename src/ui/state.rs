@@ -4,6 +4,7 @@ use crate::{
     db::{google::GoogleClient, memory::MemoryDB, remote::RemoteDBClient, DB},
     list_ui, process_ui_command,
     record::{Record, RecurringRecord},
+    time::now,
 };
 use ratatui::widgets::*;
 use std::{sync::Arc, time::Duration};
@@ -146,7 +147,6 @@ impl<'a> ProtectedState<'a> {
     }
 
     pub async fn add_notification(&self, notification: &str) {
-        self.lock().await.notification =
-            Some((notification.to_string(), chrono::Local::now().naive_local()))
+        self.lock().await.notification = Some((notification.to_string(), now().naive_local()))
     }
 }

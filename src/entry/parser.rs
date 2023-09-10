@@ -1,5 +1,8 @@
 use super::{EntryRecord, EntryState};
-use crate::record::{Record, RecurringRecord};
+use crate::{
+    record::{Record, RecurringRecord},
+    time::now,
+};
 use anyhow::anyhow;
 use chrono::{Datelike, Duration, Timelike};
 use fancy_duration::FancyDuration;
@@ -20,15 +23,15 @@ pub fn parse_entry(args: Vec<String>) -> Result<EntryRecord, anyhow::Error> {
             EntryState::Date => {
                 match arg.to_lowercase().as_str() {
                     "today" => {
-                        record.set_date(chrono::Local::now().date_naive());
+                        record.set_date(now().date_naive());
                         state = EntryState::Time;
                     }
                     "yesterday" => {
-                        record.set_date((chrono::Local::now() - Duration::days(1)).date_naive());
+                        record.set_date((now() - Duration::days(1)).date_naive());
                         state = EntryState::Time;
                     }
                     "tomorrow" => {
-                        record.set_date((chrono::Local::now() + Duration::days(1)).date_naive());
+                        record.set_date((now() + Duration::days(1)).date_naive());
                         state = EntryState::Time;
                     }
                     "recur" => {
@@ -126,16 +129,14 @@ fn parse_date(s: String) -> Result<chrono::NaiveDate, anyhow::Error> {
         }
         2 => {
             // FIXME this should be locale-based
-            Ok(chrono::NaiveDate::from_ymd_opt(
-                chrono::Local::now().year(),
-                parts[0].parse()?,
-                parts[1].parse()?,
+            Ok(
+                chrono::NaiveDate::from_ymd_opt(now().year(), parts[0].parse()?, parts[1].parse()?)
+                    .expect("Invalid Date"),
             )
-            .expect("Invalid Date"))
         }
         1 => {
+            let now = now();
             // FIXME this should be locale-based
-            let now = chrono::Local::now();
             Ok(
                 chrono::NaiveDate::from_ymd_opt(now.year(), now.month(), parts[0].parse()?)
                     .expect("Invalid Date"),
@@ -171,7 +172,7 @@ fn am_time(hour: u32, minute: u32) -> chrono::NaiveTime {
 }
 
 fn time_period(hour: u32, minute: u32) -> chrono::NaiveTime {
-    if chrono::Local::now().hour() >= 12 {
+    if now().hour() >= 12 {
         pm_time(hour, minute)
     } else {
         am_time(hour, minute)
@@ -261,6 +262,7 @@ mod tests {
     #[test]
     fn test_parse_date() {
         use super::parse_date;
+        use crate::time::now;
         use chrono::Datelike;
 
         let table = vec![
@@ -278,24 +280,19 @@ mod tests {
             ),
             (
                 "10.23",
-                chrono::NaiveDate::from_ymd_opt(chrono::Local::now().year(), 10, 23).unwrap(),
+                chrono::NaiveDate::from_ymd_opt(now().year(), 10, 23).unwrap(),
             ),
             (
                 "10/23",
-                chrono::NaiveDate::from_ymd_opt(chrono::Local::now().year(), 10, 23).unwrap(),
+                chrono::NaiveDate::from_ymd_opt(now().year(), 10, 23).unwrap(),
             ),
             (
                 "10-23",
-                chrono::NaiveDate::from_ymd_opt(chrono::Local::now().year(), 10, 23).unwrap(),
+                chrono::NaiveDate::from_ymd_opt(now().year(), 10, 23).unwrap(),
             ),
             (
                 "23",
-                chrono::NaiveDate::from_ymd_opt(
-                    chrono::Local::now().year(),
-                    chrono::Local::now().month(),
-                    23,
-                )
-                .unwrap(),
+                chrono::NaiveDate::from_ymd_opt(now().year(), now().month(), 23).unwrap(),
             ),
         ];
 
@@ -307,9 +304,10 @@ mod tests {
     #[test]
     fn test_parse_time() {
         use super::parse_time;
+        use crate::time::now;
         use chrono::Timelike;
 
-        let pm = chrono::Local::now().hour() >= 12;
+        let pm = now().hour() >= 12;
 
         let table = vec![
             ("12am", chrono::NaiveTime::from_hms_opt(0, 0, 0).unwrap()),
@@ -348,16 +346,15 @@ mod tests {
     #[test]
     fn test_parse_entry() {
         use super::parse_entry;
-        use crate::record::Record;
+        use crate::{record::Record, time::now};
         use chrono::{Datelike, Duration, Timelike};
 
-        let now = chrono::Local::now();
-        let pm = now.hour() >= 12;
+        let pm = now().hour() >= 12;
 
         let record = Record::build();
 
         let mut soda = record.clone();
-        soda.set_date(chrono::NaiveDate::from_ymd_opt(now.year(), 8, 5).unwrap())
+        soda.set_date(chrono::NaiveDate::from_ymd_opt(now().year(), 8, 5).unwrap())
             .set_at(Some(
                 chrono::NaiveTime::from_hms_opt(if pm { 20 } else { 8 }, 0, 0).unwrap(),
             ))
@@ -368,26 +365,26 @@ mod tests {
 
         let mut relax = record.clone();
         relax
-            .set_date((chrono::Local::now() + Duration::days(1)).date_naive())
+            .set_date((now() + Duration::days(1)).date_naive())
             .set_at(Some(chrono::NaiveTime::from_hms_opt(16, 0, 0).unwrap()))
             .set_detail("Relax".to_string());
 
         let mut birthday = record.clone();
         birthday
-            .set_date(chrono::NaiveDate::from_ymd_opt(now.year(), 10, 23).unwrap())
+            .set_date(chrono::NaiveDate::from_ymd_opt(now().year(), 10, 23).unwrap())
             .set_at(Some(chrono::NaiveTime::from_hms_opt(7, 30, 0).unwrap()))
             .add_notification(chrono::NaiveTime::from_hms_opt(6, 30, 0).unwrap())
             .set_detail("Tell my daughter 'happy birthday'".to_string());
 
         let mut new_year = record.clone();
         new_year
-            .set_date(chrono::NaiveDate::from_ymd_opt(now.year(), 1, 1).unwrap())
+            .set_date(chrono::NaiveDate::from_ymd_opt(now().year(), 1, 1).unwrap())
             .set_at(Some(chrono::NaiveTime::from_hms_opt(0, 0, 0).unwrap()))
             .set_detail("Happy new year!".to_string());
 
         let mut christmas = record.clone();
         christmas
-            .set_date(chrono::NaiveDate::from_ymd_opt(now.year(), 12, 25).unwrap())
+            .set_date(chrono::NaiveDate::from_ymd_opt(now().year(), 12, 25).unwrap())
             .set_scheduled(Some((
                 chrono::NaiveTime::from_hms_opt(7, 0, 0).unwrap(),
                 chrono::NaiveTime::from_hms_opt(12, 0, 0).unwrap(),

@@ -3,6 +3,7 @@ use crate::{
     db::RemoteClient,
     do_client,
     record::{Record, RecordType, RecurringRecord},
+    time::now,
 };
 use anyhow::anyhow;
 use async_trait::async_trait;
@@ -38,7 +39,7 @@ pub fn record_to_event(calendar_id: String, record: &mut Record) -> Event {
         }),
         RecordType::Schedule => {
             let dt = chrono::NaiveDateTime::new(record.date(), record.scheduled().unwrap().0)
-                .and_local_timezone(chrono::Local::now().timezone())
+                .and_local_timezone(now().timezone())
                 .unwrap()
                 .with_timezone(&chrono_tz::UTC);
             Some(EventCalendarDate {
@@ -53,7 +54,7 @@ pub fn record_to_event(calendar_id: String, record: &mut Record) -> Event {
                     record.date(),
                     chrono::NaiveTime::from_hms_opt(0, 0, 0).unwrap(),
                 )
-                .and_local_timezone(chrono::Local::now().timezone())
+                .and_local_timezone(now().timezone())
                 .unwrap()
                 .with_timezone(&chrono_tz::UTC)
                 .to_rfc3339(),
@@ -75,7 +76,7 @@ pub fn record_to_event(calendar_id: String, record: &mut Record) -> Event {
         }),
         RecordType::Schedule => {
             let dt = chrono::NaiveDateTime::new(record.date(), record.scheduled().unwrap().1)
-                .and_local_timezone(chrono::Local::now().timezone())
+                .and_local_timezone(now().timezone())
                 .unwrap()
                 .with_timezone(&chrono_tz::UTC);
 
@@ -91,7 +92,7 @@ pub fn record_to_event(calendar_id: String, record: &mut Record) -> Event {
                     record.date(),
                     chrono::NaiveTime::from_hms_opt(0, 0, 0).unwrap(),
                 ) + chrono::Duration::days(1))
-                .and_local_timezone(chrono::Local::now().timezone())
+                .and_local_timezone(now().timezone())
                 .unwrap()
                 .with_timezone(&chrono_tz::UTC)
                 .to_rfc3339(),
@@ -159,18 +160,18 @@ impl GoogleClient {
         let token = res?;
         self.config.set_access_token(Some(token.access_token));
         self.config.set_access_token_expires_at(Some(
-            chrono::Local::now().naive_utc() + chrono::Duration::seconds(token.expires_in),
+            now().naive_utc() + chrono::Duration::seconds(token.expires_in),
         ));
 
         if let Some(refresh_token) = token.refresh_token {
             self.config.set_refresh_token(Some(refresh_token));
             if let Some(expires_in) = token.refresh_token_expires_in {
                 self.config.set_refresh_token_expires_at(Some(
-                    chrono::Local::now().naive_utc() + chrono::Duration::seconds(expires_in),
+                    now().naive_utc() + chrono::Duration::seconds(expires_in),
                 ));
             } else {
                 self.config.set_refresh_token_expires_at(Some(
-                    chrono::Local::now().naive_utc() + chrono::Duration::seconds(3600),
+                    now().naive_utc() + chrono::Duration::seconds(3600),
                 ));
             }
         }
@@ -332,7 +333,7 @@ impl GoogleClient {
 
         record.set_record_type(schedule.clone());
 
-        let now = chrono::Local::now();
+        let now = now();
         let start_time = start_time.unwrap_or(now.naive_local());
         let date = date.unwrap_or(start_time.date());
 
@@ -350,13 +351,13 @@ impl GoogleClient {
                 record.set_scheduled(Some((
                     start_time.time(),
                     event.end.map_or_else(
-                        || chrono::Local::now().time(),
+                        || now.time(),
                         |x| {
                             x.date_time.map_or_else(
-                                || chrono::Local::now().time(),
+                                || now.time(),
                                 |y| {
                                     y.parse::<chrono::DateTime<chrono::Local>>()
-                                        .unwrap_or(chrono::Local::now())
+                                        .unwrap_or(now)
                                         .time()
                                 },
                             )
@@ -454,13 +455,12 @@ impl RemoteClient for GoogleClient {
         calendar_id: String,
     ) -> Result<Vec<RecurringRecord>, anyhow::Error> {
         let list = EventClient::new(self.client());
-        let now = chrono::Local::now();
 
         let mut events = do_client!(self, {
             list.list(
                 calendar_id.clone(),
-                now - chrono::Duration::days(30),
-                now + chrono::Duration::days(30),
+                now() - chrono::Duration::days(30),
+                now() + chrono::Duration::days(30),
             )
         })?;
 
@@ -499,12 +499,10 @@ impl RemoteClient for GoogleClient {
         calendar_id: String,
         _include_completed: bool,
     ) -> Result<Vec<Record>, anyhow::Error> {
-        let now = chrono::Local::now();
-
         self.perform_list(
             calendar_id,
-            now - chrono::Duration::days(1),
-            now + chrono::Duration::days(1),
+            now() - chrono::Duration::days(1),
+            now() + chrono::Duration::days(1),
         )
         .await
     }
@@ -514,18 +512,17 @@ impl RemoteClient for GoogleClient {
         calendar_id: String,
         _include_completed: bool, // FIXME include tasks
     ) -> Result<Vec<Record>, anyhow::Error> {
-        let now = chrono::Local::now();
-
         self.perform_list(
             calendar_id,
-            (now.with_hour(0)
+            (now()
+                .with_hour(0)
                 .unwrap()
                 .with_minute(0)
                 .unwrap()
                 .with_second(0)
                 .unwrap())
                 - chrono::Duration::days(30),
-            (now + chrono::Duration::days(30))
+            (now() + chrono::Duration::days(30))
                 .with_hour(0)
                 .unwrap()
                 .with_minute(0)
@@ -542,8 +539,7 @@ impl RemoteClient for GoogleClient {
         last: chrono::Duration,
         _include_completed: bool,
     ) -> Result<Vec<Record>, anyhow::Error> {
-        let now = chrono::Local::now();
-        self.perform_list(calendar_id, now - last, now).await
+        self.perform_list(calendar_id, now() - last, now()).await
     }
 
     async fn complete_task(

@@ -1,5 +1,6 @@
 use crate::{
     record::Record,
+    time::now,
     ui::{
         consts::*,
         state::{ProtectedState, State},
@@ -31,7 +32,7 @@ pub async fn draw_loop<'a>(
     let s2 = state.clone();
     std::thread::spawn(move || sit(read_input(s2, s)));
     let mut last_line = String::from("placeholder");
-    let mut last_draw = chrono::Local::now() - chrono::Duration::minutes(1);
+    let mut last_draw = now() - chrono::Duration::minutes(1);
 
     loop {
         let mut lock = state.lock().await;
@@ -43,15 +44,14 @@ pub async fn draw_loop<'a>(
 
         let line = lock.line_buf.clone();
         drop(lock);
-        let now = chrono::Local::now();
 
-        if redraw || line != last_line || last_draw + chrono::Duration::seconds(5) < now {
+        if redraw || line != last_line || last_draw + chrono::Duration::seconds(5) < now() {
             terminal.draw(|f| {
                 render_app(state.clone(), f, line.clone());
             })?;
 
             last_line = line;
-            last_draw = now;
+            last_draw = now();
         }
 
         if r.try_recv().is_ok() {
@@ -240,7 +240,7 @@ pub fn render_app(
             let ret = lock.notification.clone();
 
             if let Some(ret) = &ret {
-                if chrono::Local::now().naive_local() > ret.1 + chrono::Duration::seconds(1) {
+                if now().naive_local() > ret.1 + chrono::Duration::seconds(1) {
                     lock.notification = None;
                 }
             }
@@ -271,7 +271,7 @@ pub async fn build_calendar<'a>(
     state: ProtectedState<'static>,
 ) -> Result<Arc<Table<'a>>, anyhow::Error> {
     if let Some(calendar) = state.lock().await.calendar.clone() {
-        if calendar.1 + chrono::Duration::seconds(1) > chrono::Local::now().naive_local() {
+        if calendar.1 + chrono::Duration::seconds(1) > now().naive_local() {
             return Ok(calendar.0);
         }
     }
@@ -288,8 +288,7 @@ pub async fn build_calendar<'a>(
     let mut last_row: Vec<(Cell<'_>, usize)> = Vec::new();
     last_row.push((Cell::from("".to_string()), 0));
 
-    let now = chrono::Local::now();
-    let date = now.date_naive();
+    let date = now().date_naive();
     let begin = chrono::NaiveDateTime::new(
         chrono::NaiveDate::from_ymd_opt(date.year_ce().1 as i32, date.month0() + 1, 1).unwrap(),
         chrono::NaiveTime::from_hms_opt(0, 0, 0).unwrap(),
@@ -339,7 +338,7 @@ pub async fn build_calendar<'a>(
             .header(header)
             .block(
                 Block::default().borders(Borders::ALL).title(
-                    chrono::Month::try_from(now.month() as u8)
+                    chrono::Month::try_from(now().month() as u8)
                         .expect("Invalid Month")
                         .name(),
                 ),
@@ -360,7 +359,7 @@ pub async fn build_calendar<'a>(
     let mut lock = state.lock().await;
 
     if (!rows.is_empty() && lock.calendar.is_none()) || lock.calendar.is_some() {
-        lock.calendar = Some((table.clone(), chrono::Local::now().naive_local()));
+        lock.calendar = Some((table.clone(), now().naive_local()));
     }
 
     Ok(table)
@@ -370,7 +369,7 @@ pub async fn build_events<'a>(
     state: ProtectedState<'static>,
 ) -> Result<Arc<Table<'a>>, anyhow::Error> {
     if let Some(events) = state.lock().await.events.clone() {
-        if events.1 + chrono::Duration::seconds(1) > chrono::Local::now().naive_local() {
+        if events.1 + chrono::Duration::seconds(1) > now().naive_local() {
             return Ok(events.0);
         }
     }
@@ -383,8 +382,7 @@ pub async fn build_events<'a>(
         .height(1)
         .bottom_margin(1);
 
-    let now = chrono::Local::now();
-    let date = now.date_naive();
+    let date = now().date_naive();
     let begin = chrono::NaiveDateTime::new(
         chrono::NaiveDate::from_ymd_opt(date.year_ce().1 as i32, date.month0() + 1, 1).unwrap(),
         chrono::NaiveTime::from_hms_opt(0, 0, 0).unwrap(),
@@ -414,8 +412,8 @@ pub async fn build_events<'a>(
                         Cell::from(r.detail().to_string()),
                     ]);
 
-                    if (r.all_day() && r.date() == chrono::Local::now().date_naive())
-                        || r.datetime().date_naive() == chrono::Local::now().date_naive()
+                    if (r.all_day() && r.date() == now().date_naive())
+                        || r.datetime().date_naive() == now().date_naive()
                     {
                         row = row.underlined()
                     }
@@ -460,7 +458,7 @@ pub async fn build_events<'a>(
     );
 
     if (!rows.is_empty() && inner.events.is_none()) || inner.events.is_some() {
-        inner.events = Some((table.clone(), chrono::Local::now().naive_local()));
+        inner.events = Some((table.clone(), now().naive_local()));
     }
 
     Ok(table)
@@ -498,7 +496,7 @@ pub async fn build_data<'a>(
         }
     }
 
-    let style = if date.date() == chrono::Local::now().date_naive() {
+    let style = if date.date() == now().date_naive() {
         *TODAY_STYLE
     } else {
         *CELL_STYLE

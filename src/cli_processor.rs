@@ -51,8 +51,6 @@ macro_rules! process_cli {
                 include_completed,
                 icon,
             } => {
-                let now = chrono::Local::now();
-
                 let timeout = timeout.map_or(std::time::Duration::new(60, 0), |t| {
                     fancy_duration::FancyDuration::<std::time::Duration>::parse(&t)
                         .expect("Invalid Duration")
@@ -75,10 +73,13 @@ macro_rules! process_cli {
 
                         n.show()?;
                     } else if let Some(schedule) = entry.scheduled() {
-                        let start = chrono::NaiveDateTime::new(now.date_naive(), schedule.0);
+                        let start = chrono::NaiveDateTime::new(
+                            $crate::time::now().date_naive(),
+                            schedule.0,
+                        );
                         let lower = start - get_well(well.clone())?;
                         let upper = start + get_well(well.clone())?;
-                        let local = now.naive_local();
+                        let local = $crate::time::now().naive_local();
 
                         if lower < local && local < upper {
                             let mut n = notification.body(&format_scheduled(entry, schedule));

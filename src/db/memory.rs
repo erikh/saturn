@@ -2,6 +2,7 @@ use crate::{
     db::DB,
     filenames::saturn_db,
     record::{Record, RecurringRecord},
+    time::now,
 };
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
@@ -110,17 +111,15 @@ impl DB for MemoryDB {
     }
 
     async fn update_recurrence(&mut self) -> Result<(), anyhow::Error> {
-        let now = chrono::Local::now();
-
         for recur in self.recurring.clone() {
             let mut seen: Option<Record> = None;
-            let mut begin = now - recur.recurrence().duration() - chrono::Duration::days(7);
-            while begin.date_naive() <= now.date_naive() {
+            let mut begin = now() - recur.recurrence().duration() - chrono::Duration::days(7);
+            while begin.date_naive() <= now().date_naive() {
                 if let Some(items) = self.records.get(&begin.date_naive()) {
                     for item in items {
                         if let Some(key) = item.recurrence_key() {
                             if key == recur.recurrence_key()
-                                && item.datetime() - recur.recurrence().duration() < now
+                                && item.datetime() - recur.recurrence().duration() < now()
                             {
                                 seen = Some(item.clone());
                             }
@@ -136,7 +135,7 @@ impl DB for MemoryDB {
 
                 loop {
                     dt += duration;
-                    if dt >= now {
+                    if dt >= now() {
                         break;
                     }
                     let key = self.next_key();
@@ -152,7 +151,7 @@ impl DB for MemoryDB {
     async fn list_today(&mut self, include_completed: bool) -> Result<Vec<Record>, anyhow::Error> {
         Ok(self
             .records
-            .get(&chrono::Local::now().date_naive())
+            .get(&now().date_naive())
             .unwrap_or(&Vec::new())
             .iter()
             .filter_map(|v| {
@@ -186,17 +185,16 @@ impl DB for MemoryDB {
         include_completed: bool,
     ) -> Result<Vec<Record>, anyhow::Error> {
         let mut ret = Vec::new();
-        let now = chrono::Local::now();
 
         let mut records = self
             .records
-            .get_mut(&chrono::Local::now().date_naive())
+            .get_mut(&now().date_naive())
             .unwrap_or(&mut Vec::new())
             .clone();
 
         let mut next_day = self
             .records
-            .get_mut(&(chrono::Local::now() + chrono::Duration::days(1)).date_naive())
+            .get_mut(&(now() + chrono::Duration::days(1)).date_naive())
             .unwrap_or(&mut Vec::new())
             .clone();
 
@@ -208,16 +206,16 @@ impl DB for MemoryDB {
             }
 
             if let Some(at) = item.at() {
-                if at - now.time() < last && now.time() < at {
+                if at - now().time() < last && now().time() < at {
                     ret.push(item.clone());
                 }
             } else if let Some(schedule) = item.scheduled() {
-                if (schedule.0 - last) < now.time() && (schedule.1 + last) > now.time() {
+                if (schedule.0 - last) < now().time() && (schedule.1 + last) > now().time() {
                     ret.push(item.clone())
                 }
             } else if item.all_day()
-                && item.date() - chrono::Duration::days(1) == now.date_naive()
-                && now.time() > chrono::NaiveTime::from_hms_opt(23, 59, 0).unwrap() - last
+                && item.date() - chrono::Duration::days(1) == now().date_naive()
+                && now().time() > chrono::NaiveTime::from_hms_opt(23, 59, 0).unwrap() - last
             {
                 ret.push(item.clone())
             }
@@ -227,20 +225,20 @@ impl DB for MemoryDB {
                 let mut pushed = false;
 
                 for notification in notifications {
-                    if notification < now.time() {
+                    if notification < now().time() {
                         if let Some(at) = item.at() {
-                            if now.time() < at && !pushed {
+                            if now().time() < at && !pushed {
                                 ret.push(item.clone());
                                 pushed = true
                             }
                         } else if let Some(schedule) = item.scheduled() {
-                            if now.time() < schedule.0 && !pushed {
+                            if now().time() < schedule.0 && !pushed {
                                 ret.push(item.clone());
                                 pushed = true
                             }
                         } else if item.all_day()
-                            && item.date() - chrono::Duration::days(1) == now.date_naive()
-                            && now.time()
+                            && item.date() - chrono::Duration::days(1) == now().date_naive()
+                            && now().time()
                                 > chrono::NaiveTime::from_hms_opt(23, 59, 0).unwrap() - last
                             && !pushed
                         {

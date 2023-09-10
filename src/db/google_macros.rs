@@ -1,9 +1,11 @@
 #[macro_export]
 macro_rules! do_client {
-    ($obj:ident, $block:block) => {
+    ($obj:ident, $block:block) => {{
+        use $crate::time::now;
+
         'end: loop {
             if let Some(expires) = $obj.config.access_token_expires_at() {
-                if expires - chrono::Duration::hours(1) < chrono::Local::now().naive_utc() {
+                if expires - chrono::Duration::hours(1) < now().naive_utc() {
                     $obj.refresh_access_token().await?;
                 }
             }
@@ -20,5 +22,5 @@ macro_rules! do_client {
                 },
             }
         }
-    };
+    }};
 }

@@ -5,4 +5,5 @@ pub mod db;
 pub mod entry;
 pub mod filenames;
 pub mod record;
+pub mod time;
 pub mod ui;
