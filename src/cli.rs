@@ -334,6 +334,14 @@ fn am_time(hour: u32, minute: u32, seconds: u32) -> chrono::NaiveTime {
 }
 
 fn parse_time(s: String) -> Result<chrono::NaiveTime, anyhow::Error> {
+    let s = s.trim();
+
+    match s.to_lowercase().as_str() {
+        "midnight" => return Ok(chrono::NaiveTime::from_hms_opt(0, 0, 0).unwrap()),
+        "noon" => return Ok(chrono::NaiveTime::from_hms_opt(12, 0, 0).unwrap()),
+        _ => {}
+    }
+
     let regex = regex::Regex::new(r#"[:.]"#)?;
     let split = regex.split(&s);
     let parts = split.collect::<Vec<&str>>();
