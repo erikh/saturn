@@ -145,7 +145,7 @@ fn parse_date(s: String) -> Result<chrono::NaiveDate, anyhow::Error> {
     }
 }
 
-fn twelve_hour_time(pm: bool, hour: u32, minute: u32, _seconds: u32) -> chrono::NaiveTime {
+fn twelve_hour_time(pm: bool, hour: u32, minute: u32) -> chrono::NaiveTime {
     let new_hour = if pm { 12 } else { 0 };
 
     time(
@@ -162,12 +162,12 @@ fn time(hour: u32, minute: u32) -> chrono::NaiveTime {
     chrono::NaiveTime::from_hms_opt(hour, minute, 0).expect("Invalid Time")
 }
 
-fn pm_time(hour: u32, minute: u32, seconds: u32) -> chrono::NaiveTime {
-    twelve_hour_time(true, hour, minute, seconds)
+fn pm_time(hour: u32, minute: u32) -> chrono::NaiveTime {
+    twelve_hour_time(true, hour, minute)
 }
 
-fn am_time(hour: u32, minute: u32, seconds: u32) -> chrono::NaiveTime {
-    twelve_hour_time(false, hour, minute, seconds)
+fn am_time(hour: u32, minute: u32) -> chrono::NaiveTime {
+    twelve_hour_time(false, hour, minute)
 }
 
 fn parse_time(s: String) -> Result<chrono::NaiveTime, anyhow::Error> {
@@ -203,23 +203,23 @@ fn parse_time(s: String) -> Result<chrono::NaiveTime, anyhow::Error> {
 
                 if let Some(designation) = captures.get(2) {
                     match designation.as_str() {
-                        "pm" | "PM" => Ok(pm_time(hour, minute, 0)),
-                        "am" | "AM" => Ok(am_time(hour, minute, 0)),
+                        "pm" | "PM" => Ok(pm_time(hour, minute)),
+                        "am" | "AM" => Ok(am_time(hour, minute)),
                         _ => Err(anyhow!("Cannot parse time")),
                     }
                 } else if chrono::Local::now().hour() >= 12 {
-                    Ok(pm_time(hour, minute, 0))
+                    Ok(pm_time(hour, minute))
                 } else {
-                    Ok(am_time(hour, minute, 0))
+                    Ok(am_time(hour, minute))
                 }
             } else {
                 let hour: u32 = parts[0].parse()?;
                 let minute: u32 = parts[1].parse()?;
 
                 if chrono::Local::now().hour() >= 12 {
-                    Ok(pm_time(hour, minute, 0))
+                    Ok(pm_time(hour, minute))
                 } else {
-                    Ok(am_time(hour, minute, 0))
+                    Ok(am_time(hour, minute))
                 }
             }
         }
@@ -234,21 +234,21 @@ fn parse_time(s: String) -> Result<chrono::NaiveTime, anyhow::Error> {
 
                 if let Some(designation) = captures.get(2) {
                     match designation.as_str() {
-                        "pm" | "PM" => Ok(pm_time(hour, 0, 0)),
-                        "am" | "AM" => Ok(am_time(hour, 0, 0)),
+                        "pm" | "PM" => Ok(pm_time(hour, 0)),
+                        "am" | "AM" => Ok(am_time(hour, 0)),
                         "" => {
                             if chrono::Local::now().hour() >= 12 {
-                                Ok(pm_time(hour, 0, 0))
+                                Ok(pm_time(hour, 0))
                             } else {
-                                Ok(am_time(hour, 0, 0))
+                                Ok(am_time(hour, 0))
                             }
                         }
                         _ => Err(anyhow!("Cannot parse time")),
                     }
                 } else if chrono::Local::now().hour() >= 12 {
-                    Ok(pm_time(hour, 0, 0))
+                    Ok(pm_time(hour, 0))
                 } else {
-                    Ok(am_time(hour, 0, 0))
+                    Ok(am_time(hour, 0))
                 }
             } else {
                 Err(anyhow!("Cannot parse time"))
