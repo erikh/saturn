@@ -19,6 +19,23 @@ Here is what it looks like:
 
 <img src="tui.png"/>
 
+# Table of Contents
+
+-   [Installation](#installation)
+-   [Entry language](#entry-language)
+    -   [Formats](#formats)
+        -   [Dates](#dates)
+        -   [Times](#times)
+        -   [Durations](#durations)
+-   [Querying](#querying)
+-   [Database &amp; Configuration File](#database--configuration-file)
+-   [Leveraging the well features with a periodic scheduler](#leveraging-the-well-features-with-a-periodic-scheduler)
+-   [Recurring tasks](#recurring-tasks)
+-   [Google Calendar Support](#google-calendar-support)
+-   [TUI Commands](#tui-commands)
+-   [Target Platform](#target-platform)
+-   [Author](#author)
+
 ## Installation
 
 Install with cargo:
