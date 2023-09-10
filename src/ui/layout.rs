@@ -259,8 +259,8 @@ pub async fn build_calendar<'a>(
         .bottom_margin(1);
 
     let mut rows = Vec::new();
-    let mut last_row = Vec::new();
-    last_row.push(String::new());
+    let mut last_row: Vec<(Cell<'_>, usize)> = Vec::new();
+    last_row.push((Cell::from("".to_string()), 0));
 
     let now = chrono::Local::now();
     let date = now.date_naive();
@@ -274,27 +274,10 @@ pub async fn build_calendar<'a>(
     let mut lock = state.lock().await;
     for x in 0..DAYS {
         if x % DAYS_IN_WEEK == 0 && x != 0 {
-            last_row.push(String::new());
+            last_row.push((Cell::from("".to_string()), 0));
             rows.push(
-                Row::new(
-                    last_row
-                        .iter()
-                        .map(|x| {
-                            let cell = Cell::from(x.clone());
-                            if x.is_empty() {
-                                cell
-                            } else {
-                                cell.style(*CELL_STYLE)
-                            }
-                        })
-                        .collect::<Vec<Cell>>(),
-                )
-                .height({
-                    let res = last_row
-                        .iter()
-                        .map(|x| x.matches('\n').count())
-                        .max()
-                        .unwrap() as u16;
+                Row::new(last_row.iter().map(|x| x.0.clone()).collect::<Vec<Cell>>()).height({
+                    let res = last_row.iter().map(|res| res.1).max().unwrap_or(4) as u16;
                     if res > 4 {
                         res
                     } else {
@@ -306,36 +289,19 @@ pub async fn build_calendar<'a>(
                 ["", "", "", "", "", "", "", "", ""].map(Cell::from),
             ));
             last_row = Vec::new();
-            last_row.push(String::new());
+            last_row.push((Cell::from("".to_string()), 0));
         }
 
         last_row.push(build_data(&mut lock, begin).await);
         begin += chrono::Duration::days(1);
     }
     drop(lock);
-    last_row.push(String::new());
+    last_row.push((Cell::from("".to_string()), 0));
     rows.push(
-        Row::new(
-            last_row
-                .iter()
-                .map(|x| {
-                    let cell = Cell::from(x.clone());
-                    if x.is_empty() {
-                        cell
-                    } else {
-                        cell.style(*CELL_STYLE)
-                    }
-                })
-                .collect::<Vec<Cell>>(),
-        )
-        .height({
-            let res = last_row
-                .iter()
-                .map(|x| x.matches('\n').count())
-                .max()
-                .unwrap() as u16;
+        Row::new(last_row.iter().map(|x| x.0.clone()).collect::<Vec<Cell>>()).height({
+            let res = last_row.iter().map(|x| x.1).max().unwrap_or(4) as u16;
             if res > 4 {
-                res
+                res as u16
             } else {
                 4
             }
@@ -411,7 +377,7 @@ pub async fn build_events<'a>(
                 ) > begin)
                 || r.datetime().naive_local() > begin
             {
-                Some(Row::new(vec![
+                let mut row = Row::new(vec![
                     Cell::from(format!("{}", r.primary_key())),
                     if r.all_day() {
                         Cell::from(r.date().format("%m/%d [Day]").to_string())
@@ -419,7 +385,15 @@ pub async fn build_events<'a>(
                         Cell::from(r.datetime().format("%m/%d %H:%M").to_string())
                     },
                     Cell::from(r.detail().to_string()),
-                ]))
+                ]);
+
+                if (r.all_day() && r.date() == chrono::Local::now().date_naive())
+                    || r.datetime().date_naive() == chrono::Local::now().date_naive()
+                {
+                    row = row.underlined()
+                }
+
+                Some(row)
             } else {
                 None
             }
@@ -469,7 +443,7 @@ pub async fn find_dates<'a>(
 pub async fn build_data<'a>(
     state: &mut tokio::sync::MutexGuard<'_, State<'a>>,
     date: chrono::NaiveDateTime,
-) -> String {
+) -> (Cell<'a>, usize) {
     let mut s = format!("{}\n", date.day());
     for item in find_dates(state, date).await {
         if item.all_day() {
@@ -483,7 +457,13 @@ pub async fn build_data<'a>(
         }
     }
 
-    s
+    let style = if date.date() == chrono::Local::now().date_naive() {
+        *TODAY_STYLE
+    } else {
+        *CELL_STYLE
+    };
+
+    (Cell::from(s.clone()).style(style), s.matches('\n').count())
 }
 
 pub fn handle_input(mut buf: String) -> Result<String, anyhow::Error> {
