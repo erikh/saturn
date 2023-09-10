@@ -377,7 +377,7 @@ pub async fn build_events<'a>(
                 ) > begin)
                 || r.datetime().naive_local() > begin
             {
-                Some(Row::new(vec![
+                let mut row = Row::new(vec![
                     Cell::from(format!("{}", r.primary_key())),
                     if r.all_day() {
                         Cell::from(r.date().format("%m/%d [Day]").to_string())
@@ -385,7 +385,15 @@ pub async fn build_events<'a>(
                         Cell::from(r.datetime().format("%m/%d %H:%M").to_string())
                     },
                     Cell::from(r.detail().to_string()),
-                ]))
+                ]);
+
+                if (r.all_day() && r.date() == chrono::Local::now().date_naive())
+                    || r.datetime().date_naive() == chrono::Local::now().date_naive()
+                {
+                    row = row.underlined()
+                }
+
+                Some(row)
             } else {
                 None
             }
