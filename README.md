@@ -152,7 +152,7 @@ same text.
 <img style="width:50%" src="notification.png" />
 
 ```
-saturn delete <id>
+saturn delete <ids...>
 ```
 
 Will delete a calendar record by ID, which is listed with the listing tools.
