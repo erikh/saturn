@@ -188,8 +188,8 @@ Recurring tasks start their entry with the "recur" keyword and a duration.
 Every time the program is run and touches the database, it will look to add
 recurring tasks. Recurring tasks are based off the last task that was saved,
 and every recurrence up to the current point will be added in the absence of
-them. In the Unix file implementation (not Google Calendar, which is
-responsible for creating its own recurring events) Until they are added, they
+them. In the Unix file implementation, (not Google Calendar, which is
+responsible for creating its own recurring events) until they are added, they
 will not have IDs nor can they be manipulated. Commands like `now` and `notify`
 which only perform read operations also adjust this data, so they can fire
 notifications properly for new tasks.
