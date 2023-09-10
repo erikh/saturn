@@ -36,11 +36,13 @@ macro_rules! process_cli {
                 }
             },
             Command::Complete { id } => $db.complete_task(id).await?,
-            Command::Delete { id, recur } => {
-                if recur {
-                    $db.delete_recurrence(id).await?
-                } else {
-                    $db.delete(id).await?
+            Command::Delete { ids, recur } => {
+                for id in ids {
+                    if recur {
+                        $db.delete_recurrence(id).await?
+                    } else {
+                        $db.delete(id).await?
+                    }
                 }
             }
             Command::Notify {
