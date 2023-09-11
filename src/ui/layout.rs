@@ -401,7 +401,6 @@ pub async fn build_events<'a>(
         .unwrap(),
         chrono::NaiveTime::from_hms_opt(0, 0, 0).unwrap(),
     );
-    let begin = begin - chrono::Duration::days(begin.weekday().number_from_sunday() as i64 - 1);
 
     let mut inner = state.lock().await;
     let rows = match inner.list_type {
