@@ -1,0 +1,6 @@
+- v0.2.0:
+    - Introduction of `sui`, a graphical TUI built with the same principles as `saturn`. Uses the same data and databases and configuration file, and works great with Google Calendar.
+    - Improvement of recurring task management with Google Calendar. Not all bugs are snipped here, but the big ones are.
+    - `midnight` and `noon` are now valid times in the entry language.
+    - `saturn delete` can now take multiple IDs to delete at once.
+    - `saturn notify` can now accept notification icons with the `--icon` flag.
