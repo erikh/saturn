@@ -288,13 +288,19 @@ pub async fn build_calendar<'a>(
     let mut last_row: Vec<(Cell<'_>, usize)> = Vec::new();
     last_row.push((Cell::from("".to_string()), 0));
 
+    let datetime = now();
     let date = now().date_naive();
-    let begin = chrono::NaiveDateTime::new(
-        chrono::NaiveDate::from_ymd_opt(date.year_ce().1 as i32, date.month0() + 1, 1).unwrap(),
+    let mut begin = chrono::NaiveDateTime::new(
+        chrono::NaiveDate::from_ymd_opt(
+            date.year_ce().1 as i32,
+            date.month0() + 1,
+            (date - chrono::Duration::days(datetime.weekday().num_days_from_sunday().into()))
+                .day0()
+                + 1,
+        )
+        .unwrap(),
         chrono::NaiveTime::from_hms_opt(0, 0, 0).unwrap(),
     );
-
-    let mut begin = begin - chrono::Duration::days(begin.weekday().number_from_sunday() as i64 - 1);
 
     let mut lock = state.lock().await;
     for x in 0..DAYS {
@@ -382,9 +388,17 @@ pub async fn build_events<'a>(
         .height(1)
         .bottom_margin(1);
 
-    let date = now().date_naive();
+    let datetime = now();
+    let date = datetime.date_naive();
     let begin = chrono::NaiveDateTime::new(
-        chrono::NaiveDate::from_ymd_opt(date.year_ce().1 as i32, date.month0() + 1, 1).unwrap(),
+        chrono::NaiveDate::from_ymd_opt(
+            date.year_ce().1 as i32,
+            date.month0() + 1,
+            (date - chrono::Duration::days(datetime.weekday().num_days_from_sunday().into()))
+                .day0()
+                + 1,
+        )
+        .unwrap(),
         chrono::NaiveTime::from_hms_opt(0, 0, 0).unwrap(),
     );
     let begin = begin - chrono::Duration::days(begin.weekday().number_from_sunday() as i64 - 1);
