@@ -137,11 +137,18 @@ pub async fn read_input<'a>(
                         .collect::<Vec<&str>>();
 
                         let mut v = Vec::new();
+                        let mut recur = false;
 
                         for id in &ids {
-                            if id.is_empty() || *id == "recur" {
+                            if id.is_empty() {
                                 continue;
                             }
+
+                            if *id == "recur" {
+                                recur = true;
+                                continue;
+                            }
+
                             match id.parse::<u64>() {
                                 Ok(y) => v.push(y),
                                 Err(_) => {
@@ -150,8 +157,8 @@ pub async fn read_input<'a>(
                             };
                         }
 
-                        let command = if !ids.is_empty() && ids[0] == "recur" && ids.len() > 1 {
-                            CommandType::DeleteRecurring(v[1..v.len()].to_vec())
+                        let command = if recur {
+                            CommandType::DeleteRecurring(v)
                         } else {
                             CommandType::Delete(v)
                         };
