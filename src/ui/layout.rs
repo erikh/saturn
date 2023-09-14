@@ -7,15 +7,14 @@ use crate::{
         types::*,
     },
 };
+use anyhow::Result;
 use chrono::Datelike;
 use crossterm::event::{self, Event, KeyCode};
 use ratatui::{prelude::*, widgets::*};
 use std::time::Duration;
 use std::{io::Stdout, ops::Deref, sync::Arc};
 
-fn sit<T>(
-    msg: impl std::future::Future<Output = Result<T, anyhow::Error>>,
-) -> Result<T, anyhow::Error> {
+fn sit<T>(msg: impl std::future::Future<Output = Result<T>>) -> Result<T> {
     let runtime = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .build()?;
@@ -26,7 +25,7 @@ fn sit<T>(
 pub async fn draw_loop<'a>(
     state: ProtectedState<'static>,
     terminal: &mut Terminal<CrosstermBackend<Stdout>>,
-) -> Result<(), anyhow::Error> {
+) -> Result<()> {
     let (s, mut r) = tokio::sync::mpsc::channel(1);
 
     let s2 = state.clone();
@@ -66,7 +65,7 @@ pub async fn draw_loop<'a>(
 pub async fn read_input<'a>(
     state: ProtectedState<'static>,
     s: tokio::sync::mpsc::Sender<()>,
-) -> Result<(), anyhow::Error> {
+) -> Result<()> {
     'input: loop {
         let mut buf = state.lock().await.line_buf.clone();
         buf = handle_input(buf).expect("Invalid input");
@@ -274,9 +273,7 @@ pub fn render_app(
     frame.set_cursor(3 + buf.len() as u16, 0);
 }
 
-pub async fn build_calendar<'a>(
-    state: ProtectedState<'static>,
-) -> Result<Arc<Table<'a>>, anyhow::Error> {
+pub async fn build_calendar<'a>(state: ProtectedState<'static>) -> Result<Arc<Table<'a>>> {
     if let Some(calendar) = state.lock().await.calendar.clone() {
         if calendar.1 + chrono::Duration::seconds(1) > now().naive_local() {
             return Ok(calendar.0);
@@ -378,9 +375,7 @@ pub async fn build_calendar<'a>(
     Ok(table)
 }
 
-pub async fn build_events<'a>(
-    state: ProtectedState<'static>,
-) -> Result<Arc<Table<'a>>, anyhow::Error> {
+pub async fn build_events<'a>(state: ProtectedState<'static>) -> Result<Arc<Table<'a>>> {
     if let Some(events) = state.lock().await.events.clone() {
         if events.1 + chrono::Duration::seconds(1) > now().naive_local() {
             return Ok(events.0);
@@ -525,7 +520,7 @@ pub async fn build_data<'a>(
     (Cell::from(s.clone()).style(style), s.matches('\n').count())
 }
 
-pub fn handle_input(mut buf: String) -> Result<String, anyhow::Error> {
+pub fn handle_input(mut buf: String) -> Result<String> {
     if event::poll(Duration::from_millis(250))? {
         if let Event::Key(key) = event::read()? {
             match key.code {

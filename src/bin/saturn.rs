@@ -1,4 +1,4 @@
-use anyhow::anyhow;
+use anyhow::{anyhow, Result};
 use clap::{Parser, Subcommand};
 use fancy_duration::FancyDuration;
 use saturn_cli::{
@@ -111,7 +111,7 @@ enum Command {
     },
 }
 
-fn get_well(well: Option<String>) -> Result<chrono::Duration, anyhow::Error> {
+fn get_well(well: Option<String>) -> Result<chrono::Duration> {
     if let Some(well) = well {
         Ok(fancy_duration::FancyDuration::<chrono::Duration>::parse(&well)?.duration())
     } else {
@@ -242,12 +242,12 @@ fn print_recurring(entries: Vec<RecurringRecord>) {
     println!("{}", grid.display().unwrap());
 }
 
-fn set_calendar_id(id: String, mut config: Config) -> Result<(), anyhow::Error> {
+fn set_calendar_id(id: String, mut config: Config) -> Result<()> {
     config.set_calendar_id(id);
     config.save(None)
 }
 
-async fn list_calendars(mut client: GoogleClient) -> Result<(), anyhow::Error> {
+async fn list_calendars(mut client: GoogleClient) -> Result<()> {
     let list = client.list_calendars().await?;
     let mut grid = grid!(header!("ID"), header!("SUMMARY"));
     for item in list {
@@ -257,7 +257,7 @@ async fn list_calendars(mut client: GoogleClient) -> Result<(), anyhow::Error> {
     Ok(())
 }
 
-async fn process_google(cli: ArgParser, config: Config) -> Result<(), anyhow::Error> {
+async fn process_google(cli: ArgParser, config: Config) -> Result<()> {
     let client = GoogleClient::new(config.clone())?;
 
     let mut db = RemoteDBClient::new(config.calendar_id(), client.clone());
@@ -266,14 +266,14 @@ async fn process_google(cli: ArgParser, config: Config) -> Result<(), anyhow::Er
     Ok(())
 }
 
-async fn process_file(cli: ArgParser, config: Config) -> Result<(), anyhow::Error> {
+async fn process_file(cli: ArgParser, config: Config) -> Result<()> {
     let mut db = MemoryDB::new();
     process_cli!(cli, config, db);
     Ok(())
 }
 
 #[tokio::main]
-async fn main() -> Result<(), anyhow::Error> {
+async fn main() -> Result<()> {
     let cli = ArgParser::parse();
 
     let config = get_config().unwrap_or_default();

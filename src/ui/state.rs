@@ -6,6 +6,7 @@ use crate::{
     record::{Record, RecurringRecord},
     time::now,
 };
+use anyhow::Result;
 use ratatui::widgets::*;
 use std::{sync::Arc, time::Duration};
 use tokio::sync::Mutex;
@@ -34,20 +35,17 @@ impl<'a> std::ops::Deref for ProtectedState<'a> {
 }
 
 impl<'a> ProtectedState<'a> {
-    pub fn google_db(&self, config: Config) -> Result<RemoteDBClient<GoogleClient>, anyhow::Error> {
+    pub fn google_db(&self, config: Config) -> Result<RemoteDBClient<GoogleClient>> {
         let client = GoogleClient::new(config.clone())?;
 
         Ok(RemoteDBClient::new(config.calendar_id(), client.clone()))
     }
 
-    pub fn memory_db(&self) -> Result<MemoryDB, anyhow::Error> {
+    pub fn memory_db(&self) -> Result<MemoryDB> {
         Ok(MemoryDB::new())
     }
 
-    pub async fn list_google_recurring(
-        &self,
-        config: Config,
-    ) -> Result<Vec<RecurringRecord>, anyhow::Error> {
+    pub async fn list_google_recurring(&self, config: Config) -> Result<Vec<RecurringRecord>> {
         let mut db = self.google_db(config)?;
         db.load().await?;
         let res = db.list_recurrence().await?;
@@ -55,7 +53,7 @@ impl<'a> ProtectedState<'a> {
         Ok(res)
     }
 
-    pub async fn list_file_recurring(&self) -> Result<Vec<RecurringRecord>, anyhow::Error> {
+    pub async fn list_file_recurring(&self) -> Result<Vec<RecurringRecord>> {
         let mut db = self.memory_db()?;
         db.load().await?;
         let res = db.list_recurrence().await?;
@@ -67,20 +65,17 @@ impl<'a> ProtectedState<'a> {
         &self,
         config: Config,
         list_type: super::types::ListType,
-    ) -> Result<Vec<Record>, anyhow::Error> {
+    ) -> Result<Vec<Record>> {
         let mut db = self.google_db(config)?;
         list_ui!(db, list_type)
     }
 
-    pub async fn list_file(
-        &self,
-        list_type: super::types::ListType,
-    ) -> Result<Vec<Record>, anyhow::Error> {
+    pub async fn list_file(&self, list_type: super::types::ListType) -> Result<Vec<Record>> {
         let mut db = self.memory_db()?;
         list_ui!(db, list_type)
     }
 
-    pub async fn command_google(&self, config: Config) -> Result<(), anyhow::Error> {
+    pub async fn command_google(&self, config: Config) -> Result<()> {
         let client = GoogleClient::new(config.clone())?;
 
         let mut db = RemoteDBClient::new(config.calendar_id(), client.clone());
@@ -90,7 +85,7 @@ impl<'a> ProtectedState<'a> {
         Ok(())
     }
 
-    pub async fn command_file(&self) -> Result<(), anyhow::Error> {
+    pub async fn command_file(&self) -> Result<()> {
         let mut db = MemoryDB::new();
         let command = self.lock().await.command.clone();
         process_ui_command!(db, command);
@@ -98,7 +93,7 @@ impl<'a> ProtectedState<'a> {
         Ok(())
     }
 
-    pub async fn update_state(&self) -> Result<(), anyhow::Error> {
+    pub async fn update_state(&self) -> Result<()> {
         let config = get_config().unwrap_or_default();
 
         let typ = config.db_type();
@@ -139,7 +134,7 @@ impl<'a> ProtectedState<'a> {
         Ok(())
     }
 
-    pub async fn refresh(&self) -> Result<(), anyhow::Error> {
+    pub async fn refresh(&self) -> Result<()> {
         loop {
             self.update_state().await?;
             tokio::time::sleep(Duration::new(60, 0)).await;

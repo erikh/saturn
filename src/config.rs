@@ -1,4 +1,5 @@
 use crate::filenames::saturn_config;
+use anyhow::Result;
 use chrono::Duration;
 use fancy_duration::FancyDuration;
 use gcal::ClientParameters;
@@ -59,7 +60,7 @@ impl Default for Config {
 }
 
 impl Config {
-    pub fn load(filename: Option<std::path::PathBuf>) -> Result<Self, anyhow::Error> {
+    pub fn load(filename: Option<std::path::PathBuf>) -> Result<Self> {
         let path = filename.unwrap_or(saturn_config());
         let mut io = std::fs::OpenOptions::new();
         io.read(true);
@@ -70,7 +71,7 @@ impl Config {
         }
     }
 
-    pub fn save(&self, filename: Option<std::path::PathBuf>) -> Result<(), anyhow::Error> {
+    pub fn save(&self, filename: Option<std::path::PathBuf>) -> Result<()> {
         let path = filename.unwrap_or(saturn_config());
         let mut io = std::fs::OpenOptions::new();
         io.write(true);

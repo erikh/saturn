@@ -5,7 +5,7 @@ use crate::{
     record::{Record, RecordType, RecurringRecord},
     time::now,
 };
-use anyhow::anyhow;
+use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use chrono::Timelike;
 use gcal::{
@@ -119,7 +119,7 @@ pub fn record_to_event(calendar_id: String, record: &mut Record) -> Event {
 }
 
 impl GoogleClient {
-    pub fn new(config: Config) -> Result<Self, anyhow::Error> {
+    pub fn new(config: Config) -> Result<Self> {
         if !matches!(config.db_type(), DBType::Google) {
             return Err(anyhow!("DBType must be set to google"));
         }
@@ -152,7 +152,7 @@ impl GoogleClient {
         do_client!(self, { listclient.list() })
     }
 
-    pub async fn refresh_access_token(&mut self) -> Result<(), anyhow::Error> {
+    pub async fn refresh_access_token(&mut self) -> Result<()> {
         let res: Result<AccessToken, ClientError> =
             request_access_token(self.config.clone().into(), None, None, true)
                 .await
@@ -185,7 +185,7 @@ impl GoogleClient {
         calendar_id: String,
         start: chrono::DateTime<chrono::Local>,
         end: chrono::DateTime<chrono::Local>,
-    ) -> Result<Vec<Record>, anyhow::Error> {
+    ) -> Result<Vec<Record>> {
         let list = EventClient::new(self.client());
 
         let events = do_client!(self, { list.list(calendar_id.clone(), start, end) })?;
@@ -374,7 +374,7 @@ impl GoogleClient {
 
 #[async_trait]
 impl RemoteClient for GoogleClient {
-    async fn delete(&mut self, calendar_id: String, event_id: String) -> Result<(), anyhow::Error> {
+    async fn delete(&mut self, calendar_id: String, event_id: String) -> Result<()> {
         let events = EventClient::new(self.client());
         let mut event = Event::default();
         event.id = Some(event_id);
@@ -388,7 +388,7 @@ impl RemoteClient for GoogleClient {
         &mut self,
         calendar_id: String,
         event_id: String,
-    ) -> Result<Vec<String>, anyhow::Error> {
+    ) -> Result<Vec<String>> {
         let events = EventClient::new(self.client());
         let mut event = Event::default();
         event.id = Some(event_id);
@@ -405,11 +405,7 @@ impl RemoteClient for GoogleClient {
             .collect::<Vec<String>>())
     }
 
-    async fn record(
-        &mut self,
-        calendar_id: String,
-        mut record: Record,
-    ) -> Result<String, anyhow::Error> {
+    async fn record(&mut self, calendar_id: String, mut record: Record) -> Result<String> {
         let event = record_to_event(calendar_id, &mut record);
         let client = EventClient::new(self.client());
 
@@ -426,7 +422,7 @@ impl RemoteClient for GoogleClient {
         &mut self,
         calendar_id: String,
         mut record: RecurringRecord,
-    ) -> Result<(String, String), anyhow::Error> {
+    ) -> Result<(String, String)> {
         if record.recurrence().duration() < chrono::Duration::days(1) {
             return Err(anyhow!(
                 "Google Calendar supports a minimum granularity of 1 day"
@@ -450,10 +446,7 @@ impl RemoteClient for GoogleClient {
         Err(anyhow!("Event could not be saved"))
     }
 
-    async fn list_recurrence(
-        &mut self,
-        calendar_id: String,
-    ) -> Result<Vec<RecurringRecord>, anyhow::Error> {
+    async fn list_recurrence(&mut self, calendar_id: String) -> Result<Vec<RecurringRecord>> {
         let list = EventClient::new(self.client());
 
         let mut events = do_client!(self, {
@@ -490,7 +483,7 @@ impl RemoteClient for GoogleClient {
         Ok(v)
     }
 
-    async fn update_recurrence(&mut self, _calendar_id: String) -> Result<(), anyhow::Error> {
+    async fn update_recurrence(&mut self, _calendar_id: String) -> Result<()> {
         Ok(())
     }
 
@@ -498,7 +491,7 @@ impl RemoteClient for GoogleClient {
         &mut self,
         calendar_id: String,
         _include_completed: bool,
-    ) -> Result<Vec<Record>, anyhow::Error> {
+    ) -> Result<Vec<Record>> {
         self.perform_list(
             calendar_id,
             now() - chrono::Duration::days(1),
@@ -511,7 +504,7 @@ impl RemoteClient for GoogleClient {
         &mut self,
         calendar_id: String,
         _include_completed: bool, // FIXME include tasks
-    ) -> Result<Vec<Record>, anyhow::Error> {
+    ) -> Result<Vec<Record>> {
         self.perform_list(
             calendar_id,
             (now()
@@ -538,15 +531,11 @@ impl RemoteClient for GoogleClient {
         calendar_id: String,
         last: chrono::Duration,
         _include_completed: bool,
-    ) -> Result<Vec<Record>, anyhow::Error> {
+    ) -> Result<Vec<Record>> {
         self.perform_list(calendar_id, now() - last, now()).await
     }
 
-    async fn complete_task(
-        &mut self,
-        _calendar_id: String,
-        _primary_key: u64,
-    ) -> Result<(), anyhow::Error> {
+    async fn complete_task(&mut self, _calendar_id: String, _primary_key: u64) -> Result<()> {
         Ok(())
     }
 }

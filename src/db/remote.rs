@@ -3,6 +3,7 @@ use crate::{
     filenames::saturn_db,
     record::{Record, RecurringRecord},
 };
+use anyhow::Result;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -112,11 +113,7 @@ impl RemoteDB {
 }
 
 impl RemoteDB {
-    fn record_internal(
-        &mut self,
-        internal_key: String,
-        pk: Option<u64>,
-    ) -> Result<u64, anyhow::Error> {
+    fn record_internal(&mut self, internal_key: String, pk: Option<u64>) -> Result<u64> {
         let pk = if let Some(pk) = pk {
             pk
         } else {
@@ -127,10 +124,7 @@ impl RemoteDB {
         Ok(pk)
     }
 
-    async fn record_updates(
-        &mut self,
-        mut records: Vec<Record>,
-    ) -> Result<Vec<Record>, anyhow::Error> {
+    async fn record_updates(&mut self, mut records: Vec<Record>) -> Result<Vec<Record>> {
         for record in &mut records {
             if let Some(internal_recurrence_key) = record.internal_recurrence_key() {
                 if record.recurrence_key().is_none() {
@@ -156,7 +150,7 @@ impl RemoteDB {
     async fn record_recurring_updates(
         &mut self,
         mut records: Vec<RecurringRecord>,
-    ) -> Result<Vec<RecurringRecord>, anyhow::Error> {
+    ) -> Result<Vec<RecurringRecord>> {
         let mut v = Vec::new();
         for record in &mut records {
             if let Some(internal_recurrence_key) = record.internal_key() {
@@ -194,7 +188,7 @@ impl RemoteDB {
 
 #[async_trait]
 impl DB for RemoteDB {
-    async fn load(&mut self) -> Result<(), anyhow::Error> {
+    async fn load(&mut self) -> Result<()> {
         let db: Self = UnixFileLoader::new(&saturn_db()).load().await;
         self.primary_key = db.primary_key;
         self.recurrence_key = db.recurrence_key;
@@ -205,7 +199,7 @@ impl DB for RemoteDB {
         self.update_recurrence().await
     }
 
-    async fn dump(&self) -> Result<(), anyhow::Error> {
+    async fn dump(&self) -> Result<()> {
         UnixFileLoader::new(&saturn_db()).dump(self.clone()).await
     }
 
@@ -225,50 +219,47 @@ impl DB for RemoteDB {
         self.recurrence_key = recurrence_key;
     }
 
-    async fn delete(&mut self, primary_key: u64) -> Result<(), anyhow::Error> {
+    async fn delete(&mut self, primary_key: u64) -> Result<()> {
         self.remove_by_internal_id(primary_key);
         Ok(())
     }
 
-    async fn delete_recurrence(
-        &mut self,
-        recurrence_key: u64,
-    ) -> Result<Vec<String>, anyhow::Error> {
+    async fn delete_recurrence(&mut self, recurrence_key: u64) -> Result<Vec<String>> {
         self.remove_by_internal_id(recurrence_key);
         self.remove_recurring_by_internal_id(recurrence_key);
         // FIXME leaves a garbage record in the PK table
         Ok(Vec::new())
     }
 
-    async fn record(&mut self, _record: Record) -> Result<(), anyhow::Error> {
+    async fn record(&mut self, _record: Record) -> Result<()> {
         Ok(())
     }
 
-    async fn record_recurrence(&mut self, _record: RecurringRecord) -> Result<(), anyhow::Error> {
+    async fn record_recurrence(&mut self, _record: RecurringRecord) -> Result<()> {
         Ok(())
     }
 
-    async fn insert_record(&mut self, _record: Record) -> Result<(), anyhow::Error> {
+    async fn insert_record(&mut self, _record: Record) -> Result<()> {
         Ok(())
     }
 
-    async fn insert_recurrence(&mut self, _record: RecurringRecord) -> Result<(), anyhow::Error> {
+    async fn insert_recurrence(&mut self, _record: RecurringRecord) -> Result<()> {
         Ok(())
     }
 
-    async fn list_recurrence(&mut self) -> Result<Vec<RecurringRecord>, anyhow::Error> {
+    async fn list_recurrence(&mut self) -> Result<Vec<RecurringRecord>> {
         Ok(Default::default())
     }
 
-    async fn update_recurrence(&mut self) -> Result<(), anyhow::Error> {
+    async fn update_recurrence(&mut self) -> Result<()> {
         Ok(())
     }
 
-    async fn list_today(&mut self, _include_completed: bool) -> Result<Vec<Record>, anyhow::Error> {
+    async fn list_today(&mut self, _include_completed: bool) -> Result<Vec<Record>> {
         Ok(Default::default())
     }
 
-    async fn list_all(&mut self, _include_completed: bool) -> Result<Vec<Record>, anyhow::Error> {
+    async fn list_all(&mut self, _include_completed: bool) -> Result<Vec<Record>> {
         Ok(Default::default())
     }
 
@@ -276,22 +267,22 @@ impl DB for RemoteDB {
         &mut self,
         _last: chrono::Duration,
         _include_completed: bool,
-    ) -> Result<Vec<Record>, anyhow::Error> {
+    ) -> Result<Vec<Record>> {
         Ok(Default::default())
     }
 
-    async fn complete_task(&mut self, _primary_key: u64) -> Result<(), anyhow::Error> {
+    async fn complete_task(&mut self, _primary_key: u64) -> Result<()> {
         Ok(())
     }
 }
 
 #[async_trait]
 impl<T: RemoteClient + Send + Sync + Default + std::fmt::Debug> DB for RemoteDBClient<T> {
-    async fn load(&mut self) -> Result<(), anyhow::Error> {
+    async fn load(&mut self) -> Result<()> {
         self.db.load().await
     }
 
-    async fn dump(&self) -> Result<(), anyhow::Error> {
+    async fn dump(&self) -> Result<()> {
         self.db.dump().await
     }
 
@@ -311,7 +302,7 @@ impl<T: RemoteClient + Send + Sync + Default + std::fmt::Debug> DB for RemoteDBC
         self.db.set_recurrence_key(recurrence_key);
     }
 
-    async fn delete(&mut self, primary_key: u64) -> Result<(), anyhow::Error> {
+    async fn delete(&mut self, primary_key: u64) -> Result<()> {
         let id = self.db.lookup(primary_key).expect("Invalid ID");
         let calendar_id = self.db.calendar_id.clone();
 
@@ -320,10 +311,7 @@ impl<T: RemoteClient + Send + Sync + Default + std::fmt::Debug> DB for RemoteDBC
         Ok(())
     }
 
-    async fn delete_recurrence(
-        &mut self,
-        recurrence_key: u64,
-    ) -> Result<Vec<String>, anyhow::Error> {
+    async fn delete_recurrence(&mut self, recurrence_key: u64) -> Result<Vec<String>> {
         let id = self
             .db
             .recurring_lookup(recurrence_key)
@@ -351,7 +339,7 @@ impl<T: RemoteClient + Send + Sync + Default + std::fmt::Debug> DB for RemoteDBC
         Ok(list)
     }
 
-    async fn record(&mut self, record: Record) -> Result<(), anyhow::Error> {
+    async fn record(&mut self, record: Record) -> Result<()> {
         if let None = self.db.lookup(record.primary_key()) {
             self.insert_record(record).await
         } else {
@@ -359,7 +347,7 @@ impl<T: RemoteClient + Send + Sync + Default + std::fmt::Debug> DB for RemoteDBC
         }
     }
 
-    async fn record_recurrence(&mut self, record: RecurringRecord) -> Result<(), anyhow::Error> {
+    async fn record_recurrence(&mut self, record: RecurringRecord) -> Result<()> {
         if let None = self.db.recurring_lookup(record.recurrence_key()) {
             self.insert_recurrence(record).await
         } else {
@@ -367,7 +355,7 @@ impl<T: RemoteClient + Send + Sync + Default + std::fmt::Debug> DB for RemoteDBC
         }
     }
 
-    async fn insert_record(&mut self, record: Record) -> Result<(), anyhow::Error> {
+    async fn insert_record(&mut self, record: Record) -> Result<()> {
         let key = record.primary_key();
         let calendar_id = self.db.calendar_id.clone();
 
@@ -377,10 +365,7 @@ impl<T: RemoteClient + Send + Sync + Default + std::fmt::Debug> DB for RemoteDBC
         Ok(())
     }
 
-    async fn insert_recurrence(
-        &mut self,
-        mut record: RecurringRecord,
-    ) -> Result<(), anyhow::Error> {
+    async fn insert_recurrence(&mut self, mut record: RecurringRecord) -> Result<()> {
         let calendar_id = self.db.calendar_id.clone();
 
         let (key, recurrence_key) = self
@@ -409,7 +394,7 @@ impl<T: RemoteClient + Send + Sync + Default + std::fmt::Debug> DB for RemoteDBC
         Ok(())
     }
 
-    async fn list_recurrence(&mut self) -> Result<Vec<RecurringRecord>, anyhow::Error> {
+    async fn list_recurrence(&mut self) -> Result<Vec<RecurringRecord>> {
         let calendar_id = self.db.calendar_id.clone();
 
         self.db
@@ -417,13 +402,13 @@ impl<T: RemoteClient + Send + Sync + Default + std::fmt::Debug> DB for RemoteDBC
             .await
     }
 
-    async fn update_recurrence(&mut self) -> Result<(), anyhow::Error> {
+    async fn update_recurrence(&mut self) -> Result<()> {
         let calendar_id = self.db.calendar_id.clone();
 
         self.client.update_recurrence(calendar_id).await
     }
 
-    async fn list_today(&mut self, include_completed: bool) -> Result<Vec<Record>, anyhow::Error> {
+    async fn list_today(&mut self, include_completed: bool) -> Result<Vec<Record>> {
         let calendar_id = self.db.calendar_id.clone();
 
         self.db
@@ -435,7 +420,7 @@ impl<T: RemoteClient + Send + Sync + Default + std::fmt::Debug> DB for RemoteDBC
             .await
     }
 
-    async fn list_all(&mut self, include_completed: bool) -> Result<Vec<Record>, anyhow::Error> {
+    async fn list_all(&mut self, include_completed: bool) -> Result<Vec<Record>> {
         let calendar_id = self.db.calendar_id.clone();
 
         self.db
@@ -447,7 +432,7 @@ impl<T: RemoteClient + Send + Sync + Default + std::fmt::Debug> DB for RemoteDBC
         &mut self,
         last: chrono::Duration,
         include_completed: bool,
-    ) -> Result<Vec<Record>, anyhow::Error> {
+    ) -> Result<Vec<Record>> {
         let calendar_id = self.db.calendar_id.clone();
 
         self.db
@@ -459,7 +444,7 @@ impl<T: RemoteClient + Send + Sync + Default + std::fmt::Debug> DB for RemoteDBC
             .await
     }
 
-    async fn complete_task(&mut self, primary_key: u64) -> Result<(), anyhow::Error> {
+    async fn complete_task(&mut self, primary_key: u64) -> Result<()> {
         let calendar_id = self.db.calendar_id.clone();
 
         self.client.complete_task(calendar_id, primary_key).await

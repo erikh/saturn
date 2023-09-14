@@ -2,7 +2,7 @@ use crate::{
     config::{Config, DBType},
     record::{Record, RecordType},
 };
-use anyhow::anyhow;
+use anyhow::{anyhow, Result};
 use chrono::Duration;
 use fancy_duration::FancyDuration;
 use gcal::{oauth_listener, oauth_user_url, ClientParameters, State};
@@ -51,11 +51,11 @@ pub fn sort_records(a: &Record, b: &Record) -> std::cmp::Ordering {
     }
 }
 
-pub fn get_config() -> Result<Config, anyhow::Error> {
+pub fn get_config() -> Result<Config> {
     Config::load(None)
 }
 
-pub fn set_db_type(db_type: String) -> Result<(), anyhow::Error> {
+pub fn set_db_type(db_type: String) -> Result<()> {
     let mut config = get_config()?;
     let typ = match db_type.as_str() {
         "google" => DBType::Google,
@@ -73,7 +73,7 @@ pub fn set_db_type(db_type: String) -> Result<(), anyhow::Error> {
     Ok(())
 }
 
-pub async fn get_access_token() -> Result<(), anyhow::Error> {
+pub async fn get_access_token() -> Result<()> {
     let mut config = get_config()?;
 
     if !config.has_client() {
@@ -112,13 +112,13 @@ pub async fn get_access_token() -> Result<(), anyhow::Error> {
     }
 }
 
-pub fn set_client_info(client_id: String, client_secret: String) -> Result<(), anyhow::Error> {
+pub fn set_client_info(client_id: String, client_secret: String) -> Result<()> {
     let mut config = get_config()?;
     config.set_client_info(client_id, client_secret);
     config.save(None)
 }
 
-pub fn set_sync_window(duration: FancyDuration<Duration>) -> Result<(), anyhow::Error> {
+pub fn set_sync_window(duration: FancyDuration<Duration>) -> Result<()> {
     let mut config = get_config()?;
     config.set_sync_duration(Some(duration));
     config.save(None)

@@ -4,6 +4,7 @@ use crate::{
     record::{Record, RecurringRecord},
     time::now,
 };
+use anyhow::Result;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -26,7 +27,7 @@ impl MemoryDB {
 
 #[async_trait]
 impl DB for MemoryDB {
-    async fn load(&mut self) -> Result<(), anyhow::Error> {
+    async fn load(&mut self) -> Result<()> {
         let db: Self = UnixFileLoader::new(&saturn_db()).load().await;
         self.primary_key = db.primary_key;
         self.records = db.records;
@@ -35,7 +36,7 @@ impl DB for MemoryDB {
         Ok(())
     }
 
-    async fn dump(&self) -> Result<(), anyhow::Error> {
+    async fn dump(&self) -> Result<()> {
         UnixFileLoader::new(&saturn_db()).dump(self.clone()).await
     }
 
@@ -55,7 +56,7 @@ impl DB for MemoryDB {
         self.recurrence_key = primary_key;
     }
 
-    async fn delete(&mut self, primary_key: u64) -> Result<(), anyhow::Error> {
+    async fn delete(&mut self, primary_key: u64) -> Result<()> {
         for (key, list) in self.records.clone() {
             let mut new = Vec::new();
             for record in list {
@@ -69,7 +70,7 @@ impl DB for MemoryDB {
         Ok(())
     }
 
-    async fn delete_recurrence(&mut self, primary_key: u64) -> Result<Vec<String>, anyhow::Error> {
+    async fn delete_recurrence(&mut self, primary_key: u64) -> Result<Vec<String>> {
         let mut new = Vec::new();
 
         for entry in &self.recurring {
@@ -83,7 +84,7 @@ impl DB for MemoryDB {
         Ok(Vec::new())
     }
 
-    async fn record(&mut self, record: Record) -> Result<(), anyhow::Error> {
+    async fn record(&mut self, record: Record) -> Result<()> {
         if let Some(item) = self.records.get_mut(&record.date()) {
             item.push(record);
         } else {
@@ -93,24 +94,24 @@ impl DB for MemoryDB {
         Ok(())
     }
 
-    async fn record_recurrence(&mut self, record: RecurringRecord) -> Result<(), anyhow::Error> {
+    async fn record_recurrence(&mut self, record: RecurringRecord) -> Result<()> {
         self.recurring.push(record);
         Ok(())
     }
 
-    async fn insert_record(&mut self, record: Record) -> Result<(), anyhow::Error> {
+    async fn insert_record(&mut self, record: Record) -> Result<()> {
         self.record(record).await
     }
 
-    async fn insert_recurrence(&mut self, record: RecurringRecord) -> Result<(), anyhow::Error> {
+    async fn insert_recurrence(&mut self, record: RecurringRecord) -> Result<()> {
         self.record_recurrence(record).await
     }
 
-    async fn list_recurrence(&mut self) -> Result<Vec<RecurringRecord>, anyhow::Error> {
+    async fn list_recurrence(&mut self) -> Result<Vec<RecurringRecord>> {
         Ok(self.recurring.clone())
     }
 
-    async fn update_recurrence(&mut self) -> Result<(), anyhow::Error> {
+    async fn update_recurrence(&mut self) -> Result<()> {
         for recur in self.recurring.clone() {
             let mut seen: Option<Record> = None;
             let mut begin = now() - recur.recurrence().duration() - chrono::Duration::days(7);
@@ -148,7 +149,7 @@ impl DB for MemoryDB {
         Ok(())
     }
 
-    async fn list_today(&mut self, include_completed: bool) -> Result<Vec<Record>, anyhow::Error> {
+    async fn list_today(&mut self, include_completed: bool) -> Result<Vec<Record>> {
         Ok(self
             .records
             .get(&now().date_naive())
@@ -164,7 +165,7 @@ impl DB for MemoryDB {
             .collect::<Vec<Record>>())
     }
 
-    async fn list_all(&mut self, include_completed: bool) -> Result<Vec<Record>, anyhow::Error> {
+    async fn list_all(&mut self, include_completed: bool) -> Result<Vec<Record>> {
         Ok(self
             .records
             .iter()
@@ -183,7 +184,7 @@ impl DB for MemoryDB {
         &mut self,
         last: chrono::Duration,
         include_completed: bool,
-    ) -> Result<Vec<Record>, anyhow::Error> {
+    ) -> Result<Vec<Record>> {
         let mut ret = Vec::new();
 
         let mut records = self
@@ -257,7 +258,7 @@ impl DB for MemoryDB {
         Ok(ret)
     }
 
-    async fn complete_task(&mut self, primary_key: u64) -> Result<(), anyhow::Error> {
+    async fn complete_task(&mut self, primary_key: u64) -> Result<()> {
         for list in self.records.values_mut() {
             for record in list {
                 if record.primary_key() == primary_key {
