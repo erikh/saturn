@@ -118,6 +118,73 @@ macro_rules! process_cli {
                 $db.record_entry($crate::entry::EntryParser::new(args))
                     .await?;
             }
+            Command::Edit { recur, id } => {
+                if recur {
+                    let record = $db.get_recurring(id).await?;
+                    let presented: $crate::record::PresentedRecurringRecord = record.clone().into();
+                    let f = tempfile::NamedTempFile::new()?;
+                    serde_yaml::to_writer(&f, &presented)?;
+                    let (f, path) = f.keep()?;
+                    drop(f);
+                    let mut cmd = tokio::process::Command::new(
+                        std::env::var("EDITOR")
+                            .expect("You must have $EDITOR set to use this command"),
+                    );
+                    cmd.args([path.clone()]);
+                    let mut child = cmd.spawn()?;
+                    if child.wait().await?.success() {
+                        let mut io = std::fs::OpenOptions::new();
+                        io.read(true);
+                        let f = io.open(path)?;
+                        let presented: $crate::record::PresentedRecurringRecord =
+                            serde_yaml::from_reader(&f)?;
+                        $db.update_recurring(presented.to_record(
+                            record.clone().record().primary_key(),
+                            record.recurrence_key(),
+                            record.clone().record().internal_key(),
+                            record.internal_key(),
+                        ))
+                        .await?;
+                    }
+                } else {
+                    let record = $db.get(id).await?;
+                    let presented: $crate::record::PresentedRecord = record.clone().into();
+                    let f = tempfile::NamedTempFile::new()?;
+                    serde_yaml::to_writer(&f, &presented)?;
+                    let (f, path) = f.keep()?;
+                    drop(f);
+                    let mut cmd = tokio::process::Command::new(
+                        std::env::var("EDITOR")
+                            .expect("You must have $EDITOR set to use this command"),
+                    );
+                    cmd.args([path.clone()]);
+                    let mut child = cmd.spawn()?;
+                    if child.wait().await?.success() {
+                        let mut io = std::fs::OpenOptions::new();
+                        io.read(true);
+                        let f = io.open(path)?;
+                        let presented: $crate::record::PresentedRecord =
+                            serde_yaml::from_reader(&f)?;
+                        $db.update(presented.to_record(
+                            record.primary_key(),
+                            record.recurrence_key(),
+                            record.internal_key(),
+                            record.internal_recurrence_key(),
+                        ))
+                        .await?;
+                    }
+                }
+            }
+            Command::Dump { recur, id } => {
+                if recur {
+                    let presented: $crate::record::PresentedRecurringRecord =
+                        $db.get_recurring(id).await?.into();
+                    println!("{}", serde_yaml::to_string(&presented)?);
+                } else {
+                    let presented: $crate::record::PresentedRecord = $db.get(id).await?.into();
+                    println!("{}", serde_yaml::to_string(&presented)?);
+                }
+            }
         }
 
         $db.dump().await?;

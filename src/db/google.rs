@@ -103,6 +103,7 @@ pub fn record_to_event(calendar_id: String, record: &mut Record) -> Event {
     };
 
     let mut event = Event::default();
+    event.id = record.internal_key();
     event.calendar_id = Some(calendar_id);
     event.ical_uid = Some(format!("UID:{}", record.primary_key()));
     if start.is_some() {
@@ -536,6 +537,58 @@ impl RemoteClient for GoogleClient {
     }
 
     async fn complete_task(&mut self, _calendar_id: String, _primary_key: u64) -> Result<()> {
+        Ok(())
+    }
+
+    async fn get(&self, calendar_id: String, event_id: String) -> Result<Record> {
+        let events = EventClient::new(self.client());
+        Ok(self.event_to_record(events.get(calendar_id, event_id).await?)?)
+    }
+
+    async fn get_recurring(
+        &self,
+        calendar_id: String,
+        event_id: String,
+    ) -> Result<RecurringRecord> {
+        let events = EventClient::new(self.client());
+        let event = events.get(calendar_id, event_id).await?;
+        let mut ret: Option<RecurringRecord> = None;
+
+        let record = self.event_to_record(event.clone())?;
+        for recur in &event
+            .recurrence
+            .ok_or(anyhow!("No recurrence data for this event"))?
+        {
+            if let Ok(rr) = RecurringRecord::from_rrule(record.clone(), recur.clone()) {
+                ret = Some(rr);
+                break;
+            }
+        }
+
+        let mut ret = ret.ok_or(anyhow!("No recurrence data found for event"))?;
+        ret.set_internal_key(event.id.clone());
+        Ok(ret)
+    }
+
+    async fn update(&mut self, calendar_id: String, mut record: Record) -> Result<()> {
+        let events = EventClient::new(self.client());
+        let event = record_to_event(calendar_id, &mut record);
+        events.update(event).await?;
+        Ok(())
+    }
+
+    async fn update_recurring(
+        &mut self,
+        calendar_id: String,
+        mut record: RecurringRecord,
+    ) -> Result<()> {
+        let events = EventClient::new(self.client());
+        let key = record.internal_key();
+        let r = record.record();
+        r.set_internal_key(key);
+        let mut event = record_to_event(calendar_id, r);
+        event.recurrence = Some(BTreeSet::from_iter(vec![record.to_rrule()]));
+        events.update(event).await?;
         Ok(())
     }
 }

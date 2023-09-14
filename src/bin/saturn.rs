@@ -96,6 +96,22 @@ enum Command {
         all: bool,
     },
     #[command(
+        about = "Edit the details of a specific calendar ID. Use `-r` to specify recurring tasks."
+    )]
+    Edit {
+        #[arg(short = 'r', long, help = "ID is a recurring task")]
+        recur: bool,
+        id: u64,
+    },
+    #[command(
+        about = "Dump the details of a specific calendar ID. Use `-r` to specify recurring tasks."
+    )]
+    Dump {
+        #[arg(short = 'r', long, help = "ID is a recurring task")]
+        recur: bool,
+        id: u64,
+    },
+    #[command(
         alias = "n",
         about = "Also `n`. Show the tasks that are important now, including notifications"
     )]
