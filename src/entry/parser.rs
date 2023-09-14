@@ -7,6 +7,8 @@ use anyhow::{anyhow, Result};
 use chrono::{Datelike, Duration, Timelike};
 use fancy_duration::FancyDuration;
 
+const DATE_ENDINGS: [&str; 4] = ["th", "st", "rd", "nd"];
+
 pub fn parse_entry(args: Vec<String>) -> Result<EntryRecord> {
     let mut record = Record::build();
     let mut state = EntryState::Date;
@@ -136,9 +138,16 @@ fn parse_date(s: String) -> Result<chrono::NaiveDate> {
         }
         1 => {
             let now = now();
+            let mut part = parts[0].trim().to_string();
+            for ending in DATE_ENDINGS {
+                if part.ends_with(ending) {
+                    part = part.replace(ending, "");
+                    break;
+                }
+            }
             // FIXME this should be locale-based
             Ok(
-                chrono::NaiveDate::from_ymd_opt(now.year(), now.month(), parts[0].parse()?)
+                chrono::NaiveDate::from_ymd_opt(now.year(), now.month(), part.parse()?)
                     .expect("Invalid Date"),
             )
         }
