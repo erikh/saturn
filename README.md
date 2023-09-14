@@ -1,10 +1,12 @@
 # saturn: a calendar for CLI nerds
 
-This is all still very new and should be treated as such. It is strongly
-suggested that if you like where this is heading, that you come to the issues
-list and voice your ideas and concerns. I have personally been using saturn for
-several weeks alongside Google Calendar (for more complicated situations) with
-few issues outside of things that happen when developing software normally.
+**NOTE:** all docs here chase the `main` branch features. If you want docs for
+a specific version, go to the `README` for the appropriate tag.
+
+If you like the application, come to the issues list and voice your ideas and
+concerns. I have personally been using `saturn` and `sui` for some time
+alongside Google Calendar (for more complicated situations) with few issues
+outside of things that happen when developing software normally.
 
 Saturn provides you with a CLI interface to calendaring much in the way
 [taskwarrior](https://github.com/GothenburgBitFactory/taskwarrior) does with
