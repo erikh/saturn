@@ -82,6 +82,7 @@ Dates can be represented a number of ways:
 -   `today`, `tomorrow`, and `yesterday` are case-insensitive and have their
     traditional relative meanings.
 -   A day (integer) by itself will assume the current month and year.
+    -   You can also end the day number with traditional suffixes such as `th`, `st`, `nd`, etc.
 -   `month/day` (e.g. 8/7) will assume the current year.
 -   `year/month/day` (e.g. 2023/8/7) will represent a full date.
 -   The following characters can be used as date separators: `/`, `-`, and `.`.
