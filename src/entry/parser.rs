@@ -3,11 +3,11 @@ use crate::{
     record::{Record, RecurringRecord},
     time::now,
 };
-use anyhow::anyhow;
+use anyhow::{anyhow, Result};
 use chrono::{Datelike, Duration, Timelike};
 use fancy_duration::FancyDuration;
 
-pub fn parse_entry(args: Vec<String>) -> Result<EntryRecord, anyhow::Error> {
+pub fn parse_entry(args: Vec<String>) -> Result<EntryRecord> {
     let mut record = Record::build();
     let mut state = EntryState::Date;
 
@@ -113,7 +113,7 @@ pub fn parse_entry(args: Vec<String>) -> Result<EntryRecord, anyhow::Error> {
     })
 }
 
-fn parse_date(s: String) -> Result<chrono::NaiveDate, anyhow::Error> {
+fn parse_date(s: String) -> Result<chrono::NaiveDate> {
     let regex = regex::Regex::new(r#"[/.-]"#)?;
     let split = regex.split(&s);
     let parts = split.collect::<Vec<&str>>();
@@ -179,11 +179,7 @@ fn time_period(hour: u32, minute: u32) -> chrono::NaiveTime {
     }
 }
 
-fn designation(
-    hour: u32,
-    minute: u32,
-    designation: &str,
-) -> Result<chrono::NaiveTime, anyhow::Error> {
+fn designation(hour: u32, minute: u32, designation: &str) -> Result<chrono::NaiveTime> {
     match designation {
         "pm" | "PM" => Ok(pm_time(hour, minute)),
         "am" | "AM" => Ok(am_time(hour, minute)),
@@ -192,7 +188,7 @@ fn designation(
     }
 }
 
-fn parse_time(s: String) -> Result<chrono::NaiveTime, anyhow::Error> {
+fn parse_time(s: String) -> Result<chrono::NaiveTime> {
     let s = s.trim();
 
     match s.to_lowercase().as_str() {

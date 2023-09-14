@@ -1,5 +1,5 @@
 use crate::db::DB;
-use anyhow::anyhow;
+use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
 use std::os::unix::io::FromRawFd;
 
@@ -17,7 +17,7 @@ impl<'a> UnixFileLoader<'a> {
         self.load_with_locking().await.unwrap_or_default()
     }
 
-    async fn load_with_locking<T>(&self) -> Result<T, anyhow::Error>
+    async fn load_with_locking<T>(&self) -> Result<T>
     where
         T: DB + Serialize + for<'de> Deserialize<'de>,
     {
@@ -49,7 +49,7 @@ impl<'a> UnixFileLoader<'a> {
         }
     }
 
-    pub async fn dump<T>(&self, mut db: T) -> Result<(), anyhow::Error>
+    pub async fn dump<T>(&self, mut db: T) -> Result<()>
     where
         T: DB + Serialize + for<'de> Deserialize<'de>,
     {

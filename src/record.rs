@@ -1,5 +1,5 @@
 use crate::db::DB;
-use anyhow::anyhow;
+use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
@@ -69,7 +69,7 @@ impl RecurringRecord {
         }
     }
 
-    pub fn from_rrule(record: Record, rrule: String) -> Result<Self, anyhow::Error> {
+    pub fn from_rrule(record: Record, rrule: String) -> Result<Self> {
         let parts = rrule.split(':').collect::<Vec<&str>>();
 
         if parts[0] == "RRULE" {
@@ -289,7 +289,7 @@ impl Record {
         Self::default()
     }
 
-    pub async fn record(&self, mut db: crate::db::memory::MemoryDB) -> Result<(), anyhow::Error> {
+    pub async fn record(&self, mut db: crate::db::memory::MemoryDB) -> Result<()> {
         db.record(self.clone()).await
     }
 
