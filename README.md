@@ -34,6 +34,7 @@ Here is what it looks like:
 -   [Querying](#querying)
     -   [Listing](#listing)
     -   [Notifying](#notifying)
+    -   [Editing](#editing)
     -   [Deletion and Mutation](#deletion-and-mutation)
 -   [Database &amp; Configuration File](#database--configuration-file)
 -   [Leveraging the well features with a periodic scheduler](#leveraging-the-well-features-with-a-periodic-scheduler)
@@ -160,6 +161,16 @@ system for `i3`. GNOME, KDE, MacOS, etc will look different, but have the
 same text.
 
 <img style="width:50%" src="notification.png" />
+
+### Editing
+
+```
+saturn edit [-r] <id>
+```
+
+Will run `$EDITOR` and fill it with a YAML file. When this file is edited, it
+will change the database and the remote side, if necessary. Specify `-r` for
+recurring task IDs.
 
 ### Deletion and Mutation
 
