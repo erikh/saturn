@@ -356,7 +356,7 @@ impl<T: RemoteClient + Send + Sync + Default + std::fmt::Debug> DB for RemoteDBC
     }
 
     async fn record(&mut self, record: Record) -> Result<()> {
-        if let None = self.db.lookup(record.primary_key()) {
+        if self.db.lookup(record.primary_key()).is_none() {
             self.insert_record(record).await
         } else {
             Ok(())
@@ -364,7 +364,7 @@ impl<T: RemoteClient + Send + Sync + Default + std::fmt::Debug> DB for RemoteDBC
     }
 
     async fn record_recurrence(&mut self, record: RecurringRecord) -> Result<()> {
-        if let None = self.db.recurring_lookup(record.recurrence_key()) {
+        if self.db.recurring_lookup(record.recurrence_key()).is_none() {
             self.insert_recurrence(record).await
         } else {
             Ok(())

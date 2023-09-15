@@ -22,7 +22,7 @@ pub struct PresentedSchedule {
 
 impl From<PresentedSchedule> for Schedule {
     fn from(ps: PresentedSchedule) -> Self {
-        Self::from((ps.start, ps.stop))
+        (ps.start, ps.stop)
     }
 }
 

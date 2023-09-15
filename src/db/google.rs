@@ -284,10 +284,7 @@ impl GoogleClient {
                     |x| {
                         x.date.map_or_else(
                             || None,
-                            |y| {
-                                y.parse::<chrono::NaiveDate>()
-                                    .map_or_else(|_| None, |z| Some(z))
-                            },
+                            |y| y.parse::<chrono::NaiveDate>().map_or_else(|_| None, Some),
                         )
                     },
                 )
@@ -295,10 +292,7 @@ impl GoogleClient {
             |x| {
                 x.date.map_or_else(
                     || None,
-                    |y| {
-                        y.parse::<chrono::NaiveDate>()
-                            .map_or_else(|_| None, |z| Some(z))
-                    },
+                    |y| y.parse::<chrono::NaiveDate>().map_or_else(|_| None, Some),
                 )
             },
         );

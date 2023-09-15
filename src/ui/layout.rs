@@ -336,7 +336,7 @@ pub async fn build_calendar<'a>(state: ProtectedState<'static>) -> Result<Arc<Ta
         Row::new(last_row.iter().map(|x| x.0.clone()).collect::<Vec<Cell>>()).height({
             let res = last_row.iter().map(|x| x.1).max().unwrap_or(4) as u16;
             if res > 4 {
-                res as u16
+                res
             } else {
                 4
             }
@@ -446,8 +446,7 @@ pub async fn build_events<'a>(state: ProtectedState<'static>) -> Result<Arc<Tabl
                 Row::new(vec![
                     Cell::from(format!("{}", r.recurrence_key())),
                     Cell::from(r.recurrence().to_string()),
-                    // going to hell for this
-                    Cell::from((&mut r.clone()).record().detail().to_string()),
+                    Cell::from(r.clone().record().detail().to_string()),
                 ])
             })
             .collect::<Vec<Row>>(),

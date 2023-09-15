@@ -207,7 +207,7 @@ fn parse_time(s: String) -> Result<chrono::NaiveTime> {
     }
 
     let regex = regex::Regex::new(r#"[:.]"#)?;
-    let split = regex.split(&s);
+    let split = regex.split(s);
     let parts = split.collect::<Vec<&str>>();
 
     match parts.len() {

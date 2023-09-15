@@ -1776,6 +1776,7 @@ dependencies = [
  "lazy_static",
  "nix",
  "notify-rust",
+ "rand",
  "ratatui",
  "regex",
  "serde",

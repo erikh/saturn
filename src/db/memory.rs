@@ -272,7 +272,7 @@ impl DB for MemoryDB {
 
     async fn get(&self, primary_key: u64) -> Result<Record> {
         let mut record: Option<Record> = None;
-        for (_, records) in &self.records {
+        for records in self.records.values() {
             for r in records {
                 if primary_key == r.primary_key() {
                     record = Some(r.clone());

@@ -34,3 +34,4 @@ dirs = "^5"
 tempfile = "^3.8"
 
 [dev-dependencies]
+rand = "^0.8"
