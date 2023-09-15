@@ -51,6 +51,10 @@ pub trait DB: Send {
         Ok(())
     }
 
+    async fn update(&mut self, record: Record) -> Result<()>;
+    async fn update_recurring(&mut self, record: RecurringRecord) -> Result<()>;
+    async fn get(&self, primary_key: u64) -> Result<Record>;
+    async fn get_recurring(&self, primary_key: u64) -> Result<RecurringRecord>;
     async fn delete(&mut self, primary_key: u64) -> Result<()>;
     async fn delete_recurrence(&mut self, primary_key: u64) -> Result<Vec<String>>;
     async fn record(&mut self, record: Record) -> Result<()>;
@@ -71,6 +75,15 @@ pub trait DB: Send {
 
 #[async_trait]
 pub trait RemoteClient {
+    async fn update(&mut self, calendar_id: String, record: Record) -> Result<()>;
+    async fn update_recurring(
+        &mut self,
+        calendar_id: String,
+        record: RecurringRecord,
+    ) -> Result<()>;
+    async fn get(&self, calendar_id: String, event_id: String) -> Result<Record>;
+    async fn get_recurring(&self, calendar_id: String, event_id: String)
+        -> Result<RecurringRecord>;
     async fn delete(&mut self, calendar_id: String, event_id: String) -> Result<()>;
     async fn delete_recurrence(
         &mut self,

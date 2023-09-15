@@ -15,6 +15,122 @@ pub enum RecordType {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct PresentedSchedule {
+    start: chrono::NaiveTime,
+    stop: chrono::NaiveTime,
+}
+
+impl From<PresentedSchedule> for Schedule {
+    fn from(ps: PresentedSchedule) -> Self {
+        Self::from((ps.start, ps.stop))
+    }
+}
+
+impl From<Schedule> for PresentedSchedule {
+    fn from(s: Schedule) -> Self {
+        Self {
+            start: s.0,
+            stop: s.1,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct PresentedRecord {
+    date: chrono::NaiveDate,
+    #[serde(rename = "type")]
+    typ: RecordType,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    at: Option<chrono::NaiveTime>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    scheduled: Option<PresentedSchedule>,
+    all_day: bool,
+    detail: String,
+    fields: Fields,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    notifications: Option<Notifications>,
+    completed: bool,
+}
+
+impl From<Record> for PresentedRecord {
+    fn from(value: Record) -> Self {
+        Self {
+            date: value.date,
+            typ: value.typ,
+            at: value.at,
+            scheduled: value.scheduled.map(|x| x.into()),
+            all_day: value.all_day,
+            detail: value.detail,
+            fields: value.fields,
+            notifications: value.notifications,
+            completed: value.completed,
+        }
+    }
+}
+
+impl PresentedRecord {
+    pub fn to_record(
+        self,
+        primary_key: u64,
+        recurrence_key: Option<u64>,
+        internal_key: Option<String>,
+        internal_recurrence_key: Option<String>,
+    ) -> Record {
+        Record {
+            primary_key,
+            recurrence_key,
+            internal_key,
+            internal_recurrence_key,
+            date: self.date,
+            typ: self.typ,
+            at: self.at,
+            scheduled: self.scheduled.map(|x| x.into()),
+            all_day: self.all_day,
+            detail: self.detail,
+            fields: self.fields,
+            notifications: self.notifications,
+            completed: self.completed,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct PresentedRecurringRecord {
+    record: PresentedRecord,
+    recurrence: fancy_duration::FancyDuration<chrono::Duration>,
+}
+
+impl From<RecurringRecord> for PresentedRecurringRecord {
+    fn from(value: RecurringRecord) -> Self {
+        Self {
+            record: value.record.into(),
+            recurrence: value.recurrence,
+        }
+    }
+}
+impl PresentedRecurringRecord {
+    pub fn to_record(
+        self,
+        primary_key: u64,
+        recurrence_key: u64,
+        internal_key: Option<String>,
+        internal_recurrence_key: Option<String>,
+    ) -> RecurringRecord {
+        RecurringRecord {
+            internal_key: internal_key.clone(),
+            recurrence_key,
+            record: self.record.to_record(
+                primary_key,
+                Some(recurrence_key),
+                internal_key,
+                internal_recurrence_key,
+            ),
+            recurrence: self.recurrence,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct RecurringRecord {
     record: Record,
     recurrence: fancy_duration::FancyDuration<chrono::Duration>,

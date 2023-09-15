@@ -3,7 +3,7 @@ use crate::{
     filenames::saturn_db,
     record::{Record, RecurringRecord},
 };
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -274,6 +274,22 @@ impl DB for RemoteDB {
     async fn complete_task(&mut self, _primary_key: u64) -> Result<()> {
         Ok(())
     }
+
+    async fn get(&self, _primary_key: u64) -> Result<Record> {
+        Err(anyhow!("No Record Found"))
+    }
+
+    async fn get_recurring(&self, _primary_key: u64) -> Result<RecurringRecord> {
+        Err(anyhow!("No Record Found"))
+    }
+
+    async fn update(&mut self, _record: Record) -> Result<()> {
+        Ok(())
+    }
+
+    async fn update_recurring(&mut self, _record: RecurringRecord) -> Result<()> {
+        Ok(())
+    }
 }
 
 #[async_trait]
@@ -448,5 +464,43 @@ impl<T: RemoteClient + Send + Sync + Default + std::fmt::Debug> DB for RemoteDBC
         let calendar_id = self.db.calendar_id.clone();
 
         self.client.complete_task(calendar_id, primary_key).await
+    }
+
+    async fn get(&self, primary_key: u64) -> Result<Record> {
+        let calendar_id = self.db.calendar_id.clone();
+        let event_id = self
+            .db
+            .lookup(primary_key)
+            .ok_or(anyhow!("No Record Found"))?;
+        let mut rec = self.client.get(calendar_id, event_id).await?;
+        rec.set_primary_key(primary_key);
+        Ok(rec)
+    }
+
+    async fn get_recurring(&self, recurrence_key: u64) -> Result<RecurringRecord> {
+        let calendar_id = self.db.calendar_id.clone();
+        let event_id = self
+            .db
+            .recurring_lookup(recurrence_key)
+            .ok_or(anyhow!("No Record Found"))?;
+        let mut rec = self
+            .client
+            .get_recurring(calendar_id, event_id.clone())
+            .await?;
+        let primary_key = self.db.lookup_internal(event_id).unwrap_or(0);
+        rec.record().set_primary_key(primary_key);
+        rec.record().set_recurrence_key(Some(recurrence_key));
+        rec.set_recurrence_key(recurrence_key);
+        Ok(rec)
+    }
+
+    async fn update(&mut self, record: Record) -> Result<()> {
+        let calendar_id = self.db.calendar_id.clone();
+        self.client.update(calendar_id, record).await
+    }
+
+    async fn update_recurring(&mut self, record: RecurringRecord) -> Result<()> {
+        let calendar_id = self.db.calendar_id.clone();
+        self.client.update_recurring(calendar_id, record).await
     }
 }

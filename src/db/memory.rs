@@ -4,7 +4,7 @@ use crate::{
     record::{Record, RecurringRecord},
     time::now,
 };
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -267,6 +267,58 @@ impl DB for MemoryDB {
             }
         }
 
+        Ok(())
+    }
+
+    async fn get(&self, primary_key: u64) -> Result<Record> {
+        let mut record: Option<Record> = None;
+        for (_, records) in &self.records {
+            for r in records {
+                if primary_key == r.primary_key() {
+                    record = Some(r.clone());
+                    break;
+                }
+            }
+        }
+
+        record.ok_or(anyhow!("No Record Found"))
+    }
+
+    async fn get_recurring(&self, primary_key: u64) -> Result<RecurringRecord> {
+        let mut record: Option<RecurringRecord> = None;
+        for r in &self.recurring {
+            if primary_key == r.recurrence_key() {
+                record = Some(r.clone());
+                break;
+            }
+        }
+
+        record.ok_or(anyhow!("No Record Found"))
+    }
+
+    async fn update(&mut self, record: Record) -> Result<()> {
+        if let Some(v) = self.records.get(&record.date()) {
+            let mut new = Vec::new();
+            for item in v {
+                if item.primary_key() != self.primary_key() {
+                    new.push(item.clone())
+                }
+            }
+            new.push(record.clone());
+            self.records.insert(record.date(), new);
+        }
+        Ok(())
+    }
+
+    async fn update_recurring(&mut self, record: RecurringRecord) -> Result<()> {
+        let mut new = Vec::new();
+        for item in &self.recurring {
+            if item.recurrence_key() != self.recurrence_key() {
+                new.push(item.clone())
+            }
+        }
+        new.push(record);
+        self.recurring = new;
         Ok(())
     }
 }

@@ -307,9 +307,9 @@ dependencies = [
 
 [[package]]
 name = "bumpalo"
-version = "3.13.0"
+version = "3.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a3e2c3daef883ecc1b5d58c15adae93470a91d425f3532ba1695849656af3fc1"
+checksum = "7f30e7476521f6f8af1a1c4c0b8cc94f0bee37d91763d0ca2665f299b6cd8aec"
 
 [[package]]
 name = "byteorder"
@@ -829,9 +829,9 @@ dependencies = [
 
 [[package]]
 name = "gcal"
-version = "0.1.0"
+version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0720e307c31e410b58129691544884e4d3857d5e8b6406039a11b9a0e5d68d70"
+checksum = "c234ca8cc6f9b13704476a00f2a5cf58ef25619b087881468375385309fc2f7f"
 dependencies = [
  "anyhow",
  "chrono",
