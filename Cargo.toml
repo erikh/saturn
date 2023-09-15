@@ -35,3 +35,13 @@ tempfile = "^3.8"
 
 [dev-dependencies]
 rand = "^0.8"
+
+[package.metadata.rpm]
+package = "saturn-cli"
+
+[package.metadata.rpm.cargo]
+buildflags = ["--release"]
+
+[package.metadata.rpm.targets]
+sui = { path = "/usr/bin/sui" }
+saturn = { path = "/usr/bin/saturn" }
