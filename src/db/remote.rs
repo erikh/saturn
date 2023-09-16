@@ -394,6 +394,7 @@ impl<T: RemoteClient + Send + Sync + Default + std::fmt::Debug> DB for RemoteDBC
             .record()
             .set_internal_recurrence_key(Some(key.clone()));
         record.record().set_internal_key(Some(key.clone()));
+        record.record().set_primary_key(self.next_key());
 
         if record.recurrence_key() == 0 {
             record.set_recurrence_key(self.next_recurrence_key());
@@ -402,9 +403,6 @@ impl<T: RemoteClient + Send + Sync + Default + std::fmt::Debug> DB for RemoteDBC
                 .set_recurrence_key(Some(self.recurrence_key()));
         }
 
-        record.record().set_primary_key(self.next_key());
-
-        self.insert_record(record.record().clone()).await?;
         self.db
             .add_recurring(recurrence_key, record.recurrence_key());
         Ok(())
