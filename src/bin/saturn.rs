@@ -41,6 +41,8 @@ enum ConfigCommand {
     ListCalendars,
     #[command(about = "Set the calendar ID for remote requests.")]
     SetCalendarID { id: String },
+    #[command(about = "Set the default duration for new calendar items that require a range.")]
+    SetDefaultDuration { duration: String },
 }
 
 #[derive(Debug, Subcommand)]

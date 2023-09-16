@@ -16,7 +16,6 @@ pub enum DBType {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-// FIXME add default duration for calendar items
 pub struct Config {
     db_type: DBType,
     access_token: Option<String>,
@@ -26,6 +25,7 @@ pub struct Config {
     client_info: Option<(String, String)>,
     redirect_url: Option<String>,
     sync_duration: Option<FancyDuration<Duration>>,
+    default_duration: Option<FancyDuration<Duration>>,
     calendar_id: String,
 }
 
@@ -54,6 +54,7 @@ impl Default for Config {
             redirect_url: None,
             client_info: None,
             sync_duration: None,
+            default_duration: None,
             calendar_id: "primary".to_string(),
         }
     }
@@ -120,6 +121,18 @@ impl Config {
 
     pub fn set_redirect_url(&mut self, redirect_url: Option<String>) {
         self.redirect_url = redirect_url;
+    }
+
+    pub fn set_default_duration(&mut self, default_duration: Option<FancyDuration<Duration>>) {
+        self.default_duration = default_duration;
+    }
+
+    pub fn default_duration(&self) -> FancyDuration<Duration> {
+        if let Some(duration) = &self.default_duration {
+            duration.clone()
+        } else {
+            FancyDuration(chrono::Duration::minutes(15))
+        }
     }
 
     pub fn calendar_id(&self) -> String {
