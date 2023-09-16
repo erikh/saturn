@@ -299,9 +299,9 @@ The TUI accepts several commands at the prompt; this command-set will grow with 
 
 ## Target Platform
 
-For the unixfile DB type, Due to flock(2) use, which to the best of my
-knowledge is the only reason, Windows probably does not work properly. Patches
-welcome if there are windows users who'd like to use it.
+Due to flock(2) use, which to the best of my knowledge is the only reason,
+Windows probably does not work properly. Patches welcome if there are windows
+users who'd like to use it.
 
 ## Author
 
