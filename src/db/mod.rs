@@ -40,8 +40,13 @@ pub trait DB: Send {
         record.set_primary_key(self.next_key());
 
         if let Some(mut recurrence) = recurrence {
-            let key = self.next_recurrence_key();
+            let key = if let Some(key) = record.recurrence_key() {
+                key
+            } else {
+                self.next_recurrence_key()
+            };
             record.set_recurrence_key(Some(key));
+            recurrence.set_record(record);
             recurrence.set_recurrence_key(key);
             self.record_recurrence(recurrence).await?;
         } else {
