@@ -535,8 +535,8 @@ pub async fn build_events<'a>(state: ProtectedState<'static>) -> Result<Arc<Tabl
             )
             .widths(&[
                 Constraint::Length(5),
-                Constraint::Length(11),
-                Constraint::Min(10),
+                Constraint::Length(15),
+                Constraint::Percentage(100),
             ]),
     );
 
