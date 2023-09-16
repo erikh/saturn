@@ -243,6 +243,7 @@ macro_rules! process_ui_command {
     ($obj:ident, $db:ident) => {{
         let mut lock = $obj.lock().await;
         let command = lock.command.clone();
+        lock.command = None;
         lock.block_ui = true;
         drop(lock);
         if command.is_some() {
@@ -291,6 +292,5 @@ macro_rules! process_ui_command {
         }
         let mut lock = $obj.lock().await;
         lock.block_ui = false;
-        lock.command = None;
     }};
 }
