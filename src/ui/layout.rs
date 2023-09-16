@@ -35,28 +35,29 @@ pub async fn draw_loop<'a>(
 
     loop {
         let mut lock = state.lock().await;
-        let redraw = lock.redraw;
+        if !lock.block_ui {
+            let redraw = lock.redraw;
 
-        if redraw {
-            lock.redraw = false;
+            if redraw {
+                lock.redraw = false;
+            }
+
+            let line = lock.line_buf.clone();
+            drop(lock);
+
+            if redraw || line != last_line || last_draw + chrono::Duration::seconds(5) < now() {
+                terminal.draw(|f| {
+                    render_app(state.clone(), f, line.clone());
+                })?;
+
+                last_line = line;
+                last_draw = now();
+            }
+
+            if r.try_recv().is_ok() {
+                break;
+            }
         }
-
-        let line = lock.line_buf.clone();
-        drop(lock);
-
-        if redraw || line != last_line || last_draw + chrono::Duration::seconds(5) < now() {
-            terminal.draw(|f| {
-                render_app(state.clone(), f, line.clone());
-            })?;
-
-            last_line = line;
-            last_draw = now();
-        }
-
-        if r.try_recv().is_ok() {
-            break;
-        }
-
         tokio::time::sleep(Duration::new(0, 100)).await;
     }
     Ok(())
@@ -67,142 +68,205 @@ pub async fn read_input<'a>(
     s: tokio::sync::mpsc::Sender<()>,
 ) -> Result<()> {
     'input: loop {
-        let mut buf = state.lock().await.line_buf.clone();
-        buf = handle_input(buf).expect("Invalid input");
-        if buf.ends_with('\n') {
-            match buf.trim() {
-                "quit" => break 'input,
-                x => {
-                    if x.starts_with("s ") || x.starts_with("show ") {
-                        let m = if x.starts_with("show ") {
-                            x.trim_start_matches("show ")
-                        } else {
-                            x.trim_start_matches("s ")
-                        };
-                        match m {
-                            "all" | "a" => {
-                                state.lock().await.list_type = ListType::All;
-                                let state = state.clone();
-                                tokio::spawn(async move {
-                                    state.add_notification("Updating state").await;
-                                    match state.update_state().await {
-                                        Ok(_) => {}
-                                        Err(e) => {
-                                            state.add_notification(&format!("Error: {}", e)).await;
-                                        }
-                                    }
-                                });
-                            }
-                            "today" | "t" => {
-                                state.lock().await.list_type = ListType::Today;
-                                let state = state.clone();
-                                tokio::spawn(async move {
-                                    state.add_notification("Updating state").await;
-                                    match state.update_state().await {
-                                        Ok(_) => {}
-                                        Err(e) => {
-                                            state.add_notification(&format!("Error: {}", e)).await;
-                                        }
-                                    }
-                                });
-                            }
-                            "recur" | "recurring" | "recurrence" | "r" => {
-                                state.lock().await.list_type = ListType::Recurring;
-                                let state = state.clone();
-                                tokio::spawn(async move {
-                                    state.add_notification("Updating state").await;
-                                    match state.update_state().await {
-                                        Ok(_) => {}
-                                        Err(e) => {
-                                            state.add_notification(&format!("Error: {}", e)).await;
-                                        }
-                                    }
-                                });
-                            }
-                            _ => {
-                                state
-                                    .add_notification(&format!("Invalid Command '{}'", x))
-                                    .await
-                            }
-                        }
-                    } else if x.starts_with("d ") || x.starts_with("delete ") {
-                        let ids = if x.starts_with("delete ") {
-                            x.trim_start_matches("delete ")
-                        } else {
-                            x.trim_start_matches("d ")
-                        }
-                        .split(' ')
-                        .filter(|x| !x.is_empty())
-                        .collect::<Vec<&str>>();
+        let lock = state.lock().await;
+        if !lock.block_ui {
+            let mut buf = lock.line_buf.clone();
+            drop(lock);
 
-                        let mut v = Vec::new();
-                        let mut recur = false;
-
-                        for id in &ids {
-                            if id.is_empty() {
-                                continue;
-                            }
-
-                            if *id == "recur" {
-                                recur = true;
-                                continue;
-                            }
-
-                            match id.parse::<u64>() {
-                                Ok(y) => v.push(y),
-                                Err(_) => {
-                                    state.add_notification(&format!("Invalid ID {}", id)).await;
-                                }
+            buf = handle_input(buf).expect("Invalid input");
+            if buf.ends_with('\n') {
+                match buf.trim() {
+                    "quit" => break 'input,
+                    x => {
+                        if x.starts_with("s ") || x.starts_with("show ") {
+                            let m = if x.starts_with("show ") {
+                                x.trim_start_matches("show ")
+                            } else {
+                                x.trim_start_matches("s ")
                             };
-                        }
-
-                        let command = if recur {
-                            CommandType::DeleteRecurring(v)
-                        } else {
-                            CommandType::Delete(v)
-                        };
-
-                        let state = state.clone();
-                        tokio::spawn(async move {
-                            state.lock().await.command = Some(command);
-                            state.add_notification("Updating state").await;
-                            match state.update_state().await {
-                                Ok(_) => {}
-                                Err(e) => {
-                                    state.add_notification(&format!("Error: {}", e)).await;
+                            match m {
+                                "all" | "a" => {
+                                    state.lock().await.list_type = ListType::All;
+                                    let state = state.clone();
+                                    tokio::spawn(async move {
+                                        state.add_notification("Updating state").await;
+                                        match state.update_state().await {
+                                            Ok(_) => {}
+                                            Err(e) => {
+                                                state
+                                                    .add_notification(&format!("Error: {}", e))
+                                                    .await;
+                                            }
+                                        }
+                                    });
+                                }
+                                "today" | "t" => {
+                                    state.lock().await.list_type = ListType::Today;
+                                    let state = state.clone();
+                                    tokio::spawn(async move {
+                                        state.add_notification("Updating state").await;
+                                        match state.update_state().await {
+                                            Ok(_) => {}
+                                            Err(e) => {
+                                                state
+                                                    .add_notification(&format!("Error: {}", e))
+                                                    .await;
+                                            }
+                                        }
+                                    });
+                                }
+                                "recur" | "recurring" | "recurrence" | "r" => {
+                                    state.lock().await.list_type = ListType::Recurring;
+                                    let state = state.clone();
+                                    tokio::spawn(async move {
+                                        state.add_notification("Updating state").await;
+                                        match state.update_state().await {
+                                            Ok(_) => {}
+                                            Err(e) => {
+                                                state
+                                                    .add_notification(&format!("Error: {}", e))
+                                                    .await;
+                                            }
+                                        }
+                                    });
+                                }
+                                _ => {
+                                    state
+                                        .add_notification(&format!("Invalid Command '{}'", x))
+                                        .await
                                 }
                             }
-                        });
-                    } else if x.starts_with("e ") || x.starts_with("entry ") {
-                        let x = x.to_string();
+                        } else if x.starts_with("d ") || x.starts_with("delete ") {
+                            let ids = if x.starts_with("delete ") {
+                                x.trim_start_matches("delete ")
+                            } else {
+                                x.trim_start_matches("d ")
+                            }
+                            .split(' ')
+                            .filter(|x| !x.is_empty())
+                            .collect::<Vec<&str>>();
 
-                        let state = state.clone();
-                        tokio::spawn(async move {
-                            state.lock().await.command = Some(CommandType::Entry(
-                                if x.starts_with("entry ") {
-                                    x.trim_start_matches("entry ")
+                            let mut v = Vec::new();
+                            let mut recur = false;
+
+                            for id in &ids {
+                                if id.is_empty() {
+                                    continue;
+                                }
+
+                                if *id == "recur" {
+                                    recur = true;
+                                    continue;
+                                }
+
+                                match id.parse::<u64>() {
+                                    Ok(y) => v.push(y),
+                                    Err(_) => {
+                                        state.add_notification(&format!("Invalid ID {}", id)).await;
+                                    }
+                                };
+                            }
+
+                            let command = if recur {
+                                CommandType::DeleteRecurring(v)
+                            } else {
+                                CommandType::Delete(v)
+                            };
+
+                            let state = state.clone();
+                            tokio::spawn(async move {
+                                state.lock().await.command = Some(command);
+                                state.add_notification("Updating state").await;
+                                match state.update_state().await {
+                                    Ok(_) => {}
+                                    Err(e) => {
+                                        state.add_notification(&format!("Error: {}", e)).await;
+                                    }
+                                }
+                            });
+                        } else if x.starts_with("e ") || x.starts_with("entry ") {
+                            let x = x.to_string();
+
+                            let state = state.clone();
+                            tokio::spawn(async move {
+                                state.lock().await.command = Some(CommandType::Entry(
+                                    if x.starts_with("entry ") {
+                                        x.trim_start_matches("entry ")
+                                    } else {
+                                        x.trim_start_matches("e ")
+                                    }
+                                    .to_string(),
+                                ));
+                                state.add_notification("Updating state").await;
+                                match state.update_state().await {
+                                    Ok(_) => {}
+                                    Err(e) => {
+                                        state.add_notification(&format!("Error: {}", e)).await;
+                                    }
+                                }
+                            });
+                        } else if x.starts_with("edit ") {
+                            let ids = x
+                                .trim_start_matches("edit ")
+                                .split(' ')
+                                .filter(|x| !x.is_empty())
+                                .collect::<Vec<&str>>();
+
+                            let mut v = Vec::new();
+                            let mut recur = false;
+
+                            'ids: for id in &ids {
+                                if id.is_empty() {
+                                    continue;
+                                }
+
+                                if *id == "recur" {
+                                    recur = true;
+                                    continue;
+                                }
+
+                                match id.parse::<u64>() {
+                                    Ok(y) => {
+                                        // we only need the first one
+                                        v.push(y);
+                                        break 'ids;
+                                    }
+                                    Err(_) => {
+                                        state.add_notification(&format!("Invalid ID {}", id)).await;
+                                    }
+                                };
+                            }
+
+                            let state = state.clone();
+
+                            tokio::spawn(async move {
+                                if v.is_empty() {
+                                    state.add_notification("Edit requires an ID").await;
                                 } else {
-                                    x.trim_start_matches("e ")
+                                    state.lock().await.command =
+                                        Some(CommandType::Edit(recur, v[0]));
+                                    state.add_notification("Updating state").await;
                                 }
-                                .to_string(),
-                            ));
-                            state.add_notification("Updating state").await;
-                            match state.update_state().await {
-                                Ok(_) => {}
-                                Err(e) => {
-                                    state.add_notification(&format!("Error: {}", e)).await;
+
+                                match state.update_state().await {
+                                    Ok(_) => {}
+                                    Err(e) => {
+                                        state.add_notification(&format!("Error: {}", e)).await;
+                                    }
                                 }
-                            }
-                        });
-                    } else {
-                        state.add_notification("Invalid Command").await;
+                            });
+                        } else {
+                            state.add_notification("Invalid Command").await;
+                        }
                     }
                 }
+                buf = String::new();
             }
-            buf = String::new();
+            state.lock().await.line_buf = buf;
+            tokio::time::sleep(Duration::new(0, 50)).await;
+        } else {
+            tokio::time::sleep(Duration::new(1, 0)).await;
         }
-        state.lock().await.line_buf = buf;
-        tokio::time::sleep(Duration::new(0, 50)).await;
     }
     s.send(()).await?;
     Ok(())
