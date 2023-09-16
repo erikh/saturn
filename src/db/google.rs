@@ -25,100 +25,6 @@ pub struct GoogleClient {
     config: Config,
 }
 
-pub fn record_to_event(calendar_id: String, record: &mut Record) -> Event {
-    let start = match record.record_type() {
-        RecordType::At => Some(EventCalendarDate {
-            date_time: Some(
-                record
-                    .datetime()
-                    .with_timezone(&chrono_tz::UTC)
-                    .to_rfc3339(),
-            ),
-            time_zone: Some("UTC".to_string()),
-            ..Default::default()
-        }),
-        RecordType::Schedule => {
-            let dt = chrono::NaiveDateTime::new(record.date(), record.scheduled().unwrap().0)
-                .and_local_timezone(now().timezone())
-                .unwrap()
-                .with_timezone(&chrono_tz::UTC);
-            Some(EventCalendarDate {
-                date_time: Some(dt.to_rfc3339()),
-                time_zone: Some("UTC".to_string()),
-                ..Default::default()
-            })
-        }
-        RecordType::AllDay => Some(EventCalendarDate {
-            date_time: Some(
-                chrono::NaiveDateTime::new(
-                    record.date(),
-                    chrono::NaiveTime::from_hms_opt(0, 0, 0).unwrap(),
-                )
-                .and_local_timezone(now().timezone())
-                .unwrap()
-                .with_timezone(&chrono_tz::UTC)
-                .to_rfc3339(),
-            ),
-            time_zone: Some("UTC".to_string()),
-            ..Default::default()
-        }),
-    };
-
-    let end = match record.record_type() {
-        RecordType::At => Some(EventCalendarDate {
-            date_time: Some(
-                (record.datetime() + chrono::Duration::minutes(15))
-                    .with_timezone(&chrono_tz::UTC)
-                    .to_rfc3339(),
-            ),
-            time_zone: Some("UTC".to_string()),
-            ..Default::default()
-        }),
-        RecordType::Schedule => {
-            let dt = chrono::NaiveDateTime::new(record.date(), record.scheduled().unwrap().1)
-                .and_local_timezone(now().timezone())
-                .unwrap()
-                .with_timezone(&chrono_tz::UTC);
-
-            Some(EventCalendarDate {
-                date_time: Some(dt.to_rfc3339()),
-                time_zone: Some("UTC".to_string()),
-                ..Default::default()
-            })
-        }
-        RecordType::AllDay => Some(EventCalendarDate {
-            date_time: Some(
-                (chrono::NaiveDateTime::new(
-                    record.date(),
-                    chrono::NaiveTime::from_hms_opt(0, 0, 0).unwrap(),
-                ) + chrono::Duration::days(1))
-                .and_local_timezone(now().timezone())
-                .unwrap()
-                .with_timezone(&chrono_tz::UTC)
-                .to_rfc3339(),
-            ),
-            time_zone: Some("UTC".to_string()),
-            ..Default::default()
-        }),
-    };
-
-    let mut event = Event::default();
-    event.id = record.internal_key();
-    event.calendar_id = Some(calendar_id);
-    event.ical_uid = Some(format!("UID:{}", record.primary_key()));
-    if start.is_some() {
-        event.start = start;
-    }
-
-    if end.is_some() {
-        event.end = end;
-    }
-
-    event.summary = Some(record.detail());
-
-    event
-}
-
 impl GoogleClient {
     pub fn new(config: Config) -> Result<Self> {
         if !matches!(config.db_type(), DBType::Google) {
@@ -151,6 +57,100 @@ impl GoogleClient {
     pub async fn list_calendars(&mut self) -> Result<Vec<CalendarListItem>, ClientError> {
         let listclient = CalendarListClient::new(self.client().clone());
         do_client!(self, { listclient.list() })
+    }
+
+    pub fn record_to_event(&self, calendar_id: String, record: &mut Record) -> Event {
+        let start = match record.record_type() {
+            RecordType::At => Some(EventCalendarDate {
+                date_time: Some(
+                    record
+                        .datetime()
+                        .with_timezone(&chrono_tz::UTC)
+                        .to_rfc3339(),
+                ),
+                time_zone: Some("UTC".to_string()),
+                ..Default::default()
+            }),
+            RecordType::Schedule => {
+                let dt = chrono::NaiveDateTime::new(record.date(), record.scheduled().unwrap().0)
+                    .and_local_timezone(now().timezone())
+                    .unwrap()
+                    .with_timezone(&chrono_tz::UTC);
+                Some(EventCalendarDate {
+                    date_time: Some(dt.to_rfc3339()),
+                    time_zone: Some("UTC".to_string()),
+                    ..Default::default()
+                })
+            }
+            RecordType::AllDay => Some(EventCalendarDate {
+                date_time: Some(
+                    chrono::NaiveDateTime::new(
+                        record.date(),
+                        chrono::NaiveTime::from_hms_opt(0, 0, 0).unwrap(),
+                    )
+                    .and_local_timezone(now().timezone())
+                    .unwrap()
+                    .with_timezone(&chrono_tz::UTC)
+                    .to_rfc3339(),
+                ),
+                time_zone: Some("UTC".to_string()),
+                ..Default::default()
+            }),
+        };
+
+        let end = match record.record_type() {
+            RecordType::At => Some(EventCalendarDate {
+                date_time: Some(
+                    (record.datetime() + self.config.default_duration().duration())
+                        .with_timezone(&chrono_tz::UTC)
+                        .to_rfc3339(),
+                ),
+                time_zone: Some("UTC".to_string()),
+                ..Default::default()
+            }),
+            RecordType::Schedule => {
+                let dt = chrono::NaiveDateTime::new(record.date(), record.scheduled().unwrap().1)
+                    .and_local_timezone(now().timezone())
+                    .unwrap()
+                    .with_timezone(&chrono_tz::UTC);
+
+                Some(EventCalendarDate {
+                    date_time: Some(dt.to_rfc3339()),
+                    time_zone: Some("UTC".to_string()),
+                    ..Default::default()
+                })
+            }
+            RecordType::AllDay => Some(EventCalendarDate {
+                date_time: Some(
+                    (chrono::NaiveDateTime::new(
+                        record.date(),
+                        chrono::NaiveTime::from_hms_opt(0, 0, 0).unwrap(),
+                    ) + chrono::Duration::days(1))
+                    .and_local_timezone(now().timezone())
+                    .unwrap()
+                    .with_timezone(&chrono_tz::UTC)
+                    .to_rfc3339(),
+                ),
+                time_zone: Some("UTC".to_string()),
+                ..Default::default()
+            }),
+        };
+
+        let mut event = Event::default();
+        event.id = record.internal_key();
+        event.calendar_id = Some(calendar_id);
+        event.ical_uid = Some(format!("UID:{}", record.primary_key()));
+        if start.is_some() {
+            event.start = start;
+        }
+
+        if end.is_some() {
+            event.end = end;
+        }
+
+        event.summary = Some(record.detail());
+
+        event
     }
 
     pub async fn refresh_access_token(&mut self) -> Result<()> {
@@ -401,7 +401,7 @@ impl RemoteClient for GoogleClient {
     }
 
     async fn record(&mut self, calendar_id: String, mut record: Record) -> Result<String> {
-        let event = record_to_event(calendar_id, &mut record);
+        let event = self.record_to_event(calendar_id, &mut record);
         let client = EventClient::new(self.client());
 
         let event = do_client!(self, { client.insert(event.clone()) })?;
@@ -424,7 +424,7 @@ impl RemoteClient for GoogleClient {
             ));
         }
 
-        let mut event = record_to_event(calendar_id, record.record());
+        let mut event = self.record_to_event(calendar_id, record.record());
 
         let mut recurrence = BTreeSet::default();
         recurrence.insert(record.to_rrule());
@@ -566,7 +566,7 @@ impl RemoteClient for GoogleClient {
 
     async fn update(&mut self, calendar_id: String, mut record: Record) -> Result<()> {
         let events = EventClient::new(self.client());
-        let event = record_to_event(calendar_id, &mut record);
+        let event = self.record_to_event(calendar_id, &mut record);
         events.update(event).await?;
         Ok(())
     }
@@ -580,7 +580,7 @@ impl RemoteClient for GoogleClient {
         let key = record.internal_key();
         let r = record.record();
         r.set_internal_key(key);
-        let mut event = record_to_event(calendar_id, r);
+        let mut event = self.record_to_event(calendar_id, r);
         event.recurrence = Some(BTreeSet::from_iter(vec![record.to_rrule()]));
         events.update(event).await?;
         Ok(())

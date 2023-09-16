@@ -80,6 +80,13 @@ macro_rules! process_cli {
                         set_calendar_id(id, $config)?;
                     }
                 }
+                ConfigCommand::SetDefaultDuration { duration } => {
+                    let duration: fancy_duration::FancyDuration<chrono::Duration> =
+                        fancy_duration::FancyDuration::parse(&duration)?;
+                    let mut config = $crate::cli::get_config()?;
+                    config.set_default_duration(Some(duration));
+                    config.save(None)?;
+                }
             },
             Command::Complete { id } => $db.complete_task(id).await?,
             Command::Delete { ids, recur } => {
