@@ -1,4 +1,5 @@
 -   HEAD:
+    -   Fixed alignment issues with state notifications in `sui`.
     -   Increased column widths for `sui`'s ID column in the events tab.
     -   Fixed a number of outstanding issues with recurring tasks.
     -   `sui` now supports `edit <id>` syntax; use `edit recur <id>` to edit
