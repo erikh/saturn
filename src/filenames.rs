@@ -6,14 +6,14 @@ pub fn saturn_config() -> PathBuf {
 }
 
 pub fn saturn_db() -> PathBuf {
-    PathBuf::from(
-        var("SATURN_DB").unwrap_or(
+    var("SATURN_DB")
+        .unwrap_or(
             dirs::home_dir()
                 .unwrap_or("/".into())
                 .join(DB_FILENAME)
                 .to_str()
                 .unwrap()
                 .to_string(),
-        ),
-    )
+        )
+        .into()
 }
