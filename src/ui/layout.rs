@@ -283,7 +283,7 @@ pub fn render_app(
 
     let line_layout = Layout::default()
         .direction(Direction::Horizontal)
-        .constraints([Constraint::Percentage(80), Constraint::Percentage(20)].as_ref())
+        .constraints([Constraint::Min(30), Constraint::Length(30)].as_ref())
         .split(layout[0]);
 
     let draw_layout = Layout::default()
@@ -325,7 +325,7 @@ pub fn render_app(
     if let Some(notification) = notification {
         frame.render_widget(Paragraph::new(format!(">> {}", buf)), line_layout[0]);
         frame.render_widget(
-            Paragraph::new(format!("[ {} ]", notification.0)),
+            Paragraph::new(format!("[ {} ]", notification.0)).alignment(Alignment::Right),
             line_layout[1],
         );
     } else {
