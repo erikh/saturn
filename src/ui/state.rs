@@ -22,6 +22,7 @@ pub struct State<'a> {
     pub calendar: Option<(Arc<Table<'a>>, chrono::NaiveDateTime)>,
     pub events: Option<(Arc<Table<'a>>, chrono::NaiveDateTime)>,
     pub redraw: bool,
+    pub block_ui: bool,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -79,17 +80,13 @@ impl<'a> ProtectedState<'a> {
         let client = GoogleClient::new(config.clone())?;
 
         let mut db = RemoteDBClient::new(config.calendar_id(), client.clone());
-        let command = self.lock().await.command.clone();
-        process_ui_command!(db, command);
-        self.lock().await.command = None;
+        process_ui_command!(self, db);
         Ok(())
     }
 
     pub async fn command_file(&self) -> Result<()> {
         let mut db = MemoryDB::new();
-        let command = self.lock().await.command.clone();
-        process_ui_command!(db, command);
-        self.lock().await.command = None;
+        process_ui_command!(self, db);
         Ok(())
     }
 

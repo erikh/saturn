@@ -11,4 +11,5 @@ pub enum CommandType {
     Delete(Vec<u64>),
     DeleteRecurring(Vec<u64>),
     Entry(String),
+    Edit(bool, u64),
 }
