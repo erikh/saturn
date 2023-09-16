@@ -47,7 +47,7 @@ pub fn parse_entry(args: Vec<String>) -> Result<EntryRecord> {
             }
             EntryState::Time => match arg.as_str() {
                 "all" => {
-                    record.set_all_day(true);
+                    record.set_all_day();
                     state = EntryState::TimeAt
                 }
                 "at" => state = EntryState::TimeAt,

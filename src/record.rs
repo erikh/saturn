@@ -44,7 +44,6 @@ pub struct PresentedRecord {
     at: Option<chrono::NaiveTime>,
     #[serde(skip_serializing_if = "Option::is_none")]
     scheduled: Option<PresentedSchedule>,
-    all_day: bool,
     detail: String,
     fields: Fields,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -59,7 +58,6 @@ impl From<Record> for PresentedRecord {
             typ: value.typ,
             at: value.at,
             scheduled: value.scheduled.map(|x| x.into()),
-            all_day: value.all_day,
             detail: value.detail,
             fields: value.fields,
             notifications: value.notifications,
@@ -85,7 +83,6 @@ impl PresentedRecord {
             typ: self.typ,
             at: self.at,
             scheduled: self.scheduled.map(|x| x.into()),
-            all_day: self.all_day,
             detail: self.detail,
             fields: self.fields,
             notifications: self.notifications,
@@ -304,7 +301,6 @@ pub struct Record {
     typ: RecordType,
     at: Option<chrono::NaiveTime>,
     scheduled: Option<Schedule>,
-    all_day: bool,
     detail: String,
     fields: Fields,
     notifications: Option<Notifications>,
@@ -323,7 +319,6 @@ impl Default for Record {
             typ: RecordType::AllDay,
             at: None,
             scheduled: None,
-            all_day: true,
             detail: String::new(),
             fields: Fields::default(),
             notifications: None,
@@ -377,16 +372,16 @@ impl Record {
         self.date
     }
 
-    pub fn all_day(&self) -> bool {
-        self.all_day
-    }
-
     pub fn at(&self) -> Option<chrono::NaiveTime> {
         self.at
     }
 
     pub fn scheduled(&self) -> Option<Schedule> {
         self.scheduled
+    }
+
+    pub fn all_day(&self) -> bool {
+        matches!(self.typ, RecordType::AllDay)
     }
 
     pub fn detail(&self) -> String {
@@ -428,10 +423,9 @@ impl Record {
         self
     }
 
-    pub fn set_all_day(&mut self, all_day: bool) -> &mut Self {
+    pub fn set_all_day(&mut self) -> &mut Self {
         self.at = None;
         self.scheduled = None;
-        self.all_day = all_day;
         self.typ = RecordType::AllDay;
         self
     }
@@ -449,7 +443,6 @@ impl Record {
     pub fn set_at(&mut self, at: Option<chrono::NaiveTime>) -> &mut Self {
         self.at = at;
         self.scheduled = None;
-        self.all_day = false;
         self.typ = RecordType::At;
         self
     }
@@ -457,7 +450,6 @@ impl Record {
     pub fn set_scheduled(&mut self, schedule: Option<Schedule>) -> &mut Self {
         self.scheduled = schedule;
         self.at = None;
-        self.all_day = false;
         self.typ = RecordType::Schedule;
         self
     }
