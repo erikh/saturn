@@ -446,14 +446,6 @@ pub async fn build_events<'a>(state: ProtectedState<'static>) -> Result<Arc<Tabl
         }
     }
 
-    let header_cells = ["ID", "Time", "Summary"]
-        .iter()
-        .map(|h| Cell::from(*h).style(*TITLE_STYLE));
-    let header = Row::new(header_cells)
-        .style(*HEADER_STYLE)
-        .height(1)
-        .bottom_margin(1);
-
     let datetime = now();
     let date = datetime.date_naive();
     let begin = chrono::NaiveDateTime::new(
@@ -468,6 +460,14 @@ pub async fn build_events<'a>(state: ProtectedState<'static>) -> Result<Arc<Tabl
         chrono::NaiveTime::from_hms_opt(0, 0, 0).unwrap(),
     );
 
+    let header_cells = ["ID", "Time", "Summary"]
+        .iter()
+        .map(|h| Cell::from(*h).style(*TITLE_STYLE));
+    let header = Row::new(header_cells)
+        .style(*HEADER_STYLE)
+        .height(1)
+        .bottom_margin(1);
+
     let mut inner = state.lock().await;
     let rows = match inner.list_type {
         ListType::All | ListType::Today => inner
@@ -481,14 +481,17 @@ pub async fn build_events<'a>(state: ProtectedState<'static>) -> Result<Arc<Tabl
                     ) > begin)
                     || r.datetime().naive_local() > begin
                 {
+                    let pk = format!("{}", r.primary_key());
+                    let detail = r.detail().to_string();
+
                     let mut row = Row::new(vec![
-                        Cell::from(format!("{}", r.primary_key())),
+                        Cell::from(pk),
                         if r.all_day() {
                             Cell::from(r.date().format("%m/%d [Day]").to_string())
                         } else {
                             Cell::from(r.datetime().format("%m/%d %H:%M").to_string())
                         },
-                        Cell::from(r.detail().to_string()),
+                        Cell::from(detail),
                     ]);
 
                     if (r.all_day() && r.date() == now().date_naive())
@@ -507,10 +510,12 @@ pub async fn build_events<'a>(state: ProtectedState<'static>) -> Result<Arc<Tabl
             .recurring_records
             .iter()
             .map(|r| {
+                let pk = format!("{}", r.recurrence_key());
+                let detail = r.clone().record().detail().to_string();
                 Row::new(vec![
-                    Cell::from(format!("{}", r.recurrence_key())),
+                    Cell::from(pk),
                     Cell::from(r.recurrence().to_string()),
-                    Cell::from(r.clone().record().detail().to_string()),
+                    Cell::from(detail),
                 ])
             })
             .collect::<Vec<Row>>(),
@@ -529,9 +534,9 @@ pub async fn build_events<'a>(state: ProtectedState<'static>) -> Result<Arc<Tabl
                     }),
             )
             .widths(&[
-                Constraint::Length(3),
-                Constraint::Percentage(35),
-                Constraint::Percentage(65),
+                Constraint::Length(5),
+                Constraint::Length(11),
+                Constraint::Min(10),
             ]),
     );
 
