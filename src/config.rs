@@ -5,9 +5,6 @@ use fancy_duration::FancyDuration;
 use gcal::ClientParameters;
 use serde::{Deserialize, Serialize};
 
-pub const CONFIG_FILENAME: &str = ".saturn.conf";
-pub const DB_FILENAME: &str = ".saturn.db";
-
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub enum DBType {
     #[default]

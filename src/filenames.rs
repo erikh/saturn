@@ -1,5 +1,7 @@
-use crate::config::{CONFIG_FILENAME, DB_FILENAME};
 use std::{env::var, path::PathBuf};
+
+pub const CONFIG_FILENAME: &str = ".saturn.conf";
+pub const DB_FILENAME: &str = ".saturn.db";
 
 pub fn saturn_config() -> PathBuf {
     dirs::home_dir().unwrap_or("/".into()).join(CONFIG_FILENAME)
