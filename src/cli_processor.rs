@@ -60,12 +60,34 @@ macro_rules! process_cli {
                 ConfigCommand::SetClient {
                     client_id,
                     client_secret,
-                } => set_client_info(client_id, client_secret)?,
-                ConfigCommand::GetToken {} => get_access_token().await?,
-                ConfigCommand::SetSyncWindow { window } => {
-                    set_sync_window(FancyDuration::<chrono::Duration>::parse(&window)?)?
+                } => {
+                    let mut config = Config::load(None)?;
+                    config.set_client_info(client_id, client_secret);
+                    config.save(None)?;
                 }
-                ConfigCommand::DBType { db_type } => set_db_type(db_type)?,
+                ConfigCommand::GetToken {} => $crate::oauth::get_access_token().await?,
+                ConfigCommand::SetSyncWindow { window } => {
+                    let mut config = Config::load(None)?;
+                    config.set_sync_duration(Some(FancyDuration::<chrono::Duration>::parse(
+                        &window,
+                    )?));
+                    config.save(None)?;
+                }
+                ConfigCommand::DBType { db_type } => {
+                    let mut config = Config::load(None)?;
+                    let typ = match db_type.as_str() {
+                        "google" => DBType::Google,
+                        "unixfile" => DBType::UnixFile,
+                        _ => {
+                            return Err(anyhow!(
+                                "Invalid db type: valid types are `google` and `unixfile`"
+                            ))
+                        }
+                    };
+
+                    config.set_db_type(typ);
+                    config.save(None)?;
+                }
                 ConfigCommand::ListCalendars => {
                     if $client.is_none() {
                         eprintln!("Not supported in unixfile mode");
@@ -83,7 +105,7 @@ macro_rules! process_cli {
                 ConfigCommand::SetDefaultDuration { duration } => {
                     let duration: fancy_duration::FancyDuration<chrono::Duration> =
                         fancy_duration::FancyDuration::parse(&duration)?;
-                    let mut config = $crate::cli::get_config()?;
+                    let mut config = $crate::config::Config::load(None)?;
                     config.set_default_duration(Some(duration));
                     config.save(None)?;
                 }
@@ -160,7 +182,7 @@ macro_rules! process_cli {
                     } else {
                         $db.list_today(false).await?
                     };
-                    list.sort_by($crate::cli::sort_records);
+                    list.sort_by($crate::record::sort_records);
                     print_entries(list);
                 }
             }

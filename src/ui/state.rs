@@ -1,5 +1,4 @@
 use crate::{
-    cli::get_config,
     config::{Config, DBType},
     db::{google::GoogleClient, memory::MemoryDB, remote::RemoteDBClient, DB},
     list_ui, process_ui_command,
@@ -91,7 +90,7 @@ impl<'a> ProtectedState<'a> {
     }
 
     pub async fn update_state(&self) -> Result<()> {
-        let config = get_config().unwrap_or_default();
+        let config = Config::load(None).unwrap_or_default();
 
         let typ = config.db_type();
 
@@ -121,7 +120,7 @@ impl<'a> ProtectedState<'a> {
             }
             .expect("Could not read DB");
 
-            list.sort_by(crate::cli::sort_records);
+            list.sort_by(crate::record::sort_records);
             let mut inner = self.lock().await;
             inner.records.clear();
             inner.records.append(&mut list);

@@ -2,7 +2,6 @@ use anyhow::{anyhow, Result};
 use clap::{Parser, Subcommand};
 use fancy_duration::FancyDuration;
 use saturn_cli::{
-    cli::{get_access_token, get_config, set_client_info, set_db_type, set_sync_window},
     config::{Config, DBType},
     db::{google::GoogleClient, memory::MemoryDB, remote::RemoteDBClient, DB},
     process_cli,
@@ -294,7 +293,7 @@ async fn process_file(cli: ArgParser, config: Config) -> Result<()> {
 async fn main() -> Result<()> {
     let cli = ArgParser::parse();
 
-    let config = get_config().unwrap_or_default();
+    let config = Config::load(None).unwrap_or_default();
     match config.db_type() {
         DBType::UnixFile => process_file(cli, config).await,
         DBType::Google => process_google(cli, config).await,
