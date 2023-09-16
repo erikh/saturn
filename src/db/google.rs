@@ -334,7 +334,7 @@ impl GoogleClient {
 
         match schedule {
             RecordType::AllDay => {
-                record.set_all_day(true);
+                record.set_all_day();
                 record.set_date(date);
             }
             RecordType::At => {
