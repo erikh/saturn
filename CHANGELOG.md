@@ -1,4 +1,6 @@
--   HEAD:
+-   `v0.3.1`:
+    -   Fixed issue with items registered at midnight on the current Sunday not
+        showing up in the list of events.
     -   Fixed issue with calendars not recording new information properly in
         Google after the local DB had been wiped.
 -   `v0.3.0`:
