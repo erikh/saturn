@@ -275,11 +275,11 @@ impl DB for RemoteDB {
         Ok(())
     }
 
-    async fn get(&self, _primary_key: u64) -> Result<Record> {
+    async fn get(&mut self, _primary_key: u64) -> Result<Record> {
         Err(anyhow!("No Record Found"))
     }
 
-    async fn get_recurring(&self, _primary_key: u64) -> Result<RecurringRecord> {
+    async fn get_recurring(&mut self, _primary_key: u64) -> Result<RecurringRecord> {
         Err(anyhow!("No Record Found"))
     }
 
@@ -464,7 +464,7 @@ impl<T: RemoteClient + Send + Sync + Default + std::fmt::Debug> DB for RemoteDBC
         self.client.complete_task(calendar_id, primary_key).await
     }
 
-    async fn get(&self, primary_key: u64) -> Result<Record> {
+    async fn get(&mut self, primary_key: u64) -> Result<Record> {
         let calendar_id = self.db.calendar_id.clone();
         let event_id = self
             .db
@@ -475,7 +475,7 @@ impl<T: RemoteClient + Send + Sync + Default + std::fmt::Debug> DB for RemoteDBC
         Ok(rec)
     }
 
-    async fn get_recurring(&self, recurrence_key: u64) -> Result<RecurringRecord> {
+    async fn get_recurring(&mut self, recurrence_key: u64) -> Result<RecurringRecord> {
         let calendar_id = self.db.calendar_id.clone();
         let event_id = self
             .db

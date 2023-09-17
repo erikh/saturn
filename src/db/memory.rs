@@ -270,7 +270,7 @@ impl DB for MemoryDB {
         Ok(())
     }
 
-    async fn get(&self, primary_key: u64) -> Result<Record> {
+    async fn get(&mut self, primary_key: u64) -> Result<Record> {
         let mut record: Option<Record> = None;
         for records in self.records.values() {
             for r in records {
@@ -284,7 +284,7 @@ impl DB for MemoryDB {
         record.ok_or(anyhow!("No Record Found"))
     }
 
-    async fn get_recurring(&self, primary_key: u64) -> Result<RecurringRecord> {
+    async fn get_recurring(&mut self, primary_key: u64) -> Result<RecurringRecord> {
         let mut record: Option<RecurringRecord> = None;
         for r in &self.recurring {
             if primary_key == r.recurrence_key() {

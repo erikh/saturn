@@ -15,7 +15,7 @@ use gcal::{
     },
     Client, ClientError,
 };
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 pub const CALENDAR_SCOPE: &str = "https://www.googleapis.com/auth/calendar";
 
@@ -23,6 +23,7 @@ pub const CALENDAR_SCOPE: &str = "https://www.googleapis.com/auth/calendar";
 pub struct GoogleClient {
     client: Option<Client>,
     config: Config,
+    ical_map: BTreeMap<String, u64>,
 }
 
 impl GoogleClient {
@@ -46,6 +47,7 @@ impl GoogleClient {
         Ok(Self {
             client: Some(client),
             config,
+            ical_map: Default::default(),
         })
     }
 
@@ -54,12 +56,16 @@ impl GoogleClient {
         self.client.clone().unwrap()
     }
 
+    pub fn pick_uid(&self) -> u64 {
+        self.ical_map.values().max().cloned().unwrap_or_default() + 1
+    }
+
     pub async fn list_calendars(&mut self) -> Result<Vec<CalendarListItem>, ClientError> {
         let listclient = CalendarListClient::new(self.client().clone());
         do_client!(self, { listclient.list() })
     }
 
-    pub fn record_to_event(&self, calendar_id: String, record: &mut Record) -> Event {
+    pub fn record_to_event(&mut self, calendar_id: String, record: &mut Record) -> Event {
         let start = match record.record_type() {
             RecordType::At => Some(EventCalendarDate {
                 date_time: Some(
@@ -139,7 +145,18 @@ impl GoogleClient {
         let mut event = Event::default();
         event.id = record.internal_key();
         event.calendar_id = Some(calendar_id);
-        event.ical_uid = Some(format!("UID:{}", record.primary_key()));
+        event.ical_uid = if let Some(key) = record.internal_key() {
+            if let Some(uid) = self.ical_map.get(&key) {
+                Some(format!("UID:{}", uid))
+            } else {
+                let uid = self.pick_uid();
+                self.ical_map.insert(key, uid);
+                Some(format!("UID:{}", uid))
+            }
+        } else {
+            Some(format!("UID:{}", self.pick_uid()))
+        };
+
         if start.is_some() {
             event.start = start;
         }
@@ -243,7 +260,7 @@ impl GoogleClient {
         Ok(records)
     }
 
-    pub fn event_to_record(&self, event: Event) -> Result<Record, ClientError> {
+    pub fn event_to_record(&mut self, event: Event) -> Result<Record, ClientError> {
         let mut record = Record::default();
 
         record.set_internal_key(event.id.clone());
@@ -363,6 +380,11 @@ impl GoogleClient {
         }
 
         record.set_detail(event.summary.unwrap_or("No summary provided".to_string()));
+        if let Some(uid) = event.ical_uid {
+            if let Ok(uid) = uid.strip_prefix("UID:").unwrap_or_default().parse::<u64>() {
+                self.ical_map.insert(event.id.unwrap(), uid);
+            }
+        }
         Ok(record)
     }
 }
@@ -534,13 +556,13 @@ impl RemoteClient for GoogleClient {
         Ok(())
     }
 
-    async fn get(&self, calendar_id: String, event_id: String) -> Result<Record> {
+    async fn get(&mut self, calendar_id: String, event_id: String) -> Result<Record> {
         let events = EventClient::new(self.client());
         Ok(self.event_to_record(events.get(calendar_id, event_id).await?)?)
     }
 
     async fn get_recurring(
-        &self,
+        &mut self,
         calendar_id: String,
         event_id: String,
     ) -> Result<RecurringRecord> {

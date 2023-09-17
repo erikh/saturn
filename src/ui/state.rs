@@ -94,24 +94,24 @@ impl<'a> ProtectedState<'a> {
     pub async fn get_google(&self, config: Config, id: u64) -> Result<Record> {
         let client = GoogleClient::new(config.clone())?;
 
-        let db = RemoteDBClient::new(config.calendar_id(), client.clone());
+        let mut db = RemoteDBClient::new(config.calendar_id(), client.clone());
         map_record!(db, id)
     }
 
     pub async fn get_file(&self, id: u64) -> Result<Record> {
-        let db = MemoryDB::new();
+        let mut db = MemoryDB::new();
         map_record!(db, id)
     }
 
     pub async fn get_recurring_google(&self, config: Config, id: u64) -> Result<RecurringRecord> {
         let client = GoogleClient::new(config.clone())?;
 
-        let db = RemoteDBClient::new(config.calendar_id(), client.clone());
+        let mut db = RemoteDBClient::new(config.calendar_id(), client.clone());
         map_record!(db, id, true)
     }
 
     pub async fn get_recurring_file(&self, id: u64) -> Result<RecurringRecord> {
-        let db = MemoryDB::new();
+        let mut db = MemoryDB::new();
         map_record!(db, id, true)
     }
 
