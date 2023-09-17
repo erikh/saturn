@@ -672,7 +672,7 @@ pub async fn build_events<'a>(state: ProtectedState<'static>) -> Result<Arc<Tabl
                         r.date(),
                         chrono::NaiveTime::from_hms_opt(0, 0, 0).unwrap(),
                     ) > begin)
-                    || r.datetime().naive_local() > begin
+                    || r.datetime().naive_local() >= begin
                 {
                     let pk = format!("{}", r.primary_key());
                     let detail = r.detail().to_string();

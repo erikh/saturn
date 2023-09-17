@@ -1,3 +1,6 @@
+-   HEAD:
+    -   Fixed issue with calendars not recording new information properly in
+        Google after the local DB had been wiped.
 -   `v0.3.0`:
     -   Implemented `show <id>` / `show recur <id>` for `sui` which displays task properties.
     -   Fixed alignment issues with state notifications in `sui`.
