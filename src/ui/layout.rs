@@ -413,8 +413,12 @@ pub async fn build_show_recurring_event<'a>(
         .height(1)
         .bottom_margin(1);
 
-    let presented: PresentedRecurringRecord = record.into();
+    let presented: PresentedRecurringRecord = record.clone().into();
     let mut rows = vec![
+        Row::new(vec![
+            Cell::from("id"),
+            Cell::from(format!("{}", record.recurrence_key())),
+        ]),
         Row::new(vec![
             Cell::from("date"),
             Cell::from(format!("{}", presented.record.date)),
@@ -476,8 +480,12 @@ pub async fn build_show_event<'a>(
         .height(1)
         .bottom_margin(1);
 
-    let presented: PresentedRecord = record.into();
+    let presented: PresentedRecord = record.clone().into();
     let mut rows = vec![
+        Row::new(vec![
+            Cell::from("id"),
+            Cell::from(format!("{}", record.primary_key())),
+        ]),
         Row::new(vec![
             Cell::from("date"),
             Cell::from(format!("{}", presented.date)),
