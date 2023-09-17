@@ -23,6 +23,19 @@ macro_rules! launch_editor {
 }
 
 #[macro_export]
+macro_rules! map_record {
+    ($db: ident, $id:ident, true) => {{
+        $db.get_recurring($id).await
+    }};
+    ($db: ident, $id:ident, false) => {{
+        $db.get($id).await
+    }};
+    ($db: ident, $id: ident) => {{
+        map_record!($db, $id, false)
+    }};
+}
+
+#[macro_export]
 macro_rules! update_record {
     ($db: ident, $presented: ident, $record:ident, true) => {{
         $db.update_recurring($presented.to_record(
@@ -285,6 +298,17 @@ macro_rules! process_ui_command {
                             get,
                             false
                         );
+                    }
+                }
+                $crate::ui::types::CommandType::Show(recur, id) => {
+                    if recur {
+                        let mut lock = $obj.lock().await;
+                        lock.show_recurring = Some($db.get_recurring(id).await?);
+                        drop(lock);
+                    } else {
+                        let mut lock = $obj.lock().await;
+                        lock.show = Some($db.get(id).await?);
+                        drop(lock);
                     }
                 }
             };

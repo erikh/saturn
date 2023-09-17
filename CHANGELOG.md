@@ -1,4 +1,5 @@
 -   HEAD:
+    -   Implemented `show <id>` / `show recur <id>` for `sui` which displays task properties.
     -   Fixed alignment issues with state notifications in `sui`.
     -   Increased column widths for `sui`'s ID column in the events tab.
     -   Fixed a number of outstanding issues with recurring tasks.
