@@ -294,6 +294,8 @@ The TUI accepts several commands at the prompt; this command-set will grow with 
 -   `e` or `entry`: Process an entry in `saturn entry` format.
 -   `d` or `delete`: Delete all the IDs provided (separate them with spaces). `d recur` or `delete recur` to delete recurring items.
 -   `show today` will show today's calendar items, where `show all` will show the entire calendar (the default).
+-   `show recur` will show you recurring tasks.
+-   `show <id>` will show you more information about that particular task. Use `show recur <id>` to show a recurring id.
 -   `edit <id>` will raise an editor to edit your item's properties. `edit recur <id>` will edit a recurring item.
 -   `quit` will exit the program.
 
