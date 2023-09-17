@@ -20,6 +20,16 @@ pub struct PresentedSchedule {
     stop: chrono::NaiveTime,
 }
 
+impl std::fmt::Display for PresentedSchedule {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&format!(
+            "{} - {}",
+            self.start.format("%H:%M"),
+            self.stop.format("%H:%M")
+        ))
+    }
+}
+
 impl From<PresentedSchedule> for Schedule {
     fn from(ps: PresentedSchedule) -> Self {
         (ps.start, ps.stop)
@@ -37,18 +47,18 @@ impl From<Schedule> for PresentedSchedule {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct PresentedRecord {
-    date: chrono::NaiveDate,
+    pub date: chrono::NaiveDate,
     #[serde(rename = "type")]
-    typ: RecordType,
+    pub typ: RecordType,
     #[serde(skip_serializing_if = "Option::is_none")]
-    at: Option<chrono::NaiveTime>,
+    pub at: Option<chrono::NaiveTime>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    scheduled: Option<PresentedSchedule>,
-    detail: String,
-    fields: Fields,
+    pub scheduled: Option<PresentedSchedule>,
+    pub detail: String,
+    pub fields: Fields,
     #[serde(skip_serializing_if = "Option::is_none")]
-    notifications: Option<Notifications>,
-    completed: bool,
+    pub notifications: Option<Notifications>,
+    pub completed: bool,
 }
 
 impl From<Record> for PresentedRecord {
@@ -93,8 +103,8 @@ impl PresentedRecord {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct PresentedRecurringRecord {
-    record: PresentedRecord,
-    recurrence: fancy_duration::FancyDuration<chrono::Duration>,
+    pub record: PresentedRecord,
+    pub recurrence: fancy_duration::FancyDuration<chrono::Duration>,
 }
 
 impl From<RecurringRecord> for PresentedRecurringRecord {

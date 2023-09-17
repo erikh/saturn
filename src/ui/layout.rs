@@ -1,5 +1,5 @@
 use crate::{
-    record::Record,
+    record::{PresentedRecord, PresentedRecurringRecord, Record, RecurringRecord},
     time::now,
     ui::{
         consts::*,
@@ -46,8 +46,12 @@ pub async fn draw_loop<'a>(
             drop(lock);
 
             if redraw || line != last_line || last_draw + chrono::Duration::seconds(5) < now() {
+                let lock = state.lock().await;
+                let show = lock.show.clone();
+                let show_recurring = lock.show_recurring.clone();
+                drop(lock);
                 terminal.draw(|f| {
-                    render_app(state.clone(), f, line.clone());
+                    render_app(state.clone(), f, line.clone(), show, show_recurring);
                 })?;
 
                 last_line = line;
@@ -83,8 +87,16 @@ pub async fn read_input<'a>(
                                 x.trim_start_matches("show ")
                             } else {
                                 x.trim_start_matches("s ")
-                            };
-                            match m {
+                            }
+                            .trim()
+                            .split(' ')
+                            .filter(|x| !x.is_empty())
+                            .collect::<Vec<&str>>();
+                            let mut lock = state.lock().await;
+                            lock.show = None;
+                            lock.show_recurring = None;
+                            drop(lock);
+                            match m[0] {
                                 "all" | "a" => {
                                     state.lock().await.list_type = ListType::All;
                                     let state = state.clone();
@@ -116,7 +128,23 @@ pub async fn read_input<'a>(
                                     });
                                 }
                                 "recur" | "recurring" | "recurrence" | "r" => {
-                                    state.lock().await.list_type = ListType::Recurring;
+                                    if m.len() == 2 {
+                                        if let Ok(id) = m[1].parse::<u64>() {
+                                            state.lock().await.command =
+                                                Some(CommandType::Show(true, id));
+                                            state.add_notification("Updating state").await;
+                                        } else {
+                                            state
+                                                .add_notification(&format!(
+                                                    "Invalid Command '{}'",
+                                                    x
+                                                ))
+                                                .await
+                                        }
+                                    } else {
+                                        state.lock().await.list_type = ListType::Recurring;
+                                    }
+
                                     let state = state.clone();
                                     tokio::spawn(async move {
                                         state.add_notification("Updating state").await;
@@ -130,10 +158,28 @@ pub async fn read_input<'a>(
                                         }
                                     });
                                 }
-                                _ => {
-                                    state
-                                        .add_notification(&format!("Invalid Command '{}'", x))
-                                        .await
+                                id => {
+                                    if let Ok(id) = id.parse::<u64>() {
+                                        state.lock().await.command =
+                                            Some(CommandType::Show(false, id));
+                                        state.add_notification("Updating state").await;
+                                    } else {
+                                        state
+                                            .add_notification(&format!("Invalid Command '{}'", x))
+                                            .await
+                                    }
+
+                                    let state = state.clone();
+                                    tokio::spawn(async move {
+                                        match state.update_state().await {
+                                            Ok(_) => {}
+                                            Err(e) => {
+                                                state
+                                                    .add_notification(&format!("Error: {}", e))
+                                                    .await;
+                                            }
+                                        }
+                                    });
                                 }
                             }
                         } else if x.starts_with("d ") || x.starts_with("delete ") {
@@ -276,6 +322,8 @@ pub fn render_app(
     state: ProtectedState<'static>,
     frame: &mut ratatui::Frame<'_, CrosstermBackend<Stdout>>,
     buf: String,
+    show: Option<Record>,
+    show_recurring: Option<RecurringRecord>,
 ) {
     let layout = Layout::default()
         .constraints([Constraint::Length(1), Constraint::Percentage(100)].as_ref())
@@ -290,12 +338,6 @@ pub fn render_app(
         .direction(Direction::Horizontal)
         .constraints([Constraint::Percentage(70), Constraint::Percentage(30)].as_ref())
         .split(layout[1]);
-
-    let s = state.clone();
-    let calendar = std::thread::spawn(move || sit(build_calendar(s)))
-        .join()
-        .expect("could not build calendar")
-        .expect("could not build calendar");
 
     let s = state.clone();
     let events = std::thread::spawn(move || sit(build_events(s)))
@@ -332,11 +374,154 @@ pub fn render_app(
         frame.render_widget(Paragraph::new(format!(">> {}", buf)), layout[0]);
     }
 
-    frame.render_widget(calendar.deref().clone(), draw_layout[0]);
+    if let Some(record) = show {
+        let s = state.clone();
+        let event = std::thread::spawn(move || sit(build_show_event(s, record)))
+            .join()
+            .expect("could not build event")
+            .expect("could not build event");
+        frame.render_widget(event.deref().clone(), draw_layout[0]);
+    } else if let Some(record) = show_recurring {
+        let s = state.clone();
+        let event = std::thread::spawn(move || sit(build_show_recurring_event(s, record)))
+            .join()
+            .expect("could not build event")
+            .expect("could not build event");
+        frame.render_widget(event.deref().clone(), draw_layout[0]);
+    } else {
+        let s = state.clone();
+        let calendar = std::thread::spawn(move || sit(build_calendar(s)))
+            .join()
+            .expect("could not build calendar")
+            .expect("could not build calendar");
+        frame.render_widget(calendar.deref().clone(), draw_layout[0]);
+    }
+
     frame.render_widget(events.deref().clone(), draw_layout[1]);
     frame.set_cursor(3 + buf.len() as u16, 0);
 }
 
+pub async fn build_show_recurring_event<'a>(
+    _state: ProtectedState<'static>,
+    record: RecurringRecord,
+) -> Result<Arc<Table<'a>>> {
+    let header_cells = ["Key", "Value"]
+        .iter()
+        .map(|h| Cell::from(*h).style(*TITLE_STYLE));
+    let header = Row::new(header_cells)
+        .style(*HEADER_STYLE)
+        .height(1)
+        .bottom_margin(1);
+
+    let presented: PresentedRecurringRecord = record.into();
+    let mut rows = vec![
+        Row::new(vec![
+            Cell::from("date"),
+            Cell::from(format!("{}", presented.record.date)),
+        ]),
+        Row::new(vec![
+            Cell::from("recurrence"),
+            Cell::from(format!("{}", presented.recurrence.to_string())),
+        ]),
+        Row::new(vec![
+            Cell::from("completed"),
+            Cell::from(format!("{}", presented.record.completed)),
+        ]),
+        Row::new(vec![
+            Cell::from("detail"),
+            Cell::from(format!("{}", presented.record.detail)),
+        ]),
+        Row::new(vec![
+            Cell::from("type"),
+            Cell::from(format!("{:?}", presented.record.typ)),
+        ]),
+    ];
+
+    match presented.record.typ {
+        crate::record::RecordType::At => rows.push(Row::new(vec![
+            Cell::from("at"),
+            Cell::from(format!("{}", presented.record.at.unwrap().format("%H:%M"))),
+        ])),
+        crate::record::RecordType::Schedule => rows.push(Row::new(vec![
+            Cell::from("scheduled"),
+            Cell::from(format!("{}", presented.record.scheduled.unwrap())),
+        ])),
+        _ => {}
+    }
+
+    let table = Arc::new(
+        Table::new(rows.clone())
+            .header(header)
+            .block(
+                Block::default().borders(Borders::ALL).title(
+                    chrono::Month::try_from(now().month() as u8)
+                        .expect("Invalid Month")
+                        .name(),
+                ),
+            )
+            .widths(&[Constraint::Percentage(30), Constraint::Percentage(70)]),
+    );
+    Ok(table)
+}
+
+pub async fn build_show_event<'a>(
+    _state: ProtectedState<'static>,
+    record: Record,
+) -> Result<Arc<Table<'a>>> {
+    let header_cells = ["Key", "Value"]
+        .iter()
+        .map(|h| Cell::from(*h).style(*TITLE_STYLE));
+    let header = Row::new(header_cells)
+        .style(*HEADER_STYLE)
+        .height(1)
+        .bottom_margin(1);
+
+    let presented: PresentedRecord = record.into();
+    let mut rows = vec![
+        Row::new(vec![
+            Cell::from("date"),
+            Cell::from(format!("{}", presented.date)),
+        ]),
+        Row::new(vec![
+            Cell::from("completed"),
+            Cell::from(format!("{}", presented.completed)),
+        ]),
+        Row::new(vec![
+            Cell::from("detail"),
+            Cell::from(format!("{}", presented.detail)),
+        ]),
+        Row::new(vec![
+            Cell::from("type"),
+            Cell::from(format!("{:?}", presented.typ)),
+        ]),
+    ];
+
+    match presented.typ {
+        crate::record::RecordType::At => rows.push(Row::new(vec![
+            Cell::from("at"),
+            Cell::from(format!("{}", presented.at.unwrap().format("%H:%M"))),
+        ])),
+        crate::record::RecordType::Schedule => rows.push(Row::new(vec![
+            Cell::from("scheduled"),
+            Cell::from(format!("{}", presented.scheduled.unwrap())),
+        ])),
+        _ => {}
+    }
+
+    let table = Arc::new(
+        Table::new(rows.clone())
+            .header(header)
+            .block(
+                Block::default().borders(Borders::ALL).title(
+                    chrono::Month::try_from(now().month() as u8)
+                        .expect("Invalid Month")
+                        .name(),
+                ),
+            )
+            .widths(&[Constraint::Percentage(30), Constraint::Percentage(70)]),
+    );
+    Ok(table)
+}
 pub async fn build_calendar<'a>(state: ProtectedState<'static>) -> Result<Arc<Table<'a>>> {
     if let Some(calendar) = state.lock().await.calendar.clone() {
         if calendar.1 + chrono::Duration::seconds(1) > now().naive_local() {

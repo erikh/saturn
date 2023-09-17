@@ -1,7 +1,7 @@
 use crate::{
     config::{Config, DBType},
     db::{google::GoogleClient, memory::MemoryDB, remote::RemoteDBClient, DB},
-    list_ui, process_ui_command,
+    list_ui, map_record, process_ui_command,
     record::{Record, RecurringRecord},
     time::now,
 };
@@ -18,6 +18,8 @@ pub struct State<'a> {
     pub notification: Option<(String, chrono::NaiveDateTime)>,
     pub line_buf: String,
     pub command: Option<super::types::CommandType>,
+    pub show: Option<Record>,
+    pub show_recurring: Option<RecurringRecord>,
     pub calendar: Option<(Arc<Table<'a>>, chrono::NaiveDateTime)>,
     pub events: Option<(Arc<Table<'a>>, chrono::NaiveDateTime)>,
     pub redraw: bool,
@@ -87,6 +89,30 @@ impl<'a> ProtectedState<'a> {
         let mut db = MemoryDB::new();
         process_ui_command!(self, db);
         Ok(())
+    }
+
+    pub async fn get_google(&self, config: Config, id: u64) -> Result<Record> {
+        let client = GoogleClient::new(config.clone())?;
+
+        let db = RemoteDBClient::new(config.calendar_id(), client.clone());
+        map_record!(db, id)
+    }
+
+    pub async fn get_file(&self, id: u64) -> Result<Record> {
+        let db = MemoryDB::new();
+        map_record!(db, id)
+    }
+
+    pub async fn get_recurring_google(&self, config: Config, id: u64) -> Result<RecurringRecord> {
+        let client = GoogleClient::new(config.clone())?;
+
+        let db = RemoteDBClient::new(config.calendar_id(), client.clone());
+        map_record!(db, id, true)
+    }
+
+    pub async fn get_recurring_file(&self, id: u64) -> Result<RecurringRecord> {
+        let db = MemoryDB::new();
+        map_record!(db, id, true)
     }
 
     pub async fn update_state(&self) -> Result<()> {
