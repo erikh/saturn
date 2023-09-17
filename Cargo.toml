@@ -8,7 +8,7 @@ license = "MIT"
 homepage = "https://github.com/erikh/saturn"
 repository = "https://github.com/erikh/saturn"
 keywords = [ "cli", "calendar" ]
-categories = [ "command-line-interface" ]
+categories = [ "command-line-utilities" ]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
