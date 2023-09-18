@@ -158,14 +158,7 @@ fn parse_date(s: String) -> Result<chrono::NaiveDate> {
 fn twelve_hour_time(pm: bool, hour: u32, minute: u32) -> chrono::NaiveTime {
     let new_hour = if pm { 12 } else { 0 };
 
-    time(
-        if hour == 12 {
-            new_hour
-        } else {
-            hour + new_hour
-        },
-        minute,
-    )
+    time(if hour >= 12 { hour } else { hour + new_hour }, minute)
 }
 
 fn time(hour: u32, minute: u32) -> chrono::NaiveTime {
