@@ -1,3 +1,5 @@
+-   `v0.3.3`:
+    - Fixed an issue where editing a task would result in a crash
 -   `v0.3.2`:
     - Fixed another issue with iCal information not be appropriately managed
       between database wipes.
