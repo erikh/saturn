@@ -180,6 +180,7 @@ impl GoogleClient {
             event.end = end;
         }
 
+        event.calendar_id = Some(calendar_id.clone());
         event.summary = Some(record.detail());
 
         event
