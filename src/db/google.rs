@@ -65,7 +65,7 @@ impl GoogleClient {
         do_client!(self, { listclient.list() })
     }
 
-    pub fn record_to_event(&mut self, calendar_id: String, record: &mut Record) -> Event {
+    pub async fn record_to_event(&mut self, calendar_id: String, record: &mut Record) -> Event {
         let start = match record.record_type() {
             RecordType::At => Some(EventCalendarDate {
                 date_time: Some(
@@ -142,19 +142,34 @@ impl GoogleClient {
             }),
         };
 
-        let mut event = Event::default();
-        event.id = record.internal_key();
-        event.calendar_id = Some(calendar_id);
-        event.ical_uid = if let Some(key) = record.internal_key() {
-            if let Some(uid) = self.ical_map.get(&key) {
-                Some(format!("UID:{}", uid))
+        let event_client = EventClient::new(self.client());
+
+        let mut f = |record: Record| {
+            let mut event = Event::default();
+            event.id = record.internal_key();
+            event.calendar_id = Some(calendar_id.clone());
+            event.ical_uid = if let Some(key) = record.internal_key() {
+                if let Some(uid) = self.ical_map.get(&key) {
+                    Some(format!("UID:{}", uid))
+                } else {
+                    let uid = self.pick_uid();
+                    self.ical_map.insert(key, uid);
+                    Some(format!("UID:{}", uid))
+                }
             } else {
-                let uid = self.pick_uid();
-                self.ical_map.insert(key, uid);
-                Some(format!("UID:{}", uid))
+                Some(format!("UID:{}", self.pick_uid()))
+            };
+            event
+        };
+
+        let mut event = if let Some(key) = record.internal_key() {
+            if let Ok(event) = event_client.get(calendar_id.clone(), key).await {
+                event
+            } else {
+                f(record.clone())
             }
         } else {
-            Some(format!("UID:{}", self.pick_uid()))
+            f(record.clone())
         };
 
         if start.is_some() {
@@ -423,7 +438,7 @@ impl RemoteClient for GoogleClient {
     }
 
     async fn record(&mut self, calendar_id: String, mut record: Record) -> Result<String> {
-        let event = self.record_to_event(calendar_id, &mut record);
+        let event = self.record_to_event(calendar_id, &mut record).await;
         let client = EventClient::new(self.client());
 
         let event = do_client!(self, { client.insert(event.clone()) })?;
@@ -446,7 +461,7 @@ impl RemoteClient for GoogleClient {
             ));
         }
 
-        let mut event = self.record_to_event(calendar_id, record.record());
+        let mut event = self.record_to_event(calendar_id, record.record()).await;
 
         let mut recurrence = BTreeSet::default();
         recurrence.insert(record.to_rrule());
@@ -588,7 +603,7 @@ impl RemoteClient for GoogleClient {
 
     async fn update(&mut self, calendar_id: String, mut record: Record) -> Result<()> {
         let events = EventClient::new(self.client());
-        let event = self.record_to_event(calendar_id, &mut record);
+        let event = self.record_to_event(calendar_id, &mut record).await;
         events.update(event).await?;
         Ok(())
     }
@@ -602,7 +617,7 @@ impl RemoteClient for GoogleClient {
         let key = record.internal_key();
         let r = record.record();
         r.set_internal_key(key);
-        let mut event = self.record_to_event(calendar_id, r);
+        let mut event = self.record_to_event(calendar_id, r).await;
         event.recurrence = Some(BTreeSet::from_iter(vec![record.to_rrule()]));
         events.update(event).await?;
         Ok(())
