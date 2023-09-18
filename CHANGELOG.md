@@ -1,3 +1,6 @@
+-   `v0.3.2`:
+    - Fixed another issue with iCal information not be appropriately managed
+      between database wipes.
 -   `v0.3.1`:
     -   Fixed issue with items registered at midnight on the current Sunday not
         showing up in the list of events.
