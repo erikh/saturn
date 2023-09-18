@@ -1,3 +1,6 @@
+-   `v0.3.4`:
+    - Fix an issue where 24-hour time may not be represented properly after
+      noon. Thanks to [@raphaelahrens](https://github.com/raphaelahrens) for the report.
 -   `v0.3.3`:
     - Fixed an issue where editing a task would result in a crash
 -   `v0.3.2`:
