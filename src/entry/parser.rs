@@ -9,7 +9,7 @@ use fancy_duration::FancyDuration;
 
 const DATE_ENDINGS: [&str; 4] = ["th", "st", "rd", "nd"];
 
-pub fn parse_entry(args: Vec<String>) -> Result<EntryRecord> {
+pub fn parse_entry(args: Vec<String>, use_24h_time: bool) -> Result<EntryRecord> {
     let mut record = Record::build();
     let mut state = EntryState::Date;
 
@@ -27,7 +27,9 @@ pub fn parse_entry(args: Vec<String>) -> Result<EntryRecord> {
                 match arg.to_lowercase().as_str() {
                     "today" => {
                         record.set_date(now().date_naive());
-                        today = true;
+                        if !use_24h_time {
+                            today = true;
+                        }
                         state = EntryState::Time;
                     }
                     "yesterday" => {
@@ -467,7 +469,8 @@ mod tests {
                     to_parse
                         .split(" ")
                         .map(|s| s.to_string())
-                        .collect::<Vec<String>>()
+                        .collect::<Vec<String>>(),
+                    false,
                 )
                 .unwrap()
                 .record,

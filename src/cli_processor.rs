@@ -70,6 +70,11 @@ macro_rules! process_cli {
 
         match $cli.command {
             Command::Config { command } => match command {
+                ConfigCommand::Set24hTime { set } => {
+                    let mut config = Config::load(None)?;
+                    config.set_use_24h_time(set);
+                    config.save(None)?;
+                }
                 ConfigCommand::SetClient {
                     client_id,
                     client_secret,
@@ -204,8 +209,11 @@ macro_rules! process_cli {
             }
             Command::Entry { args } => {
                 $db.list_all(false).await?;
-                $db.record_entry($crate::entry::EntryParser::new(args))
-                    .await?;
+                $db.record_entry($crate::entry::EntryParser::new(
+                    args,
+                    $config.use_24h_time(),
+                ))
+                .await?;
             }
             Command::Edit { recur, id } => {
                 if recur {
@@ -254,7 +262,7 @@ macro_rules! list_ui {
 
 #[macro_export]
 macro_rules! process_ui_command {
-    ($obj:ident, $db:ident) => {{
+    ($obj:ident, $db:ident, $config:ident) => {{
         let mut lock = $obj.lock().await;
         let command = lock.command.clone();
         lock.command = None;
@@ -280,8 +288,11 @@ macro_rules! process_ui_command {
                         .filter(|x| !x.is_empty())
                         .map(|s| s.to_string())
                         .collect::<Vec<String>>();
-                    $db.record_entry($crate::entry::EntryParser::new(parts))
-                        .await?;
+                    $db.record_entry($crate::entry::EntryParser::new(
+                        parts,
+                        $config.use_24h_time(),
+                    ))
+                    .await?;
                 }
                 $crate::ui::types::CommandType::Edit(recur, id) => {
                     if recur {
