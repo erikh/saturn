@@ -15,6 +15,7 @@ pub fn parse_entry(args: Vec<String>) -> Result<EntryRecord> {
 
     let mut scheduled_first: Option<chrono::NaiveTime> = None;
     let mut recurrence: Option<FancyDuration<Duration>> = None;
+    let mut today = false;
 
     for arg in &args {
         match state {
@@ -26,6 +27,7 @@ pub fn parse_entry(args: Vec<String>) -> Result<EntryRecord> {
                 match arg.to_lowercase().as_str() {
                     "today" => {
                         record.set_date(now().date_naive());
+                        today = true;
                         state = EntryState::Time;
                     }
                     "yesterday" => {
@@ -56,12 +58,12 @@ pub fn parse_entry(args: Vec<String>) -> Result<EntryRecord> {
             },
             EntryState::TimeAt => {
                 if arg != "day" {
-                    record.set_at(Some(parse_time(arg.to_string())?));
+                    record.set_at(Some(parse_time(arg.to_string(), today)?));
                 }
                 state = EntryState::Notify;
             }
             EntryState::TimeScheduled => {
-                scheduled_first = Some(parse_time(arg.to_string())?);
+                scheduled_first = Some(parse_time(arg.to_string(), today)?);
                 state = EntryState::TimeScheduledHalf;
             }
             EntryState::TimeScheduledHalf => match arg.as_str() {
@@ -69,7 +71,7 @@ pub fn parse_entry(args: Vec<String>) -> Result<EntryRecord> {
                 _ => {
                     record.set_scheduled(Some((
                         scheduled_first.unwrap(),
-                        parse_time(arg.to_string())?,
+                        parse_time(arg.to_string(), today)?,
                     )));
                     state = EntryState::Notify;
                 }
@@ -158,7 +160,16 @@ fn parse_date(s: String) -> Result<chrono::NaiveDate> {
 fn twelve_hour_time(pm: bool, hour: u32, minute: u32) -> chrono::NaiveTime {
     let new_hour = if pm { 12 } else { 0 };
 
-    time(if hour >= 12 { hour } else { hour + new_hour }, minute)
+    time(
+        if hour > 12 {
+            hour
+        } else if hour == 12 {
+            new_hour
+        } else {
+            hour + new_hour
+        },
+        minute,
+    )
 }
 
 fn time(hour: u32, minute: u32) -> chrono::NaiveTime {
@@ -173,24 +184,33 @@ fn am_time(hour: u32, minute: u32) -> chrono::NaiveTime {
     twelve_hour_time(false, hour, minute)
 }
 
-fn time_period(hour: u32, minute: u32) -> chrono::NaiveTime {
-    if now().hour() >= 12 {
-        pm_time(hour, minute)
+fn time_period(hour: u32, minute: u32, today: bool) -> chrono::NaiveTime {
+    if today {
+        if now().hour() >= 12 {
+            pm_time(hour, minute)
+        } else {
+            am_time(hour, minute)
+        }
     } else {
-        am_time(hour, minute)
+        time(hour, minute)
     }
 }
 
-fn designation(hour: u32, minute: u32, designation: &str) -> Result<chrono::NaiveTime> {
+fn designation(
+    hour: u32,
+    minute: u32,
+    designation: &str,
+    today: bool,
+) -> Result<chrono::NaiveTime> {
     match designation {
         "pm" | "PM" => Ok(pm_time(hour, minute)),
         "am" | "AM" => Ok(am_time(hour, minute)),
-        "" => Ok(time_period(hour, minute)),
+        "" => Ok(time_period(hour, minute, today)),
         _ => Err(anyhow!("Cannot parse time")),
     }
 }
 
-fn parse_time(s: String) -> Result<chrono::NaiveTime> {
+fn parse_time(s: String, today: bool) -> Result<chrono::NaiveTime> {
     let s = s.trim();
 
     match s.to_lowercase().as_str() {
@@ -222,15 +242,15 @@ fn parse_time(s: String) -> Result<chrono::NaiveTime> {
                 };
 
                 if let Some(d) = captures.get(2) {
-                    designation(hour, minute, d.as_str())
+                    designation(hour, minute, d.as_str(), today)
                 } else {
-                    Ok(time_period(hour, minute))
+                    Ok(time_period(hour, minute, today))
                 }
             } else {
                 let hour: u32 = parts[0].parse()?;
                 let minute: u32 = parts[1].parse()?;
 
-                Ok(time_period(hour, minute))
+                Ok(time_period(hour, minute, today))
             }
         }
         1 => {
@@ -243,9 +263,9 @@ fn parse_time(s: String) -> Result<chrono::NaiveTime> {
                 };
 
                 if let Some(d) = captures.get(2) {
-                    designation(hour, 0, d.as_str())
+                    designation(hour, 0, d.as_str(), today)
                 } else {
-                    Ok(time_period(hour, 0))
+                    Ok(time_period(hour, 0, today))
                 }
             } else {
                 Err(anyhow!("Cannot parse time"))
@@ -307,7 +327,7 @@ mod tests {
 
         let pm = now().hour() >= 12;
 
-        let table = vec![
+        let today_table = vec![
             ("12am", chrono::NaiveTime::from_hms_opt(0, 0, 0).unwrap()),
             ("12pm", chrono::NaiveTime::from_hms_opt(12, 0, 0).unwrap()),
             ("8:00:00", chrono::NaiveTime::from_hms_opt(8, 0, 0).unwrap()),
@@ -336,8 +356,42 @@ mod tests {
             ),
         ];
 
-        for (to_parse, t) in table {
-            assert_eq!(parse_time(to_parse.to_string()).unwrap(), t, "{}", to_parse)
+        let other_table = vec![
+            ("12am", chrono::NaiveTime::from_hms_opt(0, 0, 0).unwrap()),
+            ("12pm", chrono::NaiveTime::from_hms_opt(12, 0, 0).unwrap()),
+            ("8:00:00", chrono::NaiveTime::from_hms_opt(8, 0, 0).unwrap()),
+            (
+                "8:12:56",
+                chrono::NaiveTime::from_hms_opt(8, 12, 56).unwrap(),
+            ),
+            ("8:00", chrono::NaiveTime::from_hms_opt(8, 0, 0).unwrap()),
+            ("8am", chrono::NaiveTime::from_hms_opt(8, 0, 0).unwrap()),
+            ("8:00pm", chrono::NaiveTime::from_hms_opt(20, 0, 0).unwrap()),
+            ("8pm", chrono::NaiveTime::from_hms_opt(20, 0, 0).unwrap()),
+            (
+                "8:30pm",
+                chrono::NaiveTime::from_hms_opt(20, 30, 0).unwrap(),
+            ),
+            ("8", chrono::NaiveTime::from_hms_opt(8, 0, 0).unwrap()),
+            ("8:30", chrono::NaiveTime::from_hms_opt(8, 30, 0).unwrap()),
+        ];
+
+        for (to_parse, t) in today_table {
+            assert_eq!(
+                parse_time(to_parse.to_string(), true).unwrap(),
+                t,
+                "{}",
+                to_parse
+            )
+        }
+
+        for (to_parse, t) in other_table {
+            assert_eq!(
+                parse_time(to_parse.to_string(), true).unwrap(),
+                t,
+                "{}",
+                to_parse
+            )
         }
     }
 
@@ -348,17 +402,23 @@ mod tests {
         use chrono::{Datelike, Duration, Timelike};
 
         let pm = now().hour() >= 12;
-
         let record = Record::build();
 
-        let mut soda = record.clone();
-        soda.set_date(chrono::NaiveDate::from_ymd_opt(now().year(), 8, 5).unwrap())
+        let mut today = record.clone();
+        today
+            .set_date(chrono::Local::now().naive_local().date())
             .set_at(Some(
                 chrono::NaiveTime::from_hms_opt(if pm { 20 } else { 8 }, 0, 0).unwrap(),
             ))
             .add_notification(
                 chrono::NaiveTime::from_hms_opt(if pm { 19 } else { 7 }, 55, 0).unwrap(),
             )
+            .set_detail("Test Today".to_string());
+
+        let mut soda = record.clone();
+        soda.set_date(chrono::NaiveDate::from_ymd_opt(now().year(), 8, 5).unwrap())
+            .set_at(Some(chrono::NaiveTime::from_hms_opt(8, 0, 0).unwrap()))
+            .add_notification(chrono::NaiveTime::from_hms_opt(7, 55, 0).unwrap())
             .set_detail("Get a Soda".to_string());
 
         let mut relax = record.clone();
@@ -390,6 +450,7 @@ mod tests {
             .set_detail("Christmas Morning".to_string());
 
         let table = vec![
+            ("today at 8 notify me 5m Test Today", today),
             ("08/05 at 8 notify me 5m Get a Soda", soda),
             ("tomorrow at 4pm Relax", relax),
             (
