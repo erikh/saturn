@@ -282,7 +282,7 @@ impl GoogleClient {
         record.set_internal_key(event.id.clone());
         record.set_internal_recurrence_key(event.id.clone());
 
-        let start = event.start.clone();
+        let start = event.start;
 
         let start_time = event.original_start_time.clone().map_or_else(
             || {
