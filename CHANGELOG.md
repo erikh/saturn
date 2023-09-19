@@ -1,4 +1,4 @@
--   HEAD:
+-   `v0.3.5`:
     -   Add a configuration feature to never use the 12 hour adjustment.
     -   Only massage times in 12 hour format for today's date. Other dates time will be treated in 24h.
     -   Fixed more issues with iCal IDs. This will need to be changed more fundamentally in 0.4.0.
