@@ -93,8 +93,10 @@ Dates can be represented a number of ways:
 #### Times
 
 -   `hour:minute:second` represents a full time. You may also use `.` for the separators.
--   `hour:minute` when less than 13 represents the time in relationship to the
-    current 12-hour clock. 13 and above are 24-hour time.
+-   `hour:minute` 24-hour time with the following exception: for today's date:
+    when less than 13 represents the time in relationship to the current
+    12-hour clock. 13 and above are 24-hour time. You can change this behavior
+    with `saturn config set24h-time`.
 -   `hour:minute[pm|am]` represents the current 12 hour time with appropriate time of day designation.
 -   `hour[pm|am]` represents the top of the hour in 12 hour time with the appropriate time of day designation.
 -   `hour` represents the top of the hour in 12 hour time with the current time of day designation.
