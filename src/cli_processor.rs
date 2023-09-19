@@ -203,6 +203,7 @@ macro_rules! process_cli {
                 print_entries($db.list_today(false).await?);
             }
             Command::Entry { args } => {
+                $db.list_all(false).await?;
                 $db.record_entry($crate::entry::EntryParser::new(args))
                     .await?;
             }
@@ -273,6 +274,7 @@ macro_rules! process_ui_command {
                     }
                 }
                 $crate::ui::types::CommandType::Entry(entry) => {
+                    $db.list_all(false).await?;
                     let parts = entry
                         .split(' ')
                         .filter(|x| !x.is_empty())
