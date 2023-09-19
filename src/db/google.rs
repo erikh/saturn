@@ -444,6 +444,12 @@ impl RemoteClient for GoogleClient {
 
         let event = do_client!(self, { client.insert(event.clone()) })?;
 
+        if let Some(uid) = event.ical_uid {
+            if let Ok(uid) = uid.strip_prefix("UID:").unwrap_or_default().parse::<u64>() {
+                self.ical_map.insert(event.id.clone().unwrap(), uid);
+            }
+        }
+
         if let Some(id) = event.id {
             Ok(id)
         } else {
@@ -463,6 +469,12 @@ impl RemoteClient for GoogleClient {
         }
 
         let mut event = self.record_to_event(calendar_id, record.record()).await;
+
+        if let Some(uid) = event.clone().ical_uid {
+            if let Ok(uid) = uid.strip_prefix("UID:").unwrap_or_default().parse::<u64>() {
+                self.ical_map.insert(event.id.clone().unwrap(), uid);
+            }
+        }
 
         let mut recurrence = BTreeSet::default();
         recurrence.insert(record.to_rrule());
