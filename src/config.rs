@@ -23,6 +23,7 @@ pub struct Config {
     redirect_url: Option<String>,
     sync_duration: Option<FancyDuration<Duration>>,
     default_duration: Option<FancyDuration<Duration>>,
+    use_24h_time: bool,
     calendar_id: String,
 }
 
@@ -43,6 +44,7 @@ impl From<Config> for ClientParameters {
 impl Default for Config {
     fn default() -> Self {
         Self {
+            use_24h_time: false,
             db_type: DBType::UnixFile,
             access_token: None,
             access_token_expires_at: None,
@@ -154,6 +156,14 @@ impl Config {
 
     pub fn sync_duration(&self) -> Option<FancyDuration<Duration>> {
         self.sync_duration.clone()
+    }
+
+    pub fn use_24h_time(&self) -> bool {
+        self.use_24h_time
+    }
+
+    pub fn set_use_24h_time(&mut self, use_24h_time: bool) {
+        self.use_24h_time = use_24h_time
     }
 
     pub fn set_client_info(&mut self, client_id: String, client_secret: String) {

@@ -81,13 +81,13 @@ impl<'a> ProtectedState<'a> {
         let client = GoogleClient::new(config.clone())?;
 
         let mut db = RemoteDBClient::new(config.calendar_id(), client.clone());
-        process_ui_command!(self, db);
+        process_ui_command!(self, db, config);
         Ok(())
     }
 
-    pub async fn command_file(&self) -> Result<()> {
+    pub async fn command_file(&self, config: Config) -> Result<()> {
         let mut db = MemoryDB::new();
-        process_ui_command!(self, db);
+        process_ui_command!(self, db, config);
         Ok(())
     }
 
@@ -121,7 +121,7 @@ impl<'a> ProtectedState<'a> {
         let typ = config.db_type();
 
         match typ {
-            DBType::UnixFile => self.command_file().await,
+            DBType::UnixFile => self.command_file(config.clone()).await,
             DBType::Google => self.command_google(config.clone()).await,
         }
         .expect("Could not execute command");

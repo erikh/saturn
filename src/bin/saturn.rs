@@ -42,6 +42,8 @@ enum ConfigCommand {
     SetCalendarID { id: String },
     #[command(about = "Set the default duration for new calendar items that require a range.")]
     SetDefaultDuration { duration: String },
+    #[command(about = "Toggle additional helpers for 12h time. False means 'on'.")]
+    Set24hTime { set: bool },
 }
 
 #[derive(Debug, Subcommand)]
