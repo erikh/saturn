@@ -1,11 +1,13 @@
+-   HEAD:
+    -   Fixed more issues with iCal IDs. This will need to be changed more fundamentally in 0.4.0.
 -   `v0.3.4`:
-    - Fix an issue where 24-hour time may not be represented properly after
-      noon. Thanks to [@raphaelahrens](https://github.com/raphaelahrens) for the report.
+    -   Fix an issue where 24-hour time may not be represented properly after
+        noon. Thanks to [@raphaelahrens](https://github.com/raphaelahrens) for the report.
 -   `v0.3.3`:
-    - Fixed an issue where editing a task would result in a crash
+    -   Fixed an issue where editing a task would result in a crash
 -   `v0.3.2`:
-    - Fixed another issue with iCal information not be appropriately managed
-      between database wipes.
+    -   Fixed another issue with iCal information not be appropriately managed
+        between database wipes.
 -   `v0.3.1`:
     -   Fixed issue with items registered at midnight on the current Sunday not
         showing up in the list of events.
