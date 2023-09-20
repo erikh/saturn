@@ -13,9 +13,10 @@ use std::io::{self, Stdout};
 
 #[derive(Parser, Debug)]
 #[command(
+    name = "sui",
     author = "Erik Hollensbe <erik+github@hollensbe.org>",
     version,
-    about = "Control calendars with the CLI"
+    about = "TUI Calendaring application; companion to saturn"
 )]
 #[command(propagate_version = true)]
 struct ArgParser {

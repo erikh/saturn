@@ -25,6 +25,7 @@ macro_rules! compose_grid {
 
 #[derive(Parser, Debug)]
 #[command(
+    name = "saturn",
     author = "Erik Hollensbe <erik+github@hollensbe.org>",
     version,
     about = "Control calendars with the CLI"
