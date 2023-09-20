@@ -9,6 +9,20 @@ use saturn_cli::{
 };
 use ttygrid::{add_line, grid, header};
 
+macro_rules! compose_grid {
+    ($grid:expr, $($header:expr),*) => {{
+        use crossterm::style::{Colors, Color};
+
+        let mut grid = grid!($grid, $($header),*).unwrap();
+        grid.set_header_color(Colors::new(Color::DarkCyan, Color::Reset));
+        grid.set_delimiter_color(Colors::new(Color::Cyan, Color::Reset));
+        grid.set_primary_color(Colors::new(Color::White, Color::Reset));
+        grid.set_secondary_color(Colors::new(Color::Grey, Color::Reset));
+
+        grid
+    }}
+}
+
 #[derive(Parser, Debug)]
 #[command(
     author = "Erik Hollensbe <erik+github@hollensbe.org>",
@@ -212,14 +226,13 @@ fn print_entries(entries: Vec<Record>) {
         return;
     }
 
-    let mut grid = grid!(
+    let mut grid = compose_grid!(
         header!("TIME"),
         header!("DETAIL"),
         header!("ID"),
         header!("DATE"),
         header!("DONE")
-    )
-    .unwrap();
+    );
 
     for entry in entries {
         if let Some(at) = entry.at() {
@@ -231,7 +244,7 @@ fn print_entries(entries: Vec<Record>) {
         }
     }
 
-    println!("{}", grid.display().unwrap());
+    grid.write(std::io::stdout()).unwrap();
 }
 
 fn print_recurring(entries: Vec<RecurringRecord>) {
@@ -239,7 +252,7 @@ fn print_recurring(entries: Vec<RecurringRecord>) {
         return;
     }
 
-    let mut grid = grid!(header!("INTERVAL"), header!("DETAIL"), header!("ID")).unwrap();
+    let mut grid = compose_grid!(header!("INTERVAL"), header!("DETAIL"), header!("ID"));
 
     for mut entry in entries {
         add_line!(
@@ -259,7 +272,7 @@ fn print_recurring(entries: Vec<RecurringRecord>) {
         .unwrap()
     }
 
-    println!("{}", grid.display().unwrap());
+    grid.write(std::io::stdout()).unwrap();
 }
 
 fn set_calendar_id(id: String, mut config: Config) -> Result<()> {
@@ -269,11 +282,11 @@ fn set_calendar_id(id: String, mut config: Config) -> Result<()> {
 
 async fn list_calendars(mut client: GoogleClient) -> Result<()> {
     let list = client.list_calendars().await?;
-    let mut grid = grid!(header!("ID"), header!("SUMMARY")).unwrap();
+    let mut grid = compose_grid!(header!("ID"), header!("SUMMARY"));
     for item in list {
         add_line!(grid, item.id, item.summary).unwrap();
     }
-    println!("{}", grid.display().unwrap());
+    grid.write(std::io::stdout()).unwrap();
     Ok(())
 }
 
