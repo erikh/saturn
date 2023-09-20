@@ -218,7 +218,8 @@ fn print_entries(entries: Vec<Record>) {
         header!("ID"),
         header!("DATE"),
         header!("DONE")
-    );
+    )
+    .unwrap();
 
     for entry in entries {
         if let Some(at) = entry.at() {
@@ -238,7 +239,7 @@ fn print_recurring(entries: Vec<RecurringRecord>) {
         return;
     }
 
-    let mut grid = grid!(header!("INTERVAL"), header!("DETAIL"), header!("ID"));
+    let mut grid = grid!(header!("INTERVAL"), header!("DETAIL"), header!("ID")).unwrap();
 
     for mut entry in entries {
         add_line!(
@@ -268,7 +269,7 @@ fn set_calendar_id(id: String, mut config: Config) -> Result<()> {
 
 async fn list_calendars(mut client: GoogleClient) -> Result<()> {
     let list = client.list_calendars().await?;
-    let mut grid = grid!(header!("ID"), header!("SUMMARY"));
+    let mut grid = grid!(header!("ID"), header!("SUMMARY")).unwrap();
     for item in list {
         add_line!(grid, item.id, item.summary).unwrap();
     }

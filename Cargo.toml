@@ -24,7 +24,7 @@ ciborium = "^0.2"
 clap = { version = "^4.4", features = [ "derive" ] }
 regex = "^1"
 fancy-duration = { version = "^0.5", default-features = false, features = [ "chrono" ] }
-ttygrid = "^0.2"
+ttygrid = "^0.3"
 nix = "^0.26"
 serde_yaml = "^0.9"
 tokio = { version = "^1", features = [ "full" ] }
