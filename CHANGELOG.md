@@ -1,3 +1,5 @@
+-   HEAD:
+    -   Colorize outputs in `saturn list` commands.
 -   `v0.3.5`:
     -   Add a configuration feature to never use the 12 hour adjustment.
     -   Only massage times in 12 hour format for today's date. Other dates time will be treated in 24h.
