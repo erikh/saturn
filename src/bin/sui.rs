@@ -14,7 +14,7 @@ use std::io::{self, Stdout};
 #[derive(Parser, Debug)]
 #[command(
     name = "sui",
-    author = "Erik Hollensbe <erik+github@hollensbe.org>",
+    author = "Erik Hollensbe <git@hollensbe.org>",
     version,
     about = "TUI Calendaring application; companion to saturn"
 )]

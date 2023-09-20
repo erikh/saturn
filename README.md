@@ -309,4 +309,4 @@ users who'd like to use it.
 
 ## Author
 
-Erik Hollensbe <erik+github@hollensbe.org>
+Erik Hollensbe <git@hollensbe.org>
