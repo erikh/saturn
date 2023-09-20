@@ -1,4 +1,5 @@
 -   HEAD:
+    -   Fix `<command> -V` version output as well as adjust some help text for the CLI processor.
     -   Colorize outputs in `saturn list` commands.
 -   `v0.3.5`:
     -   Add a configuration feature to never use the 12 hour adjustment.
