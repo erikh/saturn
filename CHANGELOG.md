@@ -1,4 +1,6 @@
 -   HEAD:
+    -   Fix an issue where a bug would prevent recurring tasks from being entered into Google Calendar
+-   `v0.3.6`:
     -   Fix `<command> -V` version output as well as adjust some help text for the CLI processor.
     -   Colorize outputs in `saturn list` commands.
 -   `v0.3.5`:
