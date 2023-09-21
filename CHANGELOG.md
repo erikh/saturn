@@ -1,4 +1,8 @@
 -   HEAD:
+    -   Several style changes to `sui`:
+        - Replaced underlining today's tasks with coloring them in bright
+          white, using dark gray for all others.
+        - Highlighting in light green tasks that occur within the next hour.
     -   Fix an issue where a bug would prevent recurring tasks from being entered into Google Calendar
 -   `v0.3.6`:
     -   Fix `<command> -V` version output as well as adjust some help text for the CLI processor.
