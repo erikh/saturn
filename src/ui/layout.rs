@@ -685,12 +685,13 @@ pub async fn build_events<'a>(state: ProtectedState<'static>) -> Result<Arc<Tabl
                             Cell::from(r.datetime().format("%m/%d %H:%M").to_string())
                         },
                         Cell::from(detail),
-                    ]);
+                    ])
+                    .style(Style::default().fg(Color::DarkGray));
 
                     if (r.all_day() && r.date() == now().date_naive())
                         || r.datetime().date_naive() == now().date_naive()
                     {
-                        row = row.underlined()
+                        row = row.style(Style::default().fg(Color::White))
                     }
 
                     Some(row)
