@@ -1,4 +1,5 @@
 -   HEAD:
+    - Fix an issue where all day tasks on sundays would not be shown
     -   Several style changes to `sui`:
         - Replaced underlining today's tasks with coloring them in bright
           white, using dark gray for all others.
