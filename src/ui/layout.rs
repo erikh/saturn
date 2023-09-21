@@ -688,10 +688,15 @@ pub async fn build_events<'a>(state: ProtectedState<'static>) -> Result<Arc<Tabl
                     ])
                     .style(Style::default().fg(Color::DarkGray));
 
-                    if (r.all_day() && r.date() == now().date_naive())
-                        || r.datetime().date_naive() == now().date_naive()
-                    {
+                    if r.datetime().date_naive() == now().date_naive() {
                         row = row.style(Style::default().fg(Color::White))
+                    }
+
+                    if (r.all_day() && r.date() == now().date_naive())
+                        || (datetime > r.datetime() - chrono::Duration::hours(1)
+                            && datetime < r.datetime() + chrono::Duration::hours(1))
+                    {
+                        row = row.style(Style::default().fg(Color::LightGreen))
                     }
 
                     Some(row)
