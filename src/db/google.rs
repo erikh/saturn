@@ -472,7 +472,9 @@ impl RemoteClient for GoogleClient {
 
         if let Some(uid) = event.clone().ical_uid {
             if let Ok(uid) = uid.strip_prefix("UID:").unwrap_or_default().parse::<u64>() {
-                self.ical_map.insert(event.id.clone().unwrap(), uid);
+                if let Some(id) = event.id.clone() {
+                    self.ical_map.insert(id, uid);
+                }
             }
         }
 
