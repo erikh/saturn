@@ -164,6 +164,7 @@ fn grid_at(grid: &mut ttygrid::TTYGrid, entry: Record, at: chrono::NaiveTime) {
         ),
         entry.primary_key().to_string(),
         entry.date().to_string(),
+        entry.fields().to_string(),
         if entry.completed() { "X" } else { "" }.to_string()
     )
     .unwrap()
@@ -180,6 +181,7 @@ fn grid_all_day(grid: &mut ttygrid::TTYGrid, entry: Record) {
         ),
         entry.primary_key().to_string(),
         entry.date().to_string(),
+        entry.fields().to_string(),
         if entry.completed() { "X" } else { "" }.to_string()
     )
     .unwrap()
@@ -196,6 +198,7 @@ fn grid_scheduled(grid: &mut ttygrid::TTYGrid, entry: Record, schedule: Schedule
         ),
         entry.primary_key().to_string(),
         entry.date().to_string(),
+        entry.fields().to_string(),
         if entry.completed() { "X" } else { "" }.to_string()
     )
     .unwrap()
@@ -228,11 +231,12 @@ fn print_entries(entries: Vec<Record>) {
     }
 
     let mut grid = compose_grid!(
-        header!("TIME"),
-        header!("DETAIL"),
-        header!("ID"),
-        header!("DATE"),
-        header!("DONE")
+        header!("TIME", 5),
+        header!("DETAIL", 4),
+        header!("ID", 6),
+        header!("DATE", 3),
+        header!("FIELDS", 2),
+        header!("DONE", 1)
     );
 
     for entry in entries {

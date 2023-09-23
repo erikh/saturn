@@ -3,7 +3,6 @@ use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
-pub type Fields = BTreeMap<String, String>;
 pub type Schedule = (chrono::NaiveTime, chrono::NaiveTime);
 pub type Notifications = Vec<chrono::NaiveTime>;
 
@@ -42,6 +41,39 @@ impl From<Schedule> for PresentedSchedule {
             start: s.0,
             stop: s.1,
         }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+pub struct Fields(BTreeMap<String, Vec<String>>);
+
+impl std::ops::Deref for Fields {
+    type Target = BTreeMap<String, Vec<String>>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl std::fmt::Display for Fields {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if self.is_empty() {
+            return Ok(());
+        }
+
+        let mut fields = String::new();
+        for (key, value) in &self.0 {
+            if value.len() > 1 {
+                fields += &format!("[{}: {}], ", key, value.len());
+            } else if !value.is_empty() {
+                fields += &format!("[{}: {}], ", key, value[0]);
+            }
+        }
+
+        // strip trailing whitespace + comma
+        fields.remove(fields.len() - 1);
+        fields.remove(fields.len() - 1);
+        f.write_str(&fields)
     }
 }
 
@@ -402,6 +434,10 @@ impl Record {
         self.fields.clone()
     }
 
+    pub fn set_fields(&mut self, fields: Fields) {
+        self.fields = fields
+    }
+
     pub fn notifications(&self) -> Option<Notifications> {
         self.notifications.clone()
     }
@@ -470,8 +506,14 @@ impl Record {
     }
 
     pub fn add_field(&mut self, field: String, content: String) -> &mut Self {
-        self.fields.insert(field, content);
+        let mut v = self.fields.0.get(&field).unwrap_or(&Vec::new()).to_owned();
+        v.push(content);
+        self.fields.0.insert(field, v);
         self
+    }
+
+    pub fn get_field(&self, field: String) -> Option<Vec<String>> {
+        self.fields.0.get(&field).cloned()
     }
 
     pub fn add_notification(&mut self, notification: chrono::NaiveTime) -> &mut Self {
