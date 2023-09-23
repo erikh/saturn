@@ -366,7 +366,10 @@ mod tests {
                 "8:12:56",
                 chrono::NaiveTime::from_hms_opt(8, 12, 56).unwrap(),
             ),
-            ("8:00", chrono::NaiveTime::from_hms_opt(8, 0, 0).unwrap()),
+            (
+                "8:00",
+                chrono::NaiveTime::from_hms_opt(if pm { 20 } else { 8 }, 0, 0).unwrap(),
+            ),
             ("8am", chrono::NaiveTime::from_hms_opt(8, 0, 0).unwrap()),
             ("8:00pm", chrono::NaiveTime::from_hms_opt(20, 0, 0).unwrap()),
             ("8pm", chrono::NaiveTime::from_hms_opt(20, 0, 0).unwrap()),
@@ -374,8 +377,14 @@ mod tests {
                 "8:30pm",
                 chrono::NaiveTime::from_hms_opt(20, 30, 0).unwrap(),
             ),
-            ("8", chrono::NaiveTime::from_hms_opt(8, 0, 0).unwrap()),
-            ("8:30", chrono::NaiveTime::from_hms_opt(8, 30, 0).unwrap()),
+            (
+                "8",
+                chrono::NaiveTime::from_hms_opt(if pm { 20 } else { 8 }, 0, 0).unwrap(),
+            ),
+            (
+                "8:30",
+                chrono::NaiveTime::from_hms_opt(if pm { 20 } else { 8 }, 30, 0).unwrap(),
+            ),
         ];
 
         for (to_parse, t) in today_table {

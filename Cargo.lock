@@ -696,9 +696,9 @@ checksum = "0206175f82b8d6bf6652ff7d71a1e27fd2e4efde587fd368662814d6ec1d9ce0"
 
 [[package]]
 name = "fancy-duration"
-version = "0.5.1"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d00cac1bcf105f1bad0d5fb64e7b8d6f206a6ec384ab281437f9f7377290c9aa"
+checksum = "fc48355b7c7820f4c66ab40bfe71dfcaa70ef38c1637b2419f60fa3ea24c77fd"
 dependencies = [
  "anyhow",
  "chrono",
