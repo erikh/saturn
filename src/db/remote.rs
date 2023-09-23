@@ -22,6 +22,7 @@ pub struct RemoteDB {
     reverse_id_map: BTreeMap<u64, String>,
     recurring_id_map: BTreeMap<String, u64>,
     reverse_recurring_id_map: BTreeMap<u64, String>,
+    fields: BTreeMap<u64, crate::record::Fields>,
     calendar_id: String,
 }
 
@@ -44,6 +45,7 @@ impl RemoteDB {
             reverse_id_map: BTreeMap::default(),
             recurring_id_map: BTreeMap::default(),
             reverse_recurring_id_map: BTreeMap::default(),
+            fields: BTreeMap::default(),
             calendar_id,
         }
     }
@@ -142,6 +144,10 @@ impl RemoteDB {
                     )?);
                 }
             }
+
+            if let Some(fields) = self.fields.get(&record.primary_key()) {
+                record.set_fields(fields.clone());
+            }
         }
 
         Ok(records)
@@ -196,6 +202,7 @@ impl DB for RemoteDB {
         self.reverse_id_map = db.reverse_id_map;
         self.recurring_id_map = db.recurring_id_map;
         self.reverse_recurring_id_map = db.reverse_recurring_id_map;
+        self.fields = db.fields;
         self.update_recurrence().await
     }
 
@@ -375,9 +382,10 @@ impl<T: RemoteClient + Send + Sync + Default + std::fmt::Debug> DB for RemoteDBC
         let key = record.primary_key();
         let calendar_id = self.db.calendar_id.clone();
 
-        let internal_key = self.client.record(calendar_id, record).await?;
+        let internal_key = self.client.record(calendar_id, record.clone()).await?;
 
         self.db.add(internal_key, key);
+        self.db.fields.insert(key, record.fields());
         Ok(())
     }
 
@@ -472,6 +480,9 @@ impl<T: RemoteClient + Send + Sync + Default + std::fmt::Debug> DB for RemoteDBC
             .ok_or(anyhow!("No Record Found"))?;
         let mut rec = self.client.get(calendar_id, event_id).await?;
         rec.set_primary_key(primary_key);
+        if let Some(fields) = self.db.fields.get(&primary_key) {
+            rec.set_fields(fields.clone());
+        }
         Ok(rec)
     }
 
@@ -494,6 +505,7 @@ impl<T: RemoteClient + Send + Sync + Default + std::fmt::Debug> DB for RemoteDBC
 
     async fn update(&mut self, record: Record) -> Result<()> {
         let calendar_id = self.db.calendar_id.clone();
+        self.db.fields.insert(record.primary_key(), record.fields());
         self.client.update(calendar_id, record).await
     }
 

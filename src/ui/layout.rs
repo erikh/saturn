@@ -502,6 +502,10 @@ pub async fn build_show_event<'a>(
             Cell::from("type"),
             Cell::from(format!("{:?}", presented.typ)),
         ]),
+        Row::new(vec![
+            Cell::from("fields"),
+            Cell::from(record.fields().to_string()),
+        ]),
     ];
 
     match presented.typ {
