@@ -89,17 +89,7 @@ pub fn parse_entry(args: Vec<String>, use_24h_time: bool) -> Result<EntryRecord>
                 "me" => {}
                 _ => {
                     let duration = FancyDuration::<Duration>::parse(arg)?;
-                    if let Some(at) = record.at() {
-                        record.add_notification(at - duration.duration());
-                    } else if let Some(scheduled) = record.scheduled() {
-                        record.add_notification(scheduled.0 - duration.duration());
-                    } else if record.all_day() {
-                        record.add_notification(time(0, 0) - duration.duration());
-                    } else {
-                        return Err(anyhow!(
-                            "No time was scheduled to base this notification off of"
-                        ));
-                    }
+                    record.add_notification(duration.duration());
                     state = EntryState::Detail;
                 }
             },
@@ -421,15 +411,13 @@ mod tests {
             .set_at(Some(
                 chrono::NaiveTime::from_hms_opt(if pm { 20 } else { 8 }, 0, 0).unwrap(),
             ))
-            .add_notification(
-                chrono::NaiveTime::from_hms_opt(if pm { 19 } else { 7 }, 55, 0).unwrap(),
-            )
+            .add_notification(chrono::Duration::minutes(5))
             .set_detail("Test Today".to_string());
 
         let mut soda = record.clone();
         soda.set_date(chrono::NaiveDate::from_ymd_opt(now().year(), 8, 5).unwrap())
             .set_at(Some(chrono::NaiveTime::from_hms_opt(8, 0, 0).unwrap()))
-            .add_notification(chrono::NaiveTime::from_hms_opt(7, 55, 0).unwrap())
+            .add_notification(chrono::Duration::minutes(5))
             .set_detail("Get a Soda".to_string());
 
         let mut relax = record.clone();
@@ -442,7 +430,7 @@ mod tests {
         birthday
             .set_date(chrono::NaiveDate::from_ymd_opt(now().year(), 10, 23).unwrap())
             .set_at(Some(chrono::NaiveTime::from_hms_opt(7, 30, 0).unwrap()))
-            .add_notification(chrono::NaiveTime::from_hms_opt(6, 30, 0).unwrap())
+            .add_notification(chrono::Duration::hours(1))
             .set_detail("Tell my daughter 'happy birthday'".to_string());
 
         let mut new_year = record.clone();

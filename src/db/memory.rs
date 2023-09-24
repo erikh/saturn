@@ -1,3 +1,4 @@
+use super::unixfile::UnixFileLoader;
 use crate::{
     db::DB,
     filenames::saturn_db,
@@ -6,10 +7,9 @@ use crate::{
 };
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
+use chrono::Timelike;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
-
-use super::unixfile::UnixFileLoader;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct MemoryDB {
@@ -201,7 +201,7 @@ impl DB for MemoryDB {
 
         records.append(&mut next_day);
 
-        for mut item in records {
+        for item in records {
             if item.completed() && !include_completed {
                 continue;
             }
@@ -219,39 +219,28 @@ impl DB for MemoryDB {
                 && now().time() > chrono::NaiveTime::from_hms_opt(23, 59, 0).unwrap() - last
             {
                 ret.push(item.clone())
-            }
+            } else {
+                let dt = item.datetime();
+                let n = now();
+                if dt > n && n > dt - last {
+                    ret.push(item);
+                } else if let Some(notifications) = item.notifications() {
+                    for notification in notifications {
+                        let dt_window = dt - notification.duration();
+                        let dt_time = dt_window
+                            .time()
+                            .with_second(0)
+                            .unwrap()
+                            .with_nanosecond(0)
+                            .unwrap();
+                        let n_time = n.time().with_second(0).unwrap().with_nanosecond(0).unwrap();
 
-            if let Some(notifications) = item.notifications() {
-                let mut new = Vec::new();
-                let mut pushed = false;
-
-                for notification in notifications {
-                    if notification < now().time() {
-                        if let Some(at) = item.at() {
-                            if now().time() < at && !pushed {
-                                ret.push(item.clone());
-                                pushed = true
-                            }
-                        } else if let Some(schedule) = item.scheduled() {
-                            if now().time() < schedule.0 && !pushed {
-                                ret.push(item.clone());
-                                pushed = true
-                            }
-                        } else if item.all_day()
-                            && item.date() - chrono::Duration::days(1) == now().date_naive()
-                            && now().time()
-                                > chrono::NaiveTime::from_hms_opt(23, 59, 0).unwrap() - last
-                            && !pushed
-                        {
-                            ret.push(item.clone());
-                            pushed = true;
+                        if dt > n && dt_window.date_naive() == n.date_naive() && dt_time == n_time {
+                            ret.push(item);
+                            break;
                         }
-                    } else {
-                        new.push(notification);
                     }
                 }
-
-                item.set_notifications(Some(new));
             }
         }
 

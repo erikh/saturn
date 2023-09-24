@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
 pub type Schedule = (chrono::NaiveTime, chrono::NaiveTime);
-pub type Notifications = Vec<chrono::NaiveTime>;
+pub type Notifications = Vec<fancy_duration::FancyDuration<chrono::Duration>>;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum RecordType {
@@ -333,7 +333,7 @@ impl RecurringRecord {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Record {
     primary_key: u64,
     recurrence_key: Option<u64>,
@@ -516,7 +516,8 @@ impl Record {
         self.fields.0.get(&field).cloned()
     }
 
-    pub fn add_notification(&mut self, notification: chrono::NaiveTime) -> &mut Self {
+    pub fn add_notification(&mut self, notification: chrono::Duration) -> &mut Self {
+        let notification = fancy_duration::FancyDuration::new(notification);
         if let Some(notifications) = &mut self.notifications {
             notifications.push(notification)
         } else {
@@ -526,7 +527,7 @@ impl Record {
         self
     }
 
-    pub fn set_notifications(&mut self, notifications: Option<Vec<chrono::NaiveTime>>) {
+    pub fn set_notifications(&mut self, notifications: Option<Notifications>) {
         self.notifications = notifications
     }
 }
