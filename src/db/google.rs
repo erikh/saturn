@@ -3,7 +3,7 @@ use crate::{
     db::RemoteClient,
     do_client,
     record::{Record, RecordType, RecurringRecord},
-    time::now,
+    time::{now, window},
 };
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
@@ -11,7 +11,8 @@ use chrono::Timelike;
 use gcal::{
     oauth::{request_access_token, AccessToken},
     resources::{
-        CalendarListClient, CalendarListItem, Event, EventCalendarDate, EventClient, EventStatus,
+        CalendarListClient, CalendarListItem, DefaultReminder, Event, EventCalendarDate,
+        EventClient, EventReminder, EventStatus,
     },
     Client, ClientError,
 };
@@ -66,78 +67,32 @@ impl GoogleClient {
     }
 
     pub async fn record_to_event(&mut self, calendar_id: String, record: &mut Record) -> Event {
-        let start = match record.record_type() {
-            RecordType::At => Some(EventCalendarDate {
-                date_time: Some(
-                    record
-                        .datetime()
-                        .with_timezone(&chrono_tz::UTC)
-                        .to_rfc3339(),
-                ),
-                time_zone: Some("UTC".to_string()),
-                ..Default::default()
-            }),
-            RecordType::Schedule => {
-                let dt = chrono::NaiveDateTime::new(record.date(), record.scheduled().unwrap().0)
-                    .and_local_timezone(now().timezone())
-                    .unwrap()
-                    .with_timezone(&chrono_tz::UTC);
-                Some(EventCalendarDate {
-                    date_time: Some(dt.to_rfc3339()),
-                    time_zone: Some("UTC".to_string()),
-                    ..Default::default()
-                })
-            }
-            RecordType::AllDay => Some(EventCalendarDate {
-                date_time: Some(
-                    chrono::NaiveDateTime::new(
-                        record.date(),
-                        chrono::NaiveTime::from_hms_opt(0, 0, 0).unwrap(),
-                    )
-                    .and_local_timezone(now().timezone())
-                    .unwrap()
-                    .with_timezone(&chrono_tz::UTC)
-                    .to_rfc3339(),
-                ),
-                time_zone: Some("UTC".to_string()),
-                ..Default::default()
-            }),
+        let start_chrono = record.datetime().with_timezone(&chrono_tz::UTC);
+
+        let start = EventCalendarDate {
+            date_time: Some(start_chrono.to_rfc3339()),
+            ..Default::default()
         };
 
         let end = match record.record_type() {
             RecordType::At => Some(EventCalendarDate {
                 date_time: Some(
-                    (record.datetime() + self.config.default_duration().duration())
-                        .with_timezone(&chrono_tz::UTC)
-                        .to_rfc3339(),
+                    (start_chrono + self.config.default_duration().duration()).to_rfc3339(),
                 ),
-                time_zone: Some("UTC".to_string()),
                 ..Default::default()
             }),
             RecordType::Schedule => {
                 let dt = chrono::NaiveDateTime::new(record.date(), record.scheduled().unwrap().1)
-                    .and_local_timezone(now().timezone())
-                    .unwrap()
-                    .with_timezone(&chrono_tz::UTC);
+                    .and_local_timezone(chrono::Local)
+                    .unwrap();
 
                 Some(EventCalendarDate {
                     date_time: Some(dt.to_rfc3339()),
-                    time_zone: Some("UTC".to_string()),
                     ..Default::default()
                 })
             }
             RecordType::AllDay => Some(EventCalendarDate {
-                date_time: Some(
-                    (chrono::NaiveDateTime::new(
-                        record.date(),
-                        chrono::NaiveTime::from_hms_opt(0, 0, 0).unwrap(),
-                    ) + chrono::Duration::days(1))
-                    .and_local_timezone(now().timezone())
-                    .unwrap()
-                    .with_timezone(&chrono_tz::UTC)
-                    .to_rfc3339(),
-                ),
-                time_zone: Some("UTC".to_string()),
+                date_time: Some((start_chrono + chrono::Duration::days(1)).to_rfc3339()),
                 ..Default::default()
             }),
         };
@@ -172,12 +127,35 @@ impl GoogleClient {
             f(record.clone())
         };
 
-        if start.is_some() {
-            event.start = start;
-        }
+        event.start = Some(start);
 
         if end.is_some() {
             event.end = end;
+        }
+
+        if let Some(notifications) = record.notifications() {
+            let mut reminders = EventReminder::default();
+
+            for notification in notifications {
+                if notification.duration() == chrono::Duration::minutes(10) {
+                    reminders.use_default = true;
+                } else {
+                    let mut overrides = Vec::new();
+                    if let Ok(minutes) = notification.duration().num_minutes().try_into() {
+                        overrides.push(DefaultReminder {
+                            method: gcal::ReminderMethod::PopUp,
+                            minutes,
+                        });
+                    }
+                    reminders.overrides = Some(overrides);
+                }
+            }
+
+            if !reminders.use_default || reminders.overrides.is_some() {
+                event.reminders = Some(reminders);
+            } else {
+                event.reminders = None;
+            }
         }
 
         event.calendar_id = Some(calendar_id.clone());
@@ -365,6 +343,25 @@ impl GoogleClient {
         let start_time = start_time.unwrap_or(now.naive_local());
         let date = date.unwrap_or(start_time.date());
 
+        if let Some(reminders) = event.reminders {
+            if reminders.use_default {
+                record.add_notification(chrono::Duration::minutes(10));
+            }
+
+            if let Some(overrides) = reminders.overrides {
+                for notification in overrides {
+                    match notification.method {
+                        gcal::ReminderMethod::PopUp => {
+                            record.add_notification(chrono::Duration::minutes(
+                                notification.minutes.into(),
+                            ));
+                        }
+                        _ => {}
+                    }
+                }
+            }
+        }
+
         match schedule {
             RecordType::AllDay => {
                 record.set_all_day();
@@ -501,11 +498,8 @@ impl RemoteClient for GoogleClient {
         let list = EventClient::new(self.client());
 
         let mut events = do_client!(self, {
-            list.list(
-                calendar_id.clone(),
-                now() - chrono::Duration::days(30),
-                now() + chrono::Duration::days(30),
-            )
+            let window = window();
+            list.list(calendar_id.clone(), window.0, window.1)
         })?;
 
         let mut v = Vec::new();
@@ -556,25 +550,8 @@ impl RemoteClient for GoogleClient {
         calendar_id: String,
         _include_completed: bool, // FIXME include tasks
     ) -> Result<Vec<Record>> {
-        self.perform_list(
-            calendar_id,
-            (now()
-                .with_hour(0)
-                .unwrap()
-                .with_minute(0)
-                .unwrap()
-                .with_second(0)
-                .unwrap())
-                - chrono::Duration::days(30),
-            (now() + chrono::Duration::days(30))
-                .with_hour(0)
-                .unwrap()
-                .with_minute(0)
-                .unwrap()
-                .with_second(0)
-                .unwrap(),
-        )
-        .await
+        let window = window();
+        self.perform_list(calendar_id, window.0, window.1).await
     }
 
     async fn events_now(
@@ -583,7 +560,34 @@ impl RemoteClient for GoogleClient {
         last: chrono::Duration,
         _include_completed: bool,
     ) -> Result<Vec<Record>> {
-        self.perform_list(calendar_id, now() - last, now()).await
+        let window = window();
+        let list = self.perform_list(calendar_id, window.0, window.1).await?;
+        let mut v = Vec::new();
+        for item in list {
+            let dt = item.datetime();
+            let n = now();
+            if dt > n && n > dt - last {
+                v.push(item);
+            } else if let Some(notifications) = item.notifications() {
+                for notification in notifications {
+                    let dt_window = dt - notification.duration();
+                    let dt_time = dt_window
+                        .time()
+                        .with_second(0)
+                        .unwrap()
+                        .with_nanosecond(0)
+                        .unwrap();
+                    let n_time = n.time().with_second(0).unwrap().with_nanosecond(0).unwrap();
+
+                    if dt > n && dt_window.date_naive() == n.date_naive() && dt_time == n_time {
+                        v.push(item);
+                        break;
+                    }
+                }
+            }
+        }
+
+        Ok(v)
     }
 
     async fn complete_task(&mut self, _calendar_id: String, _primary_key: u64) -> Result<()> {
