@@ -5,42 +5,51 @@ use chrono::{Datelike, Timelike};
 const DATE_ENDINGS: [&str; 4] = ["th", "st", "rd", "nd"];
 
 pub fn parse_date(s: String) -> Result<chrono::NaiveDate> {
-    let regex = regex::Regex::new(r#"[/.-]"#)?;
-    let split = regex.split(&s);
-    let parts = split.collect::<Vec<&str>>();
-    match parts.len() {
-        3 => {
-            // FIXME this should be locale-based
-            Ok(chrono::NaiveDate::from_ymd_opt(
-                parts[0].parse()?,
-                parts[1].parse()?,
-                parts[2].parse()?,
-            )
-            .expect("Invalid Date"))
-        }
-        2 => {
-            // FIXME this should be locale-based
-            Ok(
-                chrono::NaiveDate::from_ymd_opt(now().year(), parts[0].parse()?, parts[1].parse()?)
-                    .expect("Invalid Date"),
-            )
-        }
-        1 => {
-            let now = now();
-            let mut part = parts[0].trim().to_string();
-            for ending in DATE_ENDINGS {
-                if part.ends_with(ending) {
-                    part = part.replace(ending, "");
-                    break;
+    match s.as_str() {
+        "today" => Ok(now().date_naive()),
+        "yesterday" => Ok((now() - chrono::Duration::days(1)).date_naive()),
+        "tomorrow" => Ok((now() + chrono::Duration::days(1)).date_naive()),
+        _ => {
+            let regex = regex::Regex::new(r#"[/.-]"#)?;
+            let split = regex.split(&s);
+            let parts = split.collect::<Vec<&str>>();
+            match parts.len() {
+                3 => {
+                    // FIXME this should be locale-based
+                    Ok(chrono::NaiveDate::from_ymd_opt(
+                        parts[0].parse()?,
+                        parts[1].parse()?,
+                        parts[2].parse()?,
+                    )
+                    .expect("Invalid Date"))
                 }
+                2 => {
+                    // FIXME this should be locale-based
+                    Ok(chrono::NaiveDate::from_ymd_opt(
+                        now().year(),
+                        parts[0].parse()?,
+                        parts[1].parse()?,
+                    )
+                    .expect("Invalid Date"))
+                }
+                1 => {
+                    let now = now();
+                    let mut part = parts[0].trim().to_string();
+                    for ending in DATE_ENDINGS {
+                        if part.ends_with(ending) {
+                            part = part.replace(ending, "");
+                            break;
+                        }
+                    }
+                    // FIXME this should be locale-based
+                    Ok(
+                        chrono::NaiveDate::from_ymd_opt(now.year(), now.month(), part.parse()?)
+                            .expect("Invalid Date"),
+                    )
+                }
+                _ => Err(anyhow!("Cannot parse date")),
             }
-            // FIXME this should be locale-based
-            Ok(
-                chrono::NaiveDate::from_ymd_opt(now.year(), now.month(), part.parse()?)
-                    .expect("Invalid Date"),
-            )
         }
-        _ => Err(anyhow!("Cannot parse date")),
     }
 }
 

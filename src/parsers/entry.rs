@@ -1,8 +1,5 @@
 use super::parser::{parse_date, parse_time};
-use crate::{
-    record::{Record, RecurringRecord},
-    time::now,
-};
+use crate::record::{Record, RecurringRecord};
 use anyhow::{anyhow, Result};
 use chrono::Duration;
 use fancy_duration::FancyDuration;
@@ -18,7 +15,7 @@ impl EntryParser {
         Self { args, use_24h_time }
     }
 
-    pub fn to_record(&self) -> Result<EntryRecord, anyhow::Error> {
+    pub fn to_record(&self) -> Result<EntryRecord> {
         parse_entry(self.args.clone(), self.use_24h_time)
     }
 }
@@ -51,13 +48,12 @@ impl EntryRecord {
     }
 }
 
-pub fn parse_entry(args: Vec<String>, use_24h_time: bool) -> Result<EntryRecord> {
+fn parse_entry(args: Vec<String>, use_24h_time: bool) -> Result<EntryRecord> {
     let mut record = Record::build();
     let mut state = EntryState::Date;
 
     let mut scheduled_first: Option<chrono::NaiveTime> = None;
     let mut recurrence: Option<FancyDuration<Duration>> = None;
-    let mut today = false;
 
     for arg in &args {
         match state {
@@ -67,21 +63,6 @@ pub fn parse_entry(args: Vec<String>, use_24h_time: bool) -> Result<EntryRecord>
             }
             EntryState::Date => {
                 match arg.to_lowercase().as_str() {
-                    "today" => {
-                        record.set_date(now().date_naive());
-                        if !use_24h_time {
-                            today = true;
-                        }
-                        state = EntryState::Time;
-                    }
-                    "yesterday" => {
-                        record.set_date((now() - Duration::days(1)).date_naive());
-                        state = EntryState::Time;
-                    }
-                    "tomorrow" => {
-                        record.set_date((now() + Duration::days(1)).date_naive());
-                        state = EntryState::Time;
-                    }
                     "recur" => {
                         state = EntryState::Recur;
                     }
@@ -102,12 +83,12 @@ pub fn parse_entry(args: Vec<String>, use_24h_time: bool) -> Result<EntryRecord>
             },
             EntryState::TimeAt => {
                 if arg != "day" {
-                    record.set_at(Some(parse_time(arg.to_string(), today)?));
+                    record.set_at(Some(parse_time(arg.to_string(), !use_24h_time)?));
                 }
                 state = EntryState::Notify;
             }
             EntryState::TimeScheduled => {
-                scheduled_first = Some(parse_time(arg.to_string(), today)?);
+                scheduled_first = Some(parse_time(arg.to_string(), !use_24h_time)?);
                 state = EntryState::TimeScheduledHalf;
             }
             EntryState::TimeScheduledHalf => match arg.as_str() {
@@ -115,7 +96,7 @@ pub fn parse_entry(args: Vec<String>, use_24h_time: bool) -> Result<EntryRecord>
                 _ => {
                     record.set_scheduled(Some((
                         scheduled_first.unwrap(),
-                        parse_time(arg.to_string(), today)?,
+                        parse_time(arg.to_string(), !use_24h_time)?,
                     )));
                     state = EntryState::Notify;
                 }
@@ -173,7 +154,9 @@ mod tests {
 
         let mut soda = record.clone();
         soda.set_date(chrono::NaiveDate::from_ymd_opt(now().year(), 8, 5).unwrap())
-            .set_at(Some(chrono::NaiveTime::from_hms_opt(8, 0, 0).unwrap()))
+            .set_at(Some(
+                chrono::NaiveTime::from_hms_opt(if pm { 20 } else { 8 }, 0, 0).unwrap(),
+            ))
             .add_notification(chrono::Duration::minutes(5))
             .set_detail("Get a Soda".to_string());
 
