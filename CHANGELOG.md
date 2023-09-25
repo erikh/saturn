@@ -1,4 +1,9 @@
 -   HEAD:
+    -   `saturn dump` was renamed to `saturn show`. `dump` will be a new subcommand in the future.
+    -   Google Calendar notification settings are now honored.
+    -   Support fields in editor and google calendar implementations. Fields
+        are now a map of string -> array of string and are shown in listing
+        commands.
     -   Fix an issue where all day tasks on sundays would not be shown
     -   Several style changes to `sui`:
         -   Replaced underlining today's tasks with coloring them in bright
