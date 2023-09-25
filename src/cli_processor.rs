@@ -209,7 +209,7 @@ macro_rules! process_cli {
             }
             Command::Entry { args } => {
                 $db.list_all(false).await?;
-                $db.record_entry($crate::entry::EntryParser::new(
+                $db.record_entry($crate::parsers::entry::EntryParser::new(
                     args,
                     $config.use_24h_time(),
                 ))
@@ -289,7 +289,7 @@ macro_rules! process_ui_command {
                         .filter(|x| !x.is_empty())
                         .map(|s| s.to_string())
                         .collect::<Vec<String>>();
-                    $db.record_entry($crate::entry::EntryParser::new(
+                    $db.record_entry($crate::parsers::entry::EntryParser::new(
                         parts,
                         $config.use_24h_time(),
                     ))

@@ -5,7 +5,7 @@ pub mod remote;
 pub mod unixfile;
 
 use crate::{
-    entry::EntryParser,
+    parsers::entry::EntryParser,
     record::{Record, RecurringRecord},
 };
 use anyhow::Result;
