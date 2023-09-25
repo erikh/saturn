@@ -238,6 +238,7 @@ macro_rules! process_cli {
                     println!("{}", serde_yaml::to_string(&presented)?);
                 }
             }
+            Command::Search { .. } => {}
         }
 
         $db.dump().await?;
