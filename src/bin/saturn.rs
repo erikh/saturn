@@ -122,9 +122,9 @@ enum Command {
         id: u64,
     },
     #[command(
-        about = "Dump the details of a specific calendar ID. Use `-r` to specify recurring tasks."
+        about = "Show the details of a specific calendar ID. Use `-r` to specify recurring tasks."
     )]
-    Dump {
+    Show {
         #[arg(short = 'r', long, help = "ID is a recurring task")]
         recur: bool,
         id: u64,

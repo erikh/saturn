@@ -228,7 +228,7 @@ macro_rules! process_cli {
                     $crate::launch_editor!($db, id, $crate::record::PresentedRecord, get, false);
                 }
             }
-            Command::Dump { recur, id } => {
+            Command::Show { recur, id } => {
                 if recur {
                     let presented: $crate::record::PresentedRecurringRecord =
                         $db.get_recurring(id).await?.into();
