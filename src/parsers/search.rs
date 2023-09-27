@@ -218,7 +218,10 @@ fn filter(to_search: Vec<Record>, actions: Vec<SearchParserAction>) -> Result<Ve
                     let itemdate = item.datetime().time();
                     itemdate >= *start && itemdate <= *end
                 }
-                SearchParserAction::Detail(message) => item.detail().contains(message),
+                SearchParserAction::Detail(message) => item
+                    .detail()
+                    .to_lowercase()
+                    .contains(&message.to_lowercase()),
                 SearchParserAction::Recur(id) => {
                     if let Some(key) = item.recurrence_key() {
                         key == *id

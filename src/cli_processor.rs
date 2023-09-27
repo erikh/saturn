@@ -238,7 +238,11 @@ macro_rules! process_cli {
                     println!("{}", serde_yaml::to_string(&presented)?);
                 }
             }
-            Command::Search { .. } => {}
+            Command::Search { terms } => {
+                let parser =
+                    $crate::parsers::search::SearchParser::new(terms, $db.list_all(false).await?);
+                print_entries(parser.perform()?);
+            }
         }
 
         $db.dump().await?;
@@ -249,10 +253,13 @@ macro_rules! process_cli {
 macro_rules! list_ui {
     ($db:ident, $list_type:ident) => {{
         $db.load().await?;
+
         let all = match $list_type {
             $crate::ui::types::ListType::All => $db.list_all(true).await?,
             $crate::ui::types::ListType::Today => $db.list_today(true).await?,
-            $crate::ui::types::ListType::Recurring => Vec::new(),
+            $crate::ui::types::ListType::Recurring | $crate::ui::types::ListType::Search => {
+                Vec::new()
+            }
         };
 
         $db.dump().await?;
@@ -271,7 +278,18 @@ macro_rules! process_ui_command {
         drop(lock);
         if command.is_some() {
             $db.load().await?;
-            match command.unwrap() {
+            match command.clone().unwrap() {
+                $crate::ui::types::CommandType::Search(terms) => {
+                    let parser = $crate::parsers::search::SearchParser::new(
+                        terms,
+                        $db.list_all(false).await?,
+                    );
+                    let mut inner = $obj.lock().await;
+                    inner.list_type = $crate::ui::types::ListType::Search;
+                    inner.records = parser.perform()?;
+                    inner.records.sort_by($crate::record::sort_records);
+                    inner.redraw = true;
+                }
                 $crate::ui::types::CommandType::Delete(items) => {
                     for item in items {
                         $db.delete(item).await?

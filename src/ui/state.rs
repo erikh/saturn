@@ -139,7 +139,7 @@ impl<'a> ProtectedState<'a> {
             inner.recurring_records.clear();
             inner.recurring_records.append(&mut list);
             inner.redraw = true;
-        } else {
+        } else if !matches!(list_type, super::types::ListType::Search) {
             let mut list = match typ {
                 DBType::UnixFile => self.list_file(list_type).await,
                 DBType::Google => self.list_google(config, list_type).await,
