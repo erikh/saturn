@@ -202,6 +202,9 @@ Search allows you to search by metadata using an English-like syntax similar to
 `saturn /` (a literal forward slash) followed by the metadata commands. In
 `sui`, you can use `search` or `/` at the prompt with the same syntax.
 
+In `sui`, search does not live update; you must execute the search command
+again to see new results.
+
 Times, Dates and Durations are all the same as mentioned earlier in this document.
 Search terms can be combined to form more advanced queries; currently, the only
 boolean operation is "AND", so for example two separate dates will result in no
