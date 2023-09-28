@@ -122,7 +122,8 @@ enum Command {
         id: u64,
     },
     #[command(
-        about = "Show the details of a specific calendar ID. Use `-r` to specify recurring tasks."
+        alias = "s",
+        about = "Also `s`. Show the details of a specific calendar ID. Use `-r` to specify recurring tasks."
     )]
     Show {
         #[arg(short = 'r', long, help = "ID is a recurring task")]
@@ -143,6 +144,11 @@ enum Command {
         #[arg(short = 'c', long, help = "Include completed tasks (unixfile only)")]
         include_completed: bool,
     },
+    #[command(
+        alias = "/",
+        about = "Also `/`. Search with terms to identify different calendar items."
+    )]
+    Search { terms: Vec<String> },
 }
 
 fn get_well(well: Option<String>) -> Result<chrono::Duration> {

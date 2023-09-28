@@ -36,6 +36,7 @@ Here is what it looks like:
     -   [Notifying](#notifying)
     -   [Editing](#editing)
     -   [Deletion and Mutation](#deletion-and-mutation)
+    -   [Search](#search)
 -   [Database &amp; Configuration File](#database--configuration-file)
 -   [Leveraging the well features with a periodic scheduler](#leveraging-the-well-features-with-a-periodic-scheduler)
 -   [Recurring tasks](#recurring-tasks)
@@ -191,6 +192,59 @@ Will mark a task as "completed". Completed tasks get a visual notification and
 are automatically excluded from listing without the `--all` flag.
 
 Does not work with Google Calendar.
+
+### Search
+
+Search is only available on `main` branch, or v0.4.0+.
+
+Search allows you to search by metadata using an English-like syntax similar to
+`saturn entry`. You can initiate this search by using `saturn search` or
+`saturn /` (a literal forward slash) followed by the metadata commands. In
+`sui`, you can use `search` or `/` at the prompt with the same syntax.
+
+Times, Dates and Durations are all the same as mentioned earlier in this document.
+Search terms can be combined to form more advanced queries; currently, the only
+boolean operation is "AND", so for example two separate dates will result in no
+results as nothing can match both. Boolean operations in search are a planned
+feature.
+
+The terms (and their parameters) follow:
+
+-   `field`: field takes a required `key` parameter which is followed by the name
+    of the key you want to search for. If a value is omitted, only presence of
+    the key is required. To provide a value, specify `value`. Keys and values do
+    not need to be presented in any specific order.
+-   `date`: Specify a date to match. If the keyword `from` is provided in the
+    first position instead of a date, you may specify a date range with the
+    syntax `<start date> to <end date>`.
+-   `time`: Specify a time to match. `from` works just like with `date`.
+-   `detail`: This is the summary of your event, and is a substring,
+    case-insensitive match. Regular expressions and other free-form text options
+    will come eventually.
+-   `recur`: This matches all tasks that belong to a specific recurring task,
+    specified by ID. Use `show recur` in `sui` or `saturn list -r` to list
+    recurring tasks.
+-   `finished`: For tasks that support being marked completed, this only matches those.
+-   `unfinished`: the inverse of `finished`.
+
+As mentioned prior, search terms can be combined with boolean "AND", which is
+implicit. Here are some examples of search terms you can use:
+
+-   `saturn search date 10/23`: Find all calendar items that are on October 23rd
+    of this year.
+-   `saturn search date 10/23 time from 2pm to 10pm`: Find all calendar items
+    that are on October 23rd and occur between 2 and 10pm.
+-   `saturn search date 10/23 time from 2pm to 10pm detail Scarlett`: Find all
+    calendar items that are on October 23rd and occur between 2 and 10pm and
+    contain the word "Scarlett" in the item summary.
+-   `saturn search date 10/23 time from 2pm to 10pm detail Scarlett unfinished`:
+    Find all calendar items that are on October 23rd, occur between 2 and 10pm,
+    contain the word "Scarlett" in the item summary and have not been completed.
+
+To return to the full listing in `sui`, use one of the `show` commands, such as
+`show all`.
+
+Search will evolve over time and suggestions on how to improve it are welcome.
 
 ## Database & Configuration File
 

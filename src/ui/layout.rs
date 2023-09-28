@@ -301,6 +301,36 @@ pub async fn read_input<'a>(
                                     }
                                 }
                             });
+                        } else if x.starts_with("/ ") || x.starts_with("search") {
+                            let x = x.to_string();
+
+                            let state = state.clone();
+                            tokio::spawn(async move {
+                                state.lock().await.command = Some(CommandType::Search(
+                                    if x.starts_with("search ") {
+                                        x.trim_start_matches("search ")
+                                    } else {
+                                        x.trim_start_matches("/ ")
+                                    }
+                                    .to_string()
+                                    .split(" ")
+                                    .filter_map(|x| {
+                                        if x.is_empty() {
+                                            None
+                                        } else {
+                                            Some(x.to_string())
+                                        }
+                                    })
+                                    .collect(),
+                                ));
+                                state.add_notification("Updating state").await;
+                                match state.update_state().await {
+                                    Ok(_) => {}
+                                    Err(e) => {
+                                        state.add_notification(&format!("Error: {}", e)).await;
+                                    }
+                                }
+                            });
                         } else {
                             state.add_notification("Invalid Command").await;
                         }
@@ -309,7 +339,7 @@ pub async fn read_input<'a>(
                 buf = String::new();
             }
             state.lock().await.line_buf = buf;
-            tokio::time::sleep(Duration::new(0, 50)).await;
+            tokio::time::sleep(Duration::new(0, 500000)).await;
         } else {
             tokio::time::sleep(Duration::new(1, 0)).await;
         }
@@ -667,7 +697,7 @@ pub async fn build_events<'a>(state: ProtectedState<'static>) -> Result<Arc<Tabl
 
     let mut inner = state.lock().await;
     let rows = match inner.list_type {
-        ListType::All | ListType::Today => inner
+        ListType::All | ListType::Today | ListType::Search => inner
             .records
             .iter()
             .filter_map(|r| {
@@ -734,6 +764,7 @@ pub async fn build_events<'a>(state: ProtectedState<'static>) -> Result<Arc<Tabl
                         ListType::All => "All Events",
                         ListType::Today => "Today's Events",
                         ListType::Recurring => "Recurring Events",
+                        ListType::Search => "Search Results",
                     }),
             )
             .widths(&[

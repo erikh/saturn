@@ -4,6 +4,7 @@ pub enum ListType {
     All,
     Today,
     Recurring,
+    Search,
 }
 
 #[derive(Debug, Clone)]
@@ -13,4 +14,5 @@ pub enum CommandType {
     Entry(String),
     Edit(bool, u64),
     Show(bool, u64),
+    Search(Vec<String>),
 }
