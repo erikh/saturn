@@ -17,7 +17,7 @@ pub struct State<'a> {
     pub list_type: super::types::ListType,
     pub notification: Option<(String, chrono::NaiveDateTime)>,
     pub line_buf: String,
-    pub command: Option<super::types::CommandType>,
+    pub commands: Vec<super::types::CommandType>,
     pub show: Option<Record>,
     pub show_recurring: Option<RecurringRecord>,
     pub calendar: Option<(Arc<Table<'a>>, chrono::NaiveDateTime)>,
