@@ -1,4 +1,6 @@
 -   HEAD:
+    -   Fixed another race condition plaguing launches of `$EDITOR` for edit commands in `sui`.
+    -   New search feature! See [README](README.md) for more.
     -   `saturn dump` was renamed to `saturn show`. `dump` will be a new subcommand in the future.
     -   Google Calendar notification settings are now honored.
     -   Support fields in editor and google calendar implementations. Fields
