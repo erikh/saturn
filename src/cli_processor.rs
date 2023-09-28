@@ -272,13 +272,13 @@ macro_rules! list_ui {
 macro_rules! process_ui_command {
     ($obj:ident, $db:ident, $config:ident) => {{
         let mut lock = $obj.lock().await;
-        let command = lock.command.clone();
-        lock.command = None;
+        let commands = lock.commands.clone();
+        lock.commands = Vec::new();
         lock.block_ui = true;
         drop(lock);
-        if command.is_some() {
-            $db.load().await?;
-            match command.clone().unwrap() {
+        $db.load().await?;
+        for command in commands {
+            match command {
                 $crate::ui::types::CommandType::Search(terms) => {
                     let parser = $crate::parsers::search::SearchParser::new(
                         terms,
@@ -344,8 +344,8 @@ macro_rules! process_ui_command {
                     }
                 }
             };
-            $db.dump().await?;
         }
+        $db.dump().await?;
         let mut lock = $obj.lock().await;
         lock.block_ui = false;
     }};

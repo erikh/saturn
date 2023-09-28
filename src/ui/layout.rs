@@ -130,8 +130,11 @@ pub async fn read_input<'a>(
                                 "recur" | "recurring" | "recurrence" | "r" => {
                                     if m.len() == 2 {
                                         if let Ok(id) = m[1].parse::<u64>() {
-                                            state.lock().await.command =
-                                                Some(CommandType::Show(true, id));
+                                            state
+                                                .lock()
+                                                .await
+                                                .commands
+                                                .push(CommandType::Show(true, id));
                                             state.add_notification("Updating state").await;
                                         } else {
                                             state
@@ -160,8 +163,11 @@ pub async fn read_input<'a>(
                                 }
                                 id => {
                                     if let Ok(id) = id.parse::<u64>() {
-                                        state.lock().await.command =
-                                            Some(CommandType::Show(false, id));
+                                        state
+                                            .lock()
+                                            .await
+                                            .commands
+                                            .push(CommandType::Show(false, id));
                                         state.add_notification("Updating state").await;
                                     } else {
                                         state
@@ -221,7 +227,7 @@ pub async fn read_input<'a>(
 
                             let state = state.clone();
                             tokio::spawn(async move {
-                                state.lock().await.command = Some(command);
+                                state.lock().await.commands.push(command);
                                 state.add_notification("Updating state").await;
                                 match state.update_state().await {
                                     Ok(_) => {}
@@ -235,7 +241,7 @@ pub async fn read_input<'a>(
 
                             let state = state.clone();
                             tokio::spawn(async move {
-                                state.lock().await.command = Some(CommandType::Entry(
+                                state.lock().await.commands.push(CommandType::Entry(
                                     if x.starts_with("entry ") {
                                         x.trim_start_matches("entry ")
                                     } else {
@@ -289,8 +295,11 @@ pub async fn read_input<'a>(
                                 if v.is_empty() {
                                     state.add_notification("Edit requires an ID").await;
                                 } else {
-                                    state.lock().await.command =
-                                        Some(CommandType::Edit(recur, v[0]));
+                                    state
+                                        .lock()
+                                        .await
+                                        .commands
+                                        .push(CommandType::Edit(recur, v[0]));
                                     state.add_notification("Updating state").await;
                                 }
 
@@ -306,7 +315,7 @@ pub async fn read_input<'a>(
 
                             let state = state.clone();
                             tokio::spawn(async move {
-                                state.lock().await.command = Some(CommandType::Search(
+                                state.lock().await.commands.push(CommandType::Search(
                                     if x.starts_with("search ") {
                                         x.trim_start_matches("search ")
                                     } else {
