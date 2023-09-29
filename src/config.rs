@@ -21,6 +21,7 @@ pub struct Config {
     refresh_token_expires_at: Option<chrono::NaiveDateTime>,
     client_info: Option<(String, String)>,
     redirect_url: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     sync_duration: Option<FancyDuration<Duration>>,
     default_duration: Option<FancyDuration<Duration>>,
     use_24h_time: Option<bool>,
@@ -150,14 +151,6 @@ impl Config {
 
     pub fn db_type(&self) -> DBType {
         self.db_type.clone()
-    }
-
-    pub fn set_sync_duration(&mut self, sync_duration: Option<FancyDuration<Duration>>) {
-        self.sync_duration = sync_duration;
-    }
-
-    pub fn sync_duration(&self) -> Option<FancyDuration<Duration>> {
-        self.sync_duration.clone()
     }
 
     pub fn use_24h_time(&self) -> bool {

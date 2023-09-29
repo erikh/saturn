@@ -70,6 +70,11 @@ macro_rules! process_cli {
 
         match $cli.command {
             Command::Config { command } => match command {
+                ConfigCommand::SetQueryWindow { set } => {
+                    let mut config = Config::load(None)?;
+                    config.set_query_window(FancyDuration::parse(&set)?.duration());
+                    config.save(None)?;
+                }
                 ConfigCommand::Set24hTime { set } => {
                     let mut config = Config::load(None)?;
                     config.set_use_24h_time(set);
@@ -84,13 +89,6 @@ macro_rules! process_cli {
                     config.save(None)?;
                 }
                 ConfigCommand::GetToken {} => $crate::oauth::get_access_token().await?,
-                ConfigCommand::SetSyncWindow { window } => {
-                    let mut config = Config::load(None)?;
-                    config.set_sync_duration(Some(FancyDuration::<chrono::Duration>::parse(
-                        &window,
-                    )?));
-                    config.save(None)?;
-                }
                 ConfigCommand::DBType { db_type } => {
                     let mut config = Config::load(None)?;
                     let typ = match db_type.as_str() {
