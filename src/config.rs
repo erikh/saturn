@@ -24,6 +24,7 @@ pub struct Config {
     sync_duration: Option<FancyDuration<Duration>>,
     default_duration: Option<FancyDuration<Duration>>,
     use_24h_time: Option<bool>,
+    query_window: Option<FancyDuration<Duration>>,
     calendar_id: String,
 }
 
@@ -44,6 +45,7 @@ impl From<Config> for ClientParameters {
 impl Default for Config {
     fn default() -> Self {
         Self {
+            query_window: Some(FancyDuration::new(chrono::Duration::days(30))),
             use_24h_time: Some(false),
             db_type: DBType::UnixFile,
             access_token: None,
@@ -164,6 +166,16 @@ impl Config {
 
     pub fn set_use_24h_time(&mut self, use_24h_time: bool) {
         self.use_24h_time = Some(use_24h_time)
+    }
+
+    pub fn query_window(&self) -> chrono::Duration {
+        self.query_window
+            .clone()
+            .map_or_else(|| chrono::Duration::days(30), |x| x.duration())
+    }
+
+    pub fn set_query_window(&mut self, window: chrono::Duration) {
+        self.query_window = Some(FancyDuration::new(window))
     }
 
     pub fn set_client_info(&mut self, client_id: String, client_secret: String) {

@@ -4,7 +4,9 @@ pub fn now() -> chrono::DateTime<chrono::Local> {
     chrono::Local::now()
 }
 
-pub fn window() -> (
+pub fn window(
+    config: &crate::config::Config,
+) -> (
     chrono::DateTime<chrono::Local>,
     chrono::DateTime<chrono::Local>,
 ) {
@@ -15,9 +17,9 @@ pub fn window() -> (
             .with_minute(0)
             .unwrap()
             .with_second(0)
-            .unwrap())
-            - chrono::Duration::days(30),
-        (now() + chrono::Duration::days(30))
+            .unwrap()
+            - config.query_window()),
+        (now() + config.query_window())
             .with_hour(0)
             .unwrap()
             .with_minute(0)
