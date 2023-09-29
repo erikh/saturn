@@ -8,7 +8,7 @@ macro_rules! launch_editor {
         let (f, path) = f.keep()?;
         drop(f);
         let mut cmd = tokio::process::Command::new(
-            std::env::var("EDITOR").expect("You must have $EDITOR set to use this command"),
+            std::env::var("EDITOR").unwrap_or("/usr/bin/vim".to_string()),
         );
         cmd.args([path.clone()]);
         let mut child = cmd.spawn()?;

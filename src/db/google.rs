@@ -37,13 +37,11 @@ impl GoogleClient {
             return Err(anyhow!("Must have client information configured"));
         }
 
-        if config.access_token().is_none() {
-            return Err(anyhow!("Must have access token captured"));
-        }
-
-        let client = Client::new(
-            config.access_token().expect("You must have an access token to make calls. Use `saturn config get-token` to retrieve one."),
-        )?;
+        let client = if let Some(access_token) = config.access_token() {
+            Client::new(access_token)?
+        } else {
+            return Err(anyhow!("You must have an access token to make calls. Use `saturn config get-token` to retrieve one."));
+        };
 
         Ok(Self {
             client: Some(client),
@@ -315,22 +313,24 @@ impl GoogleClient {
             None => false,
         };
 
-        let schedule = if has_start_time
-            && has_end_time
-            && (start_time.unwrap() + chrono::Duration::days(1))
-                == event
-                    .end
-                    .clone()
-                    .unwrap()
-                    .date_time
-                    .unwrap()
-                    .parse::<chrono::DateTime<chrono::Local>>()
-                    .expect("Couldn't parse time")
-                    .naive_local()
-        {
-            RecordType::AllDay
-        } else if has_start_time && has_end_time {
-            RecordType::Schedule
+        let schedule = if has_start_time && has_end_time {
+            let local = match event
+                .end
+                .clone()
+                .unwrap()
+                .date_time
+                .unwrap()
+                .parse::<chrono::DateTime<chrono::Local>>()
+            {
+                Ok(p) => p.naive_local(),
+                Err(_) => return Err(anyhow!("Couldn't parse time").into()),
+            };
+
+            if (start_time.unwrap() + chrono::Duration::days(1)) == local {
+                RecordType::AllDay
+            } else {
+                RecordType::Schedule
+            }
         } else if has_start_time {
             RecordType::At
         } else {
