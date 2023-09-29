@@ -1,4 +1,4 @@
-use super::parser::{parse_date, parse_time};
+use super::time::{parse_date, parse_time};
 use crate::record::Record;
 use anyhow::{anyhow, Result};
 
