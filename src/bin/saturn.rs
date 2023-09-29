@@ -47,10 +47,6 @@ enum ConfigCommand {
     },
     #[command(about = "Get an authentication token")]
     GetToken {},
-    #[command(
-        about = "Set the synchronization window for remote requests. Window will be both added to the leading and trailing duration."
-    )]
-    SetSyncWindow { window: String },
     #[command(about = "List Calendar Summaries and their IDs")]
     ListCalendars,
     #[command(about = "Set the calendar ID for remote requests.")]
@@ -59,6 +55,10 @@ enum ConfigCommand {
     SetDefaultDuration { duration: String },
     #[command(about = "Toggle additional helpers for 12h time. False means 'on'.")]
     Set24hTime { set: bool },
+    #[command(
+        about = "Set the minimum and maximum amount of time to query from the current date for Google Calendar"
+    )]
+    SetQueryWindow { set: String },
 }
 
 #[derive(Debug, Subcommand)]

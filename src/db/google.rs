@@ -498,7 +498,7 @@ impl RemoteClient for GoogleClient {
         let list = EventClient::new(self.client());
 
         let mut events = do_client!(self, {
-            let window = window();
+            let window = window(&self.config);
             list.list(calendar_id.clone(), window.0, window.1)
         })?;
 
@@ -550,7 +550,7 @@ impl RemoteClient for GoogleClient {
         calendar_id: String,
         _include_completed: bool, // FIXME include tasks
     ) -> Result<Vec<Record>> {
-        let window = window();
+        let window = window(&self.config);
         self.perform_list(calendar_id, window.0, window.1).await
     }
 
@@ -560,7 +560,7 @@ impl RemoteClient for GoogleClient {
         last: chrono::Duration,
         _include_completed: bool,
     ) -> Result<Vec<Record>> {
-        let window = window();
+        let window = window(&self.config);
         let list = self.perform_list(calendar_id, window.0, window.1).await?;
         let mut v = Vec::new();
         for item in list {

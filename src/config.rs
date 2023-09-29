@@ -21,9 +21,11 @@ pub struct Config {
     refresh_token_expires_at: Option<chrono::NaiveDateTime>,
     client_info: Option<(String, String)>,
     redirect_url: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     sync_duration: Option<FancyDuration<Duration>>,
     default_duration: Option<FancyDuration<Duration>>,
-    use_24h_time: bool,
+    use_24h_time: Option<bool>,
+    query_window: Option<FancyDuration<Duration>>,
     calendar_id: String,
 }
 
@@ -44,7 +46,8 @@ impl From<Config> for ClientParameters {
 impl Default for Config {
     fn default() -> Self {
         Self {
-            use_24h_time: false,
+            query_window: Some(FancyDuration::new(chrono::Duration::days(30))),
+            use_24h_time: Some(false),
             db_type: DBType::UnixFile,
             access_token: None,
             access_token_expires_at: None,
@@ -150,20 +153,22 @@ impl Config {
         self.db_type.clone()
     }
 
-    pub fn set_sync_duration(&mut self, sync_duration: Option<FancyDuration<Duration>>) {
-        self.sync_duration = sync_duration;
-    }
-
-    pub fn sync_duration(&self) -> Option<FancyDuration<Duration>> {
-        self.sync_duration.clone()
-    }
-
     pub fn use_24h_time(&self) -> bool {
-        self.use_24h_time
+        self.use_24h_time.unwrap_or_default()
     }
 
     pub fn set_use_24h_time(&mut self, use_24h_time: bool) {
-        self.use_24h_time = use_24h_time
+        self.use_24h_time = Some(use_24h_time)
+    }
+
+    pub fn query_window(&self) -> chrono::Duration {
+        self.query_window
+            .clone()
+            .map_or_else(|| chrono::Duration::days(30), |x| x.duration())
+    }
+
+    pub fn set_query_window(&mut self, window: chrono::Duration) {
+        self.query_window = Some(FancyDuration::new(window))
     }
 
     pub fn set_client_info(&mut self, client_id: String, client_secret: String) {

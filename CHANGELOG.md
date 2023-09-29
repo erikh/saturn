@@ -1,4 +1,5 @@
 -   HEAD:
+    -   Fix issue with 24h time field preventing the configuration from being deserialized.
     -   Errors that occur in `sui` are now much more consistent, easier to read,
         and should not make the program unusable.
     -   Fixed another race condition plaguing launches of `$EDITOR` for edit commands in `sui`.
