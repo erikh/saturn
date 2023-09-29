@@ -89,6 +89,16 @@ Dates can be represented a number of ways:
     -   You can also end the day number with traditional suffixes such as `th`, `st`, `nd`, etc.
 -   `month/day` (e.g. 8/7) will assume the current year.
 -   `year/month/day` (e.g. 2023/8/7) will represent a full date.
+-   The following day names and abbreviations can be used. The current day, e.g.
+    if today is Friday, will mean today. Otherwise, it means the next day in the
+    following week with that name. The words are not case-sensitive.
+    -   Sunday: "Sun"
+    -   Monday: "Mon"
+    -   Tuesday: "Tu", "Tue", "Tues"
+    -   Wednesday: "Wed", "Weds"
+    -   Thursday: "Th", "Thu", "Thurs"
+    -   Friday: "Fr", Fri"
+    -   Saturday: "Sat"
 -   The following characters can be used as date separators: `/`, `-`, and `.`.
 
 #### Times
