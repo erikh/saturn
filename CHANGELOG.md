@@ -1,4 +1,6 @@
 -   HEAD:
+    -   Errors that occur in `sui` are now much more consistent, easier to read,
+        and should not make the program unusable.
     -   Fixed another race condition plaguing launches of `$EDITOR` for edit commands in `sui`.
     -   New search feature! See [README](README.md) for more.
     -   `saturn dump` was renamed to `saturn show`. `dump` will be a new subcommand in the future.
