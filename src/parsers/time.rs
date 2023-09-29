@@ -2,13 +2,32 @@ use crate::time::now;
 use anyhow::{anyhow, Result};
 use chrono::{Datelike, Timelike};
 
+const DAYS_OF_WEEK: [&str; 7] = ["su", "mo", "tu", "we", "th", "fr", "sa"];
 const DATE_ENDINGS: [&str; 4] = ["th", "st", "rd", "nd"];
 
 pub fn parse_date(s: String) -> Result<chrono::NaiveDate> {
-    match s.as_str() {
+    match s.to_lowercase().as_str() {
         "today" => Ok(now().date_naive()),
         "yesterday" => Ok((now() - chrono::Duration::days(1)).date_naive()),
         "tomorrow" => Ok((now() + chrono::Duration::days(1)).date_naive()),
+        "sun" | "sunday" | "mon" | "monday" | "tu" | "tue" | "tues" | "tuesday" | "wed"
+        | "wednesday" | "weds" | "th" | "thu" | "thurs" | "thursday" | "fr" | "fri" | "friday"
+        | "sat" | "saturday" => {
+            let period = now().weekday().num_days_from_sunday();
+
+            for (x, day) in DAYS_OF_WEEK.iter().enumerate() {
+                if *day == s[0..2].to_string() {
+                    let index = if x < period as usize {
+                        7 - period as usize + x
+                    } else {
+                        x - period as usize
+                    };
+                    return Ok((now() + chrono::Duration::days(index.try_into()?)).date_naive());
+                }
+            }
+
+            Ok(now().date_naive())
+        }
         _ => {
             let regex = regex::Regex::new(r#"[/.-]"#)?;
             let split = regex.split(&s);
