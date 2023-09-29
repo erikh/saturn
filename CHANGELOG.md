@@ -1,4 +1,5 @@
 -   HEAD:
+    -   Add a parameter to allow the customization of the window used to query Google Calendar. `saturn config set-query-window`.
     -   Fix issue with 24h time field preventing the configuration from being deserialized.
     -   Errors that occur in `sui` are now much more consistent, easier to read,
         and should not make the program unusable.
