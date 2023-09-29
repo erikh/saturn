@@ -420,7 +420,7 @@ pub fn render_app(
                 let ret = lock.notification.clone();
 
                 if let Some(ret) = &ret {
-                    if now().naive_local() > ret.1 + chrono::Duration::seconds(1) {
+                    if now().naive_local() >= ret.1 + chrono::Duration::seconds(1) {
                         lock.notification = None;
                     }
                 }

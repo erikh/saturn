@@ -134,6 +134,7 @@ impl<'a> ProtectedState<'a> {
             } else {
                 lock.commands = Vec::new();
             }
+            lock.notification = None;
             drop(lock);
             self.add_error(e).await;
             return;
