@@ -326,7 +326,11 @@ impl<T: RemoteClient + Send + Sync + Default + std::fmt::Debug> DB for RemoteDBC
     }
 
     async fn delete(&mut self, primary_key: u64) -> Result<()> {
-        let id = self.db.lookup(primary_key).expect("Invalid ID");
+        let id = self
+            .db
+            .lookup(primary_key)
+            .map_or_else(|| Err(anyhow!("Invalid ID")), |k| Ok(k))?;
+
         let calendar_id = self.db.calendar_id.clone();
 
         self.client.delete(calendar_id, id).await?;
@@ -338,7 +342,7 @@ impl<T: RemoteClient + Send + Sync + Default + std::fmt::Debug> DB for RemoteDBC
         let id = self
             .db
             .recurring_lookup(recurrence_key)
-            .expect("Invalid ID");
+            .map_or_else(|| Err(anyhow!("Invalid ID")), |k| Ok(k))?;
         let calendar_id = self.db.calendar_id.clone();
 
         let list = self

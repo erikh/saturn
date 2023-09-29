@@ -7,7 +7,7 @@ use crate::{
         types::*,
     },
 };
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use chrono::Datelike;
 use crossterm::event::{self, Event, KeyCode};
 use ratatui::{prelude::*, widgets::*};
@@ -42,6 +42,10 @@ pub async fn draw_loop<'a>(
                 lock.redraw = false;
             }
 
+            if !lock.errors.is_empty() {
+                lock.redraw = true;
+            }
+
             let line = lock.line_buf.clone();
             drop(lock);
 
@@ -67,17 +71,43 @@ pub async fn draw_loop<'a>(
     Ok(())
 }
 
+fn notify_update_state(state: ProtectedState<'static>) {
+    tokio::spawn(async move {
+        state.add_notification("Updating state").await;
+        state.update_state().await
+    });
+}
+
 pub async fn read_input<'a>(
     state: ProtectedState<'static>,
     s: tokio::sync::mpsc::Sender<()>,
 ) -> Result<()> {
+    let mut last_buf = String::new();
+
     'input: loop {
         let lock = state.lock().await;
         if !lock.block_ui {
             let mut buf = lock.line_buf.clone();
             drop(lock);
 
-            buf = handle_input(buf).expect("Invalid input");
+            buf = match handle_input(buf) {
+                Ok(buf) => buf,
+                Err(_) => {
+                    state.add_error(anyhow!("Invalid Input")).await;
+                    state.update_state().await;
+                    continue 'input;
+                }
+            };
+
+            let mut lock = state.lock().await;
+            if buf != last_buf && !lock.errors.is_empty() {
+                lock.errors = Vec::new();
+                if !buf.is_empty() {
+                    buf = buf[0..buf.len() - 1].to_string();
+                }
+            }
+            drop(lock);
+
             if buf.ends_with('\n') {
                 match buf.trim() {
                     "quit" => break 'input,
@@ -99,33 +129,12 @@ pub async fn read_input<'a>(
                             match m[0] {
                                 "all" | "a" => {
                                     state.lock().await.list_type = ListType::All;
-                                    let state = state.clone();
-                                    tokio::spawn(async move {
-                                        state.add_notification("Updating state").await;
-                                        match state.update_state().await {
-                                            Ok(_) => {}
-                                            Err(e) => {
-                                                state
-                                                    .add_notification(&format!("Error: {}", e))
-                                                    .await;
-                                            }
-                                        }
-                                    });
+                                    notify_update_state(state.clone());
                                 }
                                 "today" | "t" => {
                                     state.lock().await.list_type = ListType::Today;
                                     let state = state.clone();
-                                    tokio::spawn(async move {
-                                        state.add_notification("Updating state").await;
-                                        match state.update_state().await {
-                                            Ok(_) => {}
-                                            Err(e) => {
-                                                state
-                                                    .add_notification(&format!("Error: {}", e))
-                                                    .await;
-                                            }
-                                        }
-                                    });
+                                    notify_update_state(state.clone());
                                 }
                                 "recur" | "recurring" | "recurrence" | "r" => {
                                     if m.len() == 2 {
@@ -135,31 +144,16 @@ pub async fn read_input<'a>(
                                                 .await
                                                 .commands
                                                 .push(CommandType::Show(true, id));
-                                            state.add_notification("Updating state").await;
                                         } else {
                                             state
-                                                .add_notification(&format!(
-                                                    "Invalid Command '{}'",
-                                                    x
-                                                ))
+                                                .add_error(anyhow!("Invalid Command '{}'", x))
                                                 .await
                                         }
                                     } else {
                                         state.lock().await.list_type = ListType::Recurring;
                                     }
 
-                                    let state = state.clone();
-                                    tokio::spawn(async move {
-                                        state.add_notification("Updating state").await;
-                                        match state.update_state().await {
-                                            Ok(_) => {}
-                                            Err(e) => {
-                                                state
-                                                    .add_notification(&format!("Error: {}", e))
-                                                    .await;
-                                            }
-                                        }
-                                    });
+                                    notify_update_state(state.clone());
                                 }
                                 id => {
                                     if let Ok(id) = id.parse::<u64>() {
@@ -168,24 +162,11 @@ pub async fn read_input<'a>(
                                             .await
                                             .commands
                                             .push(CommandType::Show(false, id));
-                                        state.add_notification("Updating state").await;
                                     } else {
-                                        state
-                                            .add_notification(&format!("Invalid Command '{}'", x))
-                                            .await
+                                        state.add_error(anyhow!("Invalid Command '{}'", x)).await
                                     }
 
-                                    let state = state.clone();
-                                    tokio::spawn(async move {
-                                        match state.update_state().await {
-                                            Ok(_) => {}
-                                            Err(e) => {
-                                                state
-                                                    .add_notification(&format!("Error: {}", e))
-                                                    .await;
-                                            }
-                                        }
-                                    });
+                                    notify_update_state(state.clone());
                                 }
                             }
                         } else if x.starts_with("d ") || x.starts_with("delete ") {
@@ -214,7 +195,7 @@ pub async fn read_input<'a>(
                                 match id.parse::<u64>() {
                                     Ok(y) => v.push(y),
                                     Err(_) => {
-                                        state.add_notification(&format!("Invalid ID {}", id)).await;
+                                        state.add_error(anyhow!("Invalid ID {}", id)).await;
                                     }
                                 };
                             }
@@ -225,17 +206,12 @@ pub async fn read_input<'a>(
                                 CommandType::Delete(v)
                             };
 
-                            let state = state.clone();
+                            let s = state.clone();
                             tokio::spawn(async move {
-                                state.lock().await.commands.push(command);
-                                state.add_notification("Updating state").await;
-                                match state.update_state().await {
-                                    Ok(_) => {}
-                                    Err(e) => {
-                                        state.add_notification(&format!("Error: {}", e)).await;
-                                    }
-                                }
+                                s.lock().await.commands.push(command);
                             });
+
+                            notify_update_state(state.clone());
                         } else if x.starts_with("e ") || x.starts_with("entry ") {
                             let x = x.to_string();
 
@@ -249,13 +225,7 @@ pub async fn read_input<'a>(
                                     }
                                     .to_string(),
                                 ));
-                                state.add_notification("Updating state").await;
-                                match state.update_state().await {
-                                    Ok(_) => {}
-                                    Err(e) => {
-                                        state.add_notification(&format!("Error: {}", e)).await;
-                                    }
-                                }
+                                notify_update_state(state.clone());
                             });
                         } else if x.starts_with("edit ") {
                             let ids = x
@@ -284,32 +254,21 @@ pub async fn read_input<'a>(
                                         break 'ids;
                                     }
                                     Err(_) => {
-                                        state.add_notification(&format!("Invalid ID {}", id)).await;
+                                        state.add_error(anyhow!("Invalid ID {}", id)).await;
                                     }
                                 };
                             }
 
-                            let state = state.clone();
-
+                            let s = state.clone();
                             tokio::spawn(async move {
                                 if v.is_empty() {
-                                    state.add_notification("Edit requires an ID").await;
+                                    s.add_error(anyhow!("Edit requires an ID")).await;
                                 } else {
-                                    state
-                                        .lock()
-                                        .await
-                                        .commands
-                                        .push(CommandType::Edit(recur, v[0]));
-                                    state.add_notification("Updating state").await;
-                                }
-
-                                match state.update_state().await {
-                                    Ok(_) => {}
-                                    Err(e) => {
-                                        state.add_notification(&format!("Error: {}", e)).await;
-                                    }
+                                    s.lock().await.commands.push(CommandType::Edit(recur, v[0]));
                                 }
                             });
+
+                            notify_update_state(state.clone());
                         } else if x.starts_with("/ ") || x.starts_with("search") {
                             let x = x.to_string();
 
@@ -332,21 +291,16 @@ pub async fn read_input<'a>(
                                     })
                                     .collect(),
                                 ));
-                                state.add_notification("Updating state").await;
-                                match state.update_state().await {
-                                    Ok(_) => {}
-                                    Err(e) => {
-                                        state.add_notification(&format!("Error: {}", e)).await;
-                                    }
-                                }
+                                notify_update_state(state.clone());
                             });
                         } else {
-                            state.add_notification("Invalid Command").await;
+                            state.add_error(anyhow!("Invalid Command")).await;
                         }
                     }
                 }
                 buf = String::new();
             }
+            last_buf = buf.clone();
             state.lock().await.line_buf = buf;
             tokio::time::sleep(Duration::new(0, 500000)).await;
         } else {
@@ -357,6 +311,81 @@ pub async fn read_input<'a>(
     Ok(())
 }
 
+// blatantly taken from ratatui examples
+fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
+    let popup_layout = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints(
+            [
+                Constraint::Percentage((100 - percent_y) / 2),
+                Constraint::Percentage(percent_y),
+                Constraint::Percentage((100 - percent_y) / 2),
+            ]
+            .as_ref(),
+        )
+        .split(r);
+
+    Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints(
+            [
+                Constraint::Percentage((100 - percent_x) / 2),
+                Constraint::Percentage(percent_x),
+                Constraint::Percentage((100 - percent_x) / 2),
+            ]
+            .as_ref(),
+        )
+        .split(popup_layout[1])[1]
+}
+
+pub fn add_error(state: ProtectedState<'static>, e: anyhow::Error) {
+    // I apparently hate myself
+    let _ = std::thread::spawn(move || {
+        sit(async move {
+            state.lock().await.errors.push(e.to_string());
+            Ok(())
+        })
+    })
+    .join();
+}
+
+pub fn get_errors(state: ProtectedState<'static>) -> Option<Vec<String>> {
+    std::thread::spawn(move || {
+        sit(async move {
+            let errors = state.lock().await.errors.clone();
+            if errors.is_empty() {
+                Ok(None)
+            } else {
+                Ok(Some(errors))
+            }
+        })
+    })
+    .join()
+    .unwrap()
+    .unwrap()
+}
+
+pub fn render_error(
+    frame: &mut ratatui::Frame<'_, CrosstermBackend<Stdout>>,
+    layout: Rect,
+    e: String,
+) {
+    let layout = centered_rect(50, 20, layout);
+    let block = Block::default()
+        .title("Error")
+        .title_style(Style::default().fg(Color::Red))
+        .borders(Borders::ALL);
+    let area = block.inner(layout);
+
+    let paragraph = Paragraph::new(e + "\nPress any key to continue\n")
+        .style(Style::default().fg(Color::LightRed))
+        .alignment(Alignment::Center)
+        .wrap(Wrap { trim: true });
+    frame.render_widget(Clear, layout);
+    frame.render_widget(block, layout);
+    frame.render_widget(paragraph, area);
+}
+
 pub fn render_app(
     state: ProtectedState<'static>,
     frame: &mut ratatui::Frame<'_, CrosstermBackend<Stdout>>,
@@ -364,6 +393,8 @@ pub fn render_app(
     show: Option<Record>,
     show_recurring: Option<RecurringRecord>,
 ) {
+    // NOTE: I apologize for making you read this code
+
     let layout = Layout::default()
         .constraints([Constraint::Length(1), Constraint::Percentage(100)].as_ref())
         .split(frame.size());
@@ -379,69 +410,112 @@ pub fn render_app(
         .split(layout[1]);
 
     let s = state.clone();
-    let events = std::thread::spawn(move || sit(build_events(s)))
-        .join()
-        .expect("could not build events")
-        .expect("could not build events");
+    let res = std::thread::spawn(move || sit(build_events(s))).join();
 
-    let s = state.clone();
-    let notification = std::thread::spawn(move || {
-        sit(async move {
-            let mut lock = s.lock().await;
-            let ret = lock.notification.clone();
+    if let Ok(Ok(events)) = res {
+        let s = state.clone();
+        let res = std::thread::spawn(move || {
+            sit(async move {
+                let mut lock = s.lock().await;
+                let ret = lock.notification.clone();
 
-            if let Some(ret) = &ret {
-                if now().naive_local() > ret.1 + chrono::Duration::seconds(1) {
-                    lock.notification = None;
+                if let Some(ret) = &ret {
+                    if now().naive_local() > ret.1 + chrono::Duration::seconds(1) {
+                        lock.notification = None;
+                    }
+                }
+
+                Ok(ret)
+            })
+        })
+        .join();
+
+        if let Ok(Ok(notification)) = res {
+            if let Some(notification) = notification {
+                frame.render_widget(
+                    Paragraph::new(format!("[ {} ]", notification.0)).alignment(Alignment::Right),
+                    line_layout[1],
+                );
+            }
+
+            if let Some(record) = show {
+                let s = state.clone();
+                let res = std::thread::spawn(move || sit(build_show_event(s, record))).join();
+                if let Ok(Ok(event)) = res {
+                    frame.render_widget(event.deref().clone(), draw_layout[0]);
+                } else if let Ok(Err(e)) = res {
+                    add_error(state.clone(), e);
+                } else {
+                    add_error(
+                        state.clone(),
+                        anyhow!("Unknown error while showing an event"),
+                    );
+                }
+            } else if let Some(record) = show_recurring {
+                let s = state.clone();
+                let res =
+                    std::thread::spawn(move || sit(build_show_recurring_event(s, record))).join();
+                if let Ok(Ok(event)) = res {
+                    frame.render_widget(event.deref().clone(), draw_layout[0]);
+                } else if let Ok(Err(e)) = res {
+                    add_error(state.clone(), e);
+                } else {
+                    add_error(
+                        state.clone(),
+                        anyhow!("Unknown error while showing an event"),
+                    );
+                }
+            } else {
+                let s = state.clone();
+                let res = std::thread::spawn(move || sit(build_calendar(s))).join();
+                if let Ok(Ok(calendar)) = res {
+                    frame.render_widget(calendar.deref().clone(), draw_layout[0]);
+                } else if let Ok(Err(e)) = res {
+                    add_error(state.clone(), e);
+                } else {
+                    add_error(
+                        state.clone(),
+                        anyhow!("Unknown error while showing calendar"),
+                    );
                 }
             }
 
-            Ok(ret)
-        })
-    })
-    .join()
-    .expect("could not get notification")
-    .expect("could not get notification");
-
-    if let Some(notification) = notification {
-        frame.render_widget(Paragraph::new(format!(">> {}", buf)), line_layout[0]);
-        frame.render_widget(
-            Paragraph::new(format!("[ {} ]", notification.0)).alignment(Alignment::Right),
-            line_layout[1],
-        );
+            frame.render_widget(events.deref().clone(), draw_layout[1]);
+        } else if let Ok(Err(e)) = res {
+            add_error(state.clone(), e);
+        } else {
+            add_error(
+                state.clone(),
+                anyhow!("Unknown error while polling for notifications"),
+            );
+        }
+    } else if let Ok(Err(e)) = res {
+        add_error(state.clone(), e);
     } else {
-        frame.render_widget(Paragraph::new(format!(">> {}", buf)), layout[0]);
+        add_error(state.clone(), anyhow!("Unknown error while listing events"));
     }
 
-    if let Some(record) = show {
-        let s = state.clone();
-        let event = std::thread::spawn(move || sit(build_show_event(s, record)))
-            .join()
-            .expect("could not build event")
-            .expect("could not build event");
-        frame.render_widget(event.deref().clone(), draw_layout[0]);
-    } else if let Some(record) = show_recurring {
-        let s = state.clone();
-        let event = std::thread::spawn(move || sit(build_show_recurring_event(s, record)))
-            .join()
-            .expect("could not build event")
-            .expect("could not build event");
-        frame.render_widget(event.deref().clone(), draw_layout[0]);
-    } else {
-        let s = state.clone();
-        let calendar = std::thread::spawn(move || sit(build_calendar(s)))
-            .join()
-            .expect("could not build calendar")
-            .expect("could not build calendar");
-        frame.render_widget(calendar.deref().clone(), draw_layout[0]);
+    if let Some(errors) = get_errors(state.clone()) {
+        render_error(frame, layout[1], errors.join("\n").to_string())
     }
 
-    frame.render_widget(events.deref().clone(), draw_layout[1]);
+    frame.render_widget(Paragraph::new(format!(">> {}", buf)), layout[0]);
     frame.set_cursor(3 + buf.len() as u16, 0);
 }
 
+async fn get_month_name(state: ProtectedState<'static>) -> &str {
+    match chrono::Month::try_from(now().month() as u8) {
+        Ok(m) => m.name(),
+        Err(_) => {
+            state.add_error(anyhow!("Invalid Month")).await;
+            notify_update_state(state.clone());
+            ""
+        }
+    }
+}
+
 pub async fn build_show_recurring_event<'a>(
-    _state: ProtectedState<'static>,
+    state: ProtectedState<'static>,
     record: RecurringRecord,
 ) -> Result<Arc<Table<'a>>> {
     let header_cells = ["Key", "Value"]
@@ -496,11 +570,9 @@ pub async fn build_show_recurring_event<'a>(
         Table::new(rows.clone())
             .header(header)
             .block(
-                Block::default().borders(Borders::ALL).title(
-                    chrono::Month::try_from(now().month() as u8)
-                        .expect("Invalid Month")
-                        .name(),
-                ),
+                Block::default()
+                    .borders(Borders::ALL)
+                    .title(get_month_name(state).await),
             )
             .widths(&[Constraint::Percentage(30), Constraint::Percentage(70)]),
     );
@@ -508,7 +580,7 @@ pub async fn build_show_recurring_event<'a>(
 }
 
 pub async fn build_show_event<'a>(
-    _state: ProtectedState<'static>,
+    state: ProtectedState<'static>,
     record: Record,
 ) -> Result<Arc<Table<'a>>> {
     let header_cells = ["Key", "Value"]
@@ -563,11 +635,9 @@ pub async fn build_show_event<'a>(
         Table::new(rows.clone())
             .header(header)
             .block(
-                Block::default().borders(Borders::ALL).title(
-                    chrono::Month::try_from(now().month() as u8)
-                        .expect("Invalid Month")
-                        .name(),
-                ),
+                Block::default()
+                    .borders(Borders::ALL)
+                    .title(get_month_name(state).await),
             )
             .widths(&[Constraint::Percentage(30), Constraint::Percentage(70)]),
     );
@@ -647,11 +717,9 @@ pub async fn build_calendar<'a>(state: ProtectedState<'static>) -> Result<Arc<Ta
         Table::new(rows.clone())
             .header(header)
             .block(
-                Block::default().borders(Borders::ALL).title(
-                    chrono::Month::try_from(now().month() as u8)
-                        .expect("Invalid Month")
-                        .name(),
-                ),
+                Block::default()
+                    .borders(Borders::ALL)
+                    .title(get_month_name(state.clone()).await),
             )
             .widths(&[
                 Constraint::Percentage(3),

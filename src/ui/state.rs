@@ -16,6 +16,7 @@ pub struct State<'a> {
     pub recurring_records: Vec<RecurringRecord>,
     pub list_type: super::types::ListType,
     pub notification: Option<(String, chrono::NaiveDateTime)>,
+    pub errors: Vec<String>,
     pub line_buf: String,
     pub commands: Vec<super::types::CommandType>,
     pub show: Option<Record>,
@@ -115,36 +116,62 @@ impl<'a> ProtectedState<'a> {
         map_record!(db, id, true)
     }
 
-    pub async fn update_state(&self) -> Result<()> {
+    pub async fn update_state(&self) {
         let config = Config::load(None).unwrap_or_default();
 
         let typ = config.db_type();
 
-        match typ {
+        let res = match typ {
             DBType::UnixFile => self.command_file(config.clone()).await,
             DBType::Google => self.command_google(config.clone()).await,
+        };
+
+        if let Err(e) = res {
+            let mut lock = self.lock().await;
+            lock.block_ui = false;
+            if lock.commands.len() > 1 {
+                lock.commands = lock.commands[1..lock.commands.len()].to_vec();
+            } else {
+                lock.commands = Vec::new();
+            }
+            drop(lock);
+            self.add_error(e).await;
+            return;
         }
-        .expect("Could not execute command");
 
         let list_type = self.lock().await.list_type.clone();
 
         if matches!(list_type, super::types::ListType::Recurring) {
-            let mut list = match typ {
+            let res = match typ {
                 DBType::UnixFile => self.list_file_recurring().await,
                 DBType::Google => self.list_google_recurring(config).await,
-            }
-            .expect("Could not read DB");
+            };
+
+            let mut list = match res {
+                Ok(list) => list,
+                Err(e) => {
+                    self.add_error(e).await;
+                    return;
+                }
+            };
 
             let mut inner = self.lock().await;
             inner.recurring_records.clear();
             inner.recurring_records.append(&mut list);
             inner.redraw = true;
         } else if !matches!(list_type, super::types::ListType::Search) {
-            let mut list = match typ {
+            let res = match typ {
                 DBType::UnixFile => self.list_file(list_type).await,
                 DBType::Google => self.list_google(config, list_type).await,
-            }
-            .expect("Could not read DB");
+            };
+
+            let mut list = match res {
+                Ok(list) => list,
+                Err(e) => {
+                    self.add_error(e).await;
+                    return;
+                }
+            };
 
             list.sort_by(crate::record::sort_records);
             let mut inner = self.lock().await;
@@ -152,18 +179,20 @@ impl<'a> ProtectedState<'a> {
             inner.records.append(&mut list);
             inner.redraw = true;
         }
-
-        Ok(())
     }
 
     pub async fn refresh(&self) -> Result<()> {
         loop {
-            self.update_state().await?;
+            self.update_state().await;
             tokio::time::sleep(Duration::new(60, 0)).await;
         }
     }
 
     pub async fn add_notification(&self, notification: &str) {
         self.lock().await.notification = Some((notification.to_string(), now().naive_local()))
+    }
+
+    pub async fn add_error(&self, error: anyhow::Error) {
+        self.lock().await.errors.push(error.to_string())
     }
 }

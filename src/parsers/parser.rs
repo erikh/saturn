@@ -16,21 +16,21 @@ pub fn parse_date(s: String) -> Result<chrono::NaiveDate> {
             match parts.len() {
                 3 => {
                     // FIXME this should be locale-based
-                    Ok(chrono::NaiveDate::from_ymd_opt(
+                    chrono::NaiveDate::from_ymd_opt(
                         parts[0].parse()?,
                         parts[1].parse()?,
                         parts[2].parse()?,
                     )
-                    .expect("Invalid Date"))
+                    .map_or_else(|| Err(anyhow!("Invalid Date")), |d| Ok(d))
                 }
                 2 => {
                     // FIXME this should be locale-based
-                    Ok(chrono::NaiveDate::from_ymd_opt(
+                    chrono::NaiveDate::from_ymd_opt(
                         now().year(),
                         parts[0].parse()?,
                         parts[1].parse()?,
                     )
-                    .expect("Invalid Date"))
+                    .map_or_else(|| Err(anyhow!("Invalid Date")), |d| Ok(d))
                 }
                 1 => {
                     let now = now();
@@ -42,10 +42,8 @@ pub fn parse_date(s: String) -> Result<chrono::NaiveDate> {
                         }
                     }
                     // FIXME this should be locale-based
-                    Ok(
-                        chrono::NaiveDate::from_ymd_opt(now.year(), now.month(), part.parse()?)
-                            .expect("Invalid Date"),
-                    )
+                    chrono::NaiveDate::from_ymd_opt(now.year(), now.month(), part.parse()?)
+                        .map_or_else(|| Err(anyhow!("Invalid Date")), |d| Ok(d))
                 }
                 _ => Err(anyhow!("Cannot parse date")),
             }
@@ -69,7 +67,7 @@ fn twelve_hour_time(pm: bool, hour: u32, minute: u32) -> chrono::NaiveTime {
 }
 
 fn time(hour: u32, minute: u32) -> chrono::NaiveTime {
-    chrono::NaiveTime::from_hms_opt(hour, minute, 0).expect("Invalid Time")
+    chrono::NaiveTime::from_hms_opt(hour, minute, 0).unwrap_or_default()
 }
 
 fn pm_time(hour: u32, minute: u32) -> chrono::NaiveTime {
@@ -120,12 +118,10 @@ pub fn parse_time(s: String, today: bool) -> Result<chrono::NaiveTime> {
     let parts = split.collect::<Vec<&str>>();
 
     match parts.len() {
-        3 => Ok(chrono::NaiveTime::from_hms_opt(
-            parts[0].parse()?,
-            parts[1].parse()?,
-            parts[2].parse()?,
-        )
-        .expect("Invalid Time")),
+        3 => {
+            chrono::NaiveTime::from_hms_opt(parts[0].parse()?, parts[1].parse()?, parts[2].parse()?)
+                .map_or_else(|| Err(anyhow!("Invalid Time")), |d| Ok(d))
+        }
         2 => {
             let regex = regex::Regex::new(r"(\d+)(\D+)")?;
             if let Some(captures) = regex.captures(parts[1]) {
