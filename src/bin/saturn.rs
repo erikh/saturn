@@ -210,27 +210,6 @@ fn grid_scheduled(grid: &mut ttygrid::TTYGrid, entry: Record, schedule: Schedule
     .unwrap()
 }
 
-fn format_at(entry: Record, at: chrono::NaiveTime) -> String {
-    format!(
-        "{} at {}: {}{}",
-        entry.date(),
-        at,
-        entry.detail(),
-        if entry.completed() { "- Completed" } else { "" }
-    )
-}
-
-fn format_scheduled(entry: Record, schedule: Schedule) -> String {
-    format!(
-        "{} at {} to {}: {}{}",
-        entry.date(),
-        schedule.0,
-        schedule.1,
-        entry.detail(),
-        if entry.completed() { "- Completed" } else { "" }
-    )
-}
-
 fn print_entries(entries: Vec<Record>) {
     if entries.is_empty() {
         return;
