@@ -10,16 +10,9 @@ impl<'a> UnixFileLoader<'a> {
         Self(filename)
     }
 
-    pub async fn load<T>(&self) -> T
+    pub async fn load<T>(&self) -> Result<T>
     where
         T: DB + Serialize + for<'de> Deserialize<'de> + Default,
-    {
-        self.load_with_locking().await.unwrap_or_default()
-    }
-
-    async fn load_with_locking<T>(&self) -> Result<T>
-    where
-        T: DB + Serialize + for<'de> Deserialize<'de>,
     {
         unsafe {
             let fd = nix::libc::open(

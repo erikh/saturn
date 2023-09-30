@@ -195,7 +195,7 @@ impl RemoteDB {
 #[async_trait]
 impl DB for RemoteDB {
     async fn load(&mut self) -> Result<()> {
-        let db: Self = UnixFileLoader::new(&saturn_db()).load().await;
+        let db: Self = UnixFileLoader::new(&saturn_db()).load().await?;
         self.primary_key = db.primary_key;
         self.recurrence_key = db.recurrence_key;
         self.id_map = db.id_map;
