@@ -210,7 +210,15 @@ fn grid_scheduled(grid: &mut ttygrid::TTYGrid, entry: Record, schedule: Schedule
     .unwrap()
 }
 
-fn format_at(entry: Record, at: chrono::NaiveTime) -> String {
+fn format_all_day(entry: &Record) -> String {
+    format!(
+        "All Day Event: {}{}",
+        entry.detail(),
+        if entry.completed() { "- Completed" } else { "" }
+    )
+}
+
+fn format_at(entry: &Record, at: chrono::NaiveTime) -> String {
     format!(
         "{} at {}: {}{}",
         entry.date(),
@@ -220,7 +228,7 @@ fn format_at(entry: Record, at: chrono::NaiveTime) -> String {
     )
 }
 
-fn format_scheduled(entry: Record, schedule: Schedule) -> String {
+fn format_scheduled(entry: &Record, schedule: Schedule) -> String {
     format!(
         "{} at {} to {}: {}{}",
         entry.date(),

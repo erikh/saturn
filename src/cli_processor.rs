@@ -65,7 +65,8 @@ macro_rules! process_cli {
 
         process_cli!($cli, $config, $db, None::<GoogleClient>);
     };
-    ($cli:ident, $config:ident, $db:ident, $client:expr) => {
+    ($cli:ident, $config:ident, $db:ident, $client:expr) => {{
+        use chrono::{Datelike, Timelike};
         $db.load().await?;
 
         match $cli.command {
@@ -151,34 +152,67 @@ macro_rules! process_cli {
                 let mut notification = notify_rust::Notification::new();
                 notification.summary("Calendar Event");
                 notification.timeout(timeout);
+                let well = well.map_or_else(
+                    || chrono::Duration::minutes(1),
+                    |x| {
+                        FancyDuration::<chrono::Duration>::parse(&x)
+                            .expect("Invalid duration")
+                            .duration()
+                    },
+                );
 
-                for entry in $db
-                    .events_now(get_well(well.clone())?, include_completed)
-                    .await?
-                {
-                    if let Some(at) = entry.at() {
-                        let mut n = notification.body(&format_at(entry, at));
-                        if let Some(icon) = icon.clone() {
-                            n = n.icon(&icon);
-                        }
+                let time = $crate::time::now()
+                    .with_second(0)
+                    .unwrap()
+                    .with_nanosecond(0)
+                    .unwrap();
 
-                        n.show()?;
-                    } else if let Some(schedule) = entry.scheduled() {
-                        let start = chrono::NaiveDateTime::new(
-                            $crate::time::now().date_naive(),
-                            schedule.0,
-                        );
-                        let lower = start - get_well(well.clone())?;
-                        let upper = start + get_well(well.clone())?;
-                        let local = $crate::time::now().naive_local();
+                for entry in &$db.list_all(include_completed).await? {
+                    if let Some(notifications) = entry.notifications() {
+                        for duration in notifications.iter().map(FancyDuration::duration) {
+                            let notify = match entry.record_type() {
+                                $crate::record::RecordType::AllDay => {
+                                    let top = (time + chrono::Duration::days(1))
+                                        .with_hour(0)
+                                        .unwrap()
+                                        .with_minute(0)
+                                        .unwrap()
+                                        - duration;
 
-                        if lower < local && local < upper {
-                            let mut n = notification.body(&format_scheduled(entry, schedule));
-                            if let Some(icon) = icon.clone() {
-                                n = n.icon(&icon);
+                                    if time - well < top && time + well > top {
+                                        Some(notification.body(&format_all_day(entry)))
+                                    } else {
+                                        None
+                                    }
+                                }
+                                $crate::record::RecordType::At => {
+                                    let at = entry.at().unwrap() - duration;
+                                    let t = time.naive_local().time();
+                                    if t - well < at && t + well > at {
+                                        Some(notification.body(&format_at(entry, at)))
+                                    } else {
+                                        None
+                                    }
+                                }
+                                $crate::record::RecordType::Schedule => {
+                                    let schedule = entry.scheduled().unwrap();
+                                    let top = schedule.0 - duration;
+                                    let t = time.naive_local().time();
+                                    if t - well < top && t + well > top {
+                                        Some(notification.body(&format_scheduled(entry, schedule)))
+                                    } else {
+                                        None
+                                    }
+                                }
+                            };
+
+                            if let Some(mut notify) = notify {
+                                if let Some(icon) = icon.clone() {
+                                    notify = notify.icon(&icon);
+                                }
+
+                                notify.show()?;
                             }
-
-                            n.show()?;
                         }
                     }
                 }
@@ -244,7 +278,7 @@ macro_rules! process_cli {
         }
 
         $db.dump().await?;
-    };
+    };};
 }
 
 #[macro_export]
