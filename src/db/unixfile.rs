@@ -20,6 +20,7 @@ impl<'a> UnixFileLoader<'a> {
                     .as_ptr(),
                 nix::libc::O_RDONLY,
             );
+
             if fd < 0 {
                 return Ok(T::default());
             }
