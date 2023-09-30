@@ -23,6 +23,8 @@ case $command in
     then
       mv ~/.saturn.db.save ~/.saturn.db
       mv ~/.saturn.conf.save ~/.saturn.conf
+    else
+      echo >&2 "No save file; no restore will be performed."
     fi
   ;;
   save)
