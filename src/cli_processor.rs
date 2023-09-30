@@ -1,3 +1,35 @@
+pub fn format_all_day(entry: &crate::record::Record) -> String {
+    format!(
+        "All Day Event: {}{}",
+        entry.detail(),
+        if entry.completed() { "- Completed" } else { "" }
+    )
+}
+
+pub fn format_at(entry: &crate::record::Record, at: chrono::NaiveTime) -> String {
+    format!(
+        "{} at {}: {}{}",
+        entry.date(),
+        at,
+        entry.detail(),
+        if entry.completed() { "- Completed" } else { "" }
+    )
+}
+
+pub fn format_scheduled(
+    entry: &crate::record::Record,
+    schedule: crate::record::Schedule,
+) -> String {
+    format!(
+        "{} at {} to {}: {}{}",
+        entry.date(),
+        schedule.0,
+        schedule.1,
+        entry.detail(),
+        if entry.completed() { "- Completed" } else { "" }
+    )
+}
+
 #[macro_export]
 macro_rules! launch_editor {
     ($db: ident, $id: ident, $typ:ty, $fetch:ident, $recur: ident) => {{
@@ -67,6 +99,7 @@ macro_rules! process_cli {
     };
     ($cli:ident, $config:ident, $db:ident, $client:expr) => {{
         use chrono::{Datelike, Timelike};
+        use $crate::cli_processor::{format_all_day, format_at, format_scheduled};
         $db.load().await?;
 
         match $cli.command {
