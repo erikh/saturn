@@ -95,40 +95,31 @@ impl DB for MemoryDB {
     }
 
     async fn update_recurrence(&mut self) -> Result<()> {
-        let recurring = self.recurring.clone();
+        let mut recurring = self.recurring.clone();
         let records = self.records.clone();
 
-        for (_, recur) in &recurring {
-            let mut seen: Option<Record> = None;
-            let mut begin = now() - recur.recurrence().duration() - chrono::Duration::days(7);
+        for (_, recur) in &mut recurring {
+            let mut seen: Option<&Record> = None;
 
-            'find: while begin.date_naive() <= now().date_naive() {
+            let mut begin = recur.record().datetime();
+            let tomorrow = (now() + chrono::Duration::days(1)).date_naive();
+
+            while begin.date_naive() <= tomorrow {
                 for (_, record) in &records {
                     if let Some(key) = record.recurrence_key() {
-                        if key == recur.recurrence_key()
-                            && record.datetime() - recur.recurrence().duration() < now()
-                        {
-                            seen = Some(record.clone());
-                            break 'find;
+                        if key == recur.recurrence_key() && record.datetime() == begin {
+                            seen = Some(record);
                         }
                     }
                 }
-                begin += chrono::Duration::days(1);
-            }
 
-            if let Some(seen) = seen {
-                let mut dt = seen.datetime();
-                let duration = recur.recurrence().duration();
-
-                loop {
-                    dt += duration;
-                    if dt >= now() {
-                        break;
-                    }
+                if seen.is_none() {
                     let key = self.next_key();
-                    self.record(recur.record_from(key, dt.naive_local()))
+                    self.record(recur.record_from(key, begin.naive_local()))
                         .await?;
                 }
+
+                begin += recur.recurrence().duration();
             }
         }
 
