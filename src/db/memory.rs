@@ -14,9 +14,9 @@ use std::collections::BTreeMap;
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct MemoryDB {
     primary_key: u64,
-    records: BTreeMap<chrono::NaiveDate, Vec<Record>>,
+    records: BTreeMap<u64, Record>,
     recurrence_key: u64,
-    recurring: Vec<RecurringRecord>,
+    recurring: BTreeMap<u64, RecurringRecord>,
 }
 
 impl MemoryDB {
@@ -57,45 +57,22 @@ impl DB for MemoryDB {
     }
 
     async fn delete(&mut self, primary_key: u64) -> Result<()> {
-        for (key, list) in self.records.clone() {
-            let mut new = Vec::new();
-            for record in list {
-                if record.primary_key() != primary_key {
-                    new.push(record.clone());
-                }
-            }
-
-            self.records.insert(key, new);
-        }
+        self.records.remove(&primary_key);
         Ok(())
     }
 
-    async fn delete_recurrence(&mut self, primary_key: u64) -> Result<Vec<String>> {
-        let mut new = Vec::new();
-
-        for entry in &self.recurring {
-            if entry.recurrence_key() != primary_key {
-                new.push(entry.clone());
-            }
-        }
-
-        self.recurring.clear();
-        self.recurring.append(&mut new);
-        Ok(Vec::new())
+    async fn delete_recurrence(&mut self, recurrence_key: u64) -> Result<Vec<String>> {
+        self.recurring.remove(&recurrence_key);
+        Ok(Vec::new()) // FIXME NFI why this is being returned
     }
 
     async fn record(&mut self, record: Record) -> Result<()> {
-        if let Some(item) = self.records.get_mut(&record.date()) {
-            item.push(record);
-        } else {
-            self.records.insert(record.date(), vec![record]);
-        }
-
+        self.records.insert(record.primary_key(), record);
         Ok(())
     }
 
     async fn record_recurrence(&mut self, record: RecurringRecord) -> Result<()> {
-        self.recurring.push(record);
+        self.recurring.insert(record.recurrence_key(), record);
         Ok(())
     }
 
@@ -108,41 +85,41 @@ impl DB for MemoryDB {
     }
 
     async fn list_recurrence(&mut self) -> Result<Vec<RecurringRecord>> {
-        Ok(self.recurring.clone())
+        let mut v = Vec::new();
+
+        for (_, val) in &self.recurring {
+            v.push(val.clone());
+        }
+
+        Ok(v)
     }
 
     async fn update_recurrence(&mut self) -> Result<()> {
-        for recur in self.recurring.clone() {
-            let mut seen: Option<Record> = None;
-            let mut begin = now() - recur.recurrence().duration() - chrono::Duration::days(7);
-            while begin.date_naive() <= now().date_naive() {
-                if let Some(items) = self.records.get(&begin.date_naive()) {
-                    for item in items {
-                        if let Some(key) = item.recurrence_key() {
-                            if key == recur.recurrence_key()
-                                && item.datetime() - recur.recurrence().duration() < now()
-                            {
-                                seen = Some(item.clone());
-                            }
+        let mut recurring = self.recurring.clone();
+        let records = self.records.clone();
+
+        for (_, recur) in &mut recurring {
+            let mut seen: Option<&Record> = None;
+
+            let mut begin = recur.record().datetime();
+            let tomorrow = (now() + chrono::Duration::days(1)).date_naive();
+
+            while begin.date_naive() <= tomorrow {
+                for (_, record) in &records {
+                    if let Some(key) = record.recurrence_key() {
+                        if key == recur.recurrence_key() && record.datetime() == begin {
+                            seen = Some(record);
                         }
                     }
                 }
-                begin += chrono::Duration::days(1);
-            }
 
-            if let Some(seen) = seen {
-                let mut dt = seen.datetime();
-                let duration = recur.recurrence().duration();
-
-                loop {
-                    dt += duration;
-                    if dt >= now() {
-                        break;
-                    }
+                if seen.is_none() {
                     let key = self.next_key();
-                    self.record(recur.record_from(key, dt.naive_local()))
+                    self.record(recur.record_from(key, begin.naive_local()))
                         .await?;
                 }
+
+                begin += recur.recurrence().duration();
             }
         }
 
@@ -150,13 +127,13 @@ impl DB for MemoryDB {
     }
 
     async fn list_today(&mut self, include_completed: bool) -> Result<Vec<Record>> {
+        let today = now().date_naive();
+
         Ok(self
             .records
-            .get(&now().date_naive())
-            .unwrap_or(&Vec::new())
             .iter()
-            .filter_map(|v| {
-                if v.completed() && !include_completed {
+            .filter_map(|(_, v)| {
+                if v.date() != today || (v.completed() && !include_completed) {
                     None
                 } else {
                     Some(v.clone())
@@ -166,18 +143,25 @@ impl DB for MemoryDB {
     }
 
     async fn list_all(&mut self, include_completed: bool) -> Result<Vec<Record>> {
-        Ok(self
+        let values = self
             .records
             .iter()
-            .flat_map(|(_, v)| v.clone())
-            .filter_map(|v| {
+            .filter(|(_, v)| {
                 if v.completed() && !include_completed {
-                    None
+                    false
                 } else {
-                    Some(v)
+                    true
                 }
             })
-            .collect::<Vec<Record>>())
+            .collect::<BTreeMap<&u64, &Record>>();
+
+        let mut v = Vec::new();
+
+        for (_, val) in values {
+            v.push(val.clone())
+        }
+
+        Ok(v)
     }
 
     async fn events_now(
@@ -186,22 +170,21 @@ impl DB for MemoryDB {
         include_completed: bool,
     ) -> Result<Vec<Record>> {
         let mut ret = Vec::new();
+        let n = now().date_naive();
 
-        let mut records = self
-            .records
-            .get_mut(&now().date_naive())
-            .unwrap_or(&mut Vec::new())
-            .clone();
+        let mut records = Vec::new();
 
-        let mut next_day = self
-            .records
-            .get_mut(&(now() + chrono::Duration::days(1)).date_naive())
-            .unwrap_or(&mut Vec::new())
-            .clone();
+        for record in self.records.iter().filter(|(_, v)| v.date() == n) {
+            records.push(record);
+        }
+
+        let n = n + chrono::Duration::days(1);
+
+        let mut next_day = self.records.iter().filter(|(_, v)| v.date() == n).collect();
 
         records.append(&mut next_day);
 
-        for item in records {
+        for (_, item) in records {
             if item.completed() && !include_completed {
                 continue;
             }
@@ -223,7 +206,7 @@ impl DB for MemoryDB {
                 let dt = item.datetime();
                 let n = now();
                 if dt > n && n > dt - last {
-                    ret.push(item);
+                    ret.push(item.clone());
                 } else if let Some(notifications) = item.notifications() {
                     for notification in notifications {
                         let dt_window = dt - notification.duration();
@@ -236,7 +219,7 @@ impl DB for MemoryDB {
                         let n_time = n.time().with_second(0).unwrap().with_nanosecond(0).unwrap();
 
                         if dt > n && dt_window.date_naive() == n.date_naive() && dt_time == n_time {
-                            ret.push(item);
+                            ret.push(item.clone());
                             break;
                         }
                     }
@@ -248,11 +231,9 @@ impl DB for MemoryDB {
     }
 
     async fn complete_task(&mut self, primary_key: u64) -> Result<()> {
-        for list in self.records.values_mut() {
-            for record in list {
-                if record.primary_key() == primary_key {
-                    record.set_completed(true);
-                }
+        for record in self.records.values_mut() {
+            if record.primary_key() == primary_key {
+                record.set_completed(true);
             }
         }
 
@@ -261,22 +242,8 @@ impl DB for MemoryDB {
 
     async fn get(&mut self, primary_key: u64) -> Result<Record> {
         let mut record: Option<Record> = None;
-        for records in self.records.values() {
-            for r in records {
-                if primary_key == r.primary_key() {
-                    record = Some(r.clone());
-                    break;
-                }
-            }
-        }
-
-        record.ok_or(anyhow!("No Record Found"))
-    }
-
-    async fn get_recurring(&mut self, primary_key: u64) -> Result<RecurringRecord> {
-        let mut record: Option<RecurringRecord> = None;
-        for r in &self.recurring {
-            if primary_key == r.recurrence_key() {
+        for r in self.records.values() {
+            if primary_key == r.primary_key() {
                 record = Some(r.clone());
                 break;
             }
@@ -285,29 +252,20 @@ impl DB for MemoryDB {
         record.ok_or(anyhow!("No Record Found"))
     }
 
+    async fn get_recurring(&mut self, recurrence_key: u64) -> Result<RecurringRecord> {
+        self.recurring
+            .get(&recurrence_key)
+            .ok_or(anyhow!("No Record Found"))
+            .cloned()
+    }
+
     async fn update(&mut self, record: Record) -> Result<()> {
-        if let Some(v) = self.records.get(&record.date()) {
-            let mut new = Vec::new();
-            for item in v {
-                if item.primary_key() != self.primary_key() {
-                    new.push(item.clone())
-                }
-            }
-            new.push(record.clone());
-            self.records.insert(record.date(), new);
-        }
+        self.records.insert(record.primary_key(), record);
         Ok(())
     }
 
     async fn update_recurring(&mut self, record: RecurringRecord) -> Result<()> {
-        let mut new = Vec::new();
-        for item in &self.recurring {
-            if item.recurrence_key() != self.recurrence_key() {
-                new.push(item.clone())
-            }
-        }
-        new.push(record);
-        self.recurring = new;
+        self.recurring.insert(record.recurrence_key(), record);
         Ok(())
     }
 }
@@ -354,7 +312,10 @@ mod tests {
             .await
             .is_ok());
 
-        let db2: MemoryDB = UnixFileLoader::new(&f.path().to_path_buf()).load().await;
+        let db2: MemoryDB = UnixFileLoader::new(&f.path().to_path_buf())
+            .load()
+            .await
+            .unwrap();
         assert_eq!(db.primary_key, db2.primary_key);
         assert_eq!(db.records, db2.records);
     }
