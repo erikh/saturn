@@ -19,8 +19,11 @@ case $command in
     rm ~/.saturn.conf
   ;;
   restore)
-    mv ~/.saturn.db.save ~/.saturn.db
-    mv ~/.saturn.conf.save ~/.saturn.conf
+    if [ -f ~/.saturn.db.save ] || [ -f ~/.saturn.conf.save ]
+    then
+      mv ~/.saturn.db.save ~/.saturn.db
+      mv ~/.saturn.conf.save ~/.saturn.conf
+    fi
   ;;
   save)
     if [ -f ~/.saturn.db.save ] || [ -f ~/.saturn.conf.save ]
