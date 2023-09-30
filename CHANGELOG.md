@@ -1,4 +1,5 @@
 -   HEAD:
+    -   Correct a problem where failing to load the DB (due to underlying data structure changes) would erase the DB's contents.
     -   Support using day names for the following week of time. Please see the documentation under "Dates".
     -   Add a parameter to allow the customization of the window used to query Google Calendar. `saturn config set-query-window`.
     -   Fix issue with 24h time field preventing the configuration from being deserialized.
