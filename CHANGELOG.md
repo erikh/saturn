@@ -1,4 +1,4 @@
--   HEAD:
+-   `v0.4.0`:
     -   Notifications are now durations; if they are not provided via `notify` entry clauses, they will not exist and you will not be notified. You can add notifications to existing calendar items with `edit`.
     -   Many bugfixes to the MemoryDB implementation. **YOUR OLD MEMORYDB WILL NO LONGER WORK AND YOU SHOULD DELETE IT. FILE AN ISSUE IF YOU NEED A CONVERTER.**
     -   Correct a problem where failing to load the DB (due to underlying data structure changes) would erase the DB's contents.
