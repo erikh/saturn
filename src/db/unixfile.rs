@@ -21,12 +21,7 @@ impl<'a> UnixFileLoader<'a> {
                 nix::libc::O_RDONLY,
             );
             if fd < 0 {
-                return Err(anyhow!(std::ffi::CStr::from_ptr(nix::libc::strerror(
-                    nix::errno::errno()
-                ))
-                .to_str()
-                .unwrap()
-                .to_string()));
+                return Ok(T::default());
             }
 
             if nix::libc::flock(fd, nix::libc::LOCK_EX) != 0 {
