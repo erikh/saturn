@@ -47,3 +47,8 @@ buildflags = ["--release"]
 [package.metadata.rpm.targets]
 sui = { path = "/usr/bin/sui" }
 saturn = { path = "/usr/bin/saturn" }
+
+[profile.release]
+strip = true
+lto = true
+codegen-units = 24
