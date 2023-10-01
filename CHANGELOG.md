@@ -1,3 +1,5 @@
+-   `v0.4.2`:
+    -   Fix an issue where ending times would be cast before start times when using the edit command.
 -   `v0.4.1`:
     -   Fix an issue which was preventing Google Calendar from recording recurring tasks.
 -   `v0.4.0`:
