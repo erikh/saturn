@@ -18,8 +18,6 @@ use gcal::{
 };
 use std::collections::{BTreeMap, BTreeSet};
 
-pub const CALENDAR_SCOPE: &str = "https://www.googleapis.com/auth/calendar";
-
 #[derive(Debug, Clone, Default)]
 pub struct GoogleClient {
     client: Option<Client>,
