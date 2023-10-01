@@ -37,7 +37,7 @@ impl GoogleClient {
             return Err(anyhow!("Must have client information configured"));
         }
 
-        let mut client = if let Some(access_token) = config.access_token() {
+        let client = if let Some(access_token) = config.access_token() {
             Client::new(access_token)?
         } else {
             return Err(anyhow!("You must have an access token to make calls. Use `saturn config get-token` to retrieve one."));
