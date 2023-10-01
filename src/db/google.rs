@@ -37,7 +37,7 @@ impl GoogleClient {
             return Err(anyhow!("Must have client information configured"));
         }
 
-        let client = if let Some(access_token) = config.access_token() {
+        let mut client = if let Some(access_token) = config.access_token() {
             Client::new(access_token)?
         } else {
             return Err(anyhow!("You must have an access token to make calls. Use `saturn config get-token` to retrieve one."));
@@ -69,6 +69,7 @@ impl GoogleClient {
 
         let start = EventCalendarDate {
             date_time: Some(start_chrono.to_rfc3339()),
+            time_zone: Some(start_chrono.timezone().to_string()),
             ..Default::default()
         };
 
@@ -77,20 +78,23 @@ impl GoogleClient {
                 date_time: Some(
                     (start_chrono + self.config.default_duration().duration()).to_rfc3339(),
                 ),
+                time_zone: Some(start_chrono.timezone().to_string()),
                 ..Default::default()
             }),
             RecordType::Schedule => {
                 let dt = chrono::NaiveDateTime::new(record.date(), record.scheduled().unwrap().1)
-                    .and_local_timezone(chrono::Local)
+                    .and_local_timezone(chrono_tz::UTC)
                     .unwrap();
 
                 Some(EventCalendarDate {
                     date_time: Some(dt.to_rfc3339()),
+                    time_zone: Some(dt.timezone().to_string()),
                     ..Default::default()
                 })
             }
             RecordType::AllDay => Some(EventCalendarDate {
                 date_time: Some((start_chrono + chrono::Duration::days(1)).to_rfc3339()),
+                time_zone: Some(start_chrono.timezone().to_string()),
                 ..Default::default()
             }),
         };
