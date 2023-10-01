@@ -65,36 +65,35 @@ impl GoogleClient {
     }
 
     pub async fn record_to_event(&mut self, calendar_id: String, record: &mut Record) -> Event {
-        let start_chrono = record.datetime().with_timezone(&chrono_tz::UTC);
+        let start_chrono = record.datetime().with_timezone(&chrono::Local);
+        let utc = start_chrono.with_timezone(&chrono_tz::UTC);
 
         let start = EventCalendarDate {
-            date_time: Some(start_chrono.to_rfc3339()),
-            time_zone: Some(start_chrono.timezone().to_string()),
+            date_time: Some(utc.to_rfc3339()),
+            time_zone: Some(utc.timezone().to_string()),
             ..Default::default()
         };
 
         let end = match record.record_type() {
             RecordType::At => Some(EventCalendarDate {
-                date_time: Some(
-                    (start_chrono + self.config.default_duration().duration()).to_rfc3339(),
-                ),
-                time_zone: Some(start_chrono.timezone().to_string()),
+                date_time: Some((utc + self.config.default_duration().duration()).to_rfc3339()),
+                time_zone: Some(utc.timezone().to_string()),
                 ..Default::default()
             }),
             RecordType::Schedule => {
                 let dt = chrono::NaiveDateTime::new(record.date(), record.scheduled().unwrap().1)
-                    .and_local_timezone(chrono_tz::UTC)
+                    .and_local_timezone(chrono::Local)
                     .unwrap();
 
                 Some(EventCalendarDate {
-                    date_time: Some(dt.to_rfc3339()),
-                    time_zone: Some(dt.timezone().to_string()),
+                    date_time: Some(dt.with_timezone(&chrono_tz::UTC).to_rfc3339()),
+                    time_zone: Some(dt.with_timezone(&chrono_tz::UTC).to_string()),
                     ..Default::default()
                 })
             }
             RecordType::AllDay => Some(EventCalendarDate {
-                date_time: Some((start_chrono + chrono::Duration::days(1)).to_rfc3339()),
-                time_zone: Some(start_chrono.timezone().to_string()),
+                date_time: Some((utc + chrono::Duration::days(1)).to_rfc3339()),
+                time_zone: Some(utc.timezone().to_string()),
                 ..Default::default()
             }),
         };
