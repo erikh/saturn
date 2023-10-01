@@ -52,3 +52,4 @@ saturn = { path = "/usr/bin/saturn" }
 strip = true
 lto = true
 codegen-units = 24
+opt-level = 3
