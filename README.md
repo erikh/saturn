@@ -13,7 +13,8 @@ Saturn provides you with a CLI interface to calendaring much in the way
 tasks. It also provides you with several methods to query and notify yourself
 of important appointments. It can act standalone or integrate fully with Google Calendar.
 
-[Here](https://asciinema.org/a/XkRCXcgucQCRYassutGLMlWqq) is a demo of it in action.
+[Here](https://asciinema.org/a/611459) is a short tour (via asciicast) of
+`saturn` and `sui` in the terminal.
 
 Saturn is also now providing a TUI as a separate program since release v0.2.0;
 `sui` will present a calendar in a terminal window and allow you to interact
