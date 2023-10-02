@@ -54,6 +54,12 @@ Install with cargo:
 cargo install saturn-cli
 ```
 
+On NetBSD a pre-compiled package is available from the official repositories. To install it, simply run:
+
+```
+pkgin install saturn-cli
+```
+
 ## Entry language
 
 Entry language is basically:
