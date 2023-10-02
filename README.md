@@ -27,6 +27,8 @@ Here is what it looks like:
 # Table of Contents
 
 -   [Installation](#installation)
+    -   [Cargo](#cargo)
+    -   [System Packages](#system-packages)
 -   [Entry language](#entry-language)
     -   [Formats](#formats)
         -   [Dates](#dates)
