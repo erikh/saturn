@@ -220,8 +220,11 @@ macro_rules! process_cli {
                                 }
                                 $crate::record::RecordType::At => {
                                     let at = entry.at().unwrap() - duration;
-                                    let t = time.naive_local().time();
-                                    if t - well < at && t + well > at {
+                                    let top = (chrono::NaiveDateTime::new(entry.date(), at)
+                                        - duration)
+                                        .and_local_timezone(chrono::Local)
+                                        .unwrap();
+                                    if time - well < top && time + well > top {
                                         Some(notification.body(&format_at(entry, at)))
                                     } else {
                                         None
@@ -229,9 +232,13 @@ macro_rules! process_cli {
                                 }
                                 $crate::record::RecordType::Schedule => {
                                     let schedule = entry.scheduled().unwrap();
-                                    let top = schedule.0 - duration;
-                                    let t = time.naive_local().time();
-                                    if t - well < top && t + well > top {
+                                    let top =
+                                        (chrono::NaiveDateTime::new(entry.date(), schedule.0)
+                                            - duration)
+                                            .and_local_timezone(chrono::Local)
+                                            .unwrap();
+
+                                    if time - well < top && time + well > top {
                                         Some(notification.body(&format_scheduled(entry, schedule)))
                                     } else {
                                         None
