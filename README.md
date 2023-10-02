@@ -48,17 +48,30 @@ Here is what it looks like:
 
 ## Installation
 
+### Cargo
+
 Install with cargo:
 
 ```
 cargo install saturn-cli
 ```
 
+Track development with:
+
+```
+cargo install --git https://github.com/erikh/saturn
+```
+
+### System Packages
+
 On NetBSD a pre-compiled package is available from the official repositories. To install it, simply run:
 
 ```
 pkgin install saturn-cli
 ```
+
+RPM and DEB format packages are usually shipped with the [GitHub
+Releases](https://github.com/erikh/saturn/releases).
 
 ## Entry language
 
