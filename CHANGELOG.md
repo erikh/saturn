@@ -1,3 +1,5 @@
+-   `v0.4.3`:
+    -   Fix an issue where notifications for other days at the same time of day would appear in `saturn notify`.
 -   `v0.4.2`:
     -   Fix an issue where ending times would be cast before start times when using the edit command.
 -   `v0.4.1`:
