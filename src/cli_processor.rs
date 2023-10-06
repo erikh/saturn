@@ -205,7 +205,7 @@ macro_rules! process_cli {
                         for duration in notifications.iter().map(FancyDuration::duration) {
                             let notify = match entry.record_type() {
                                 $crate::record::RecordType::AllDay => {
-                                    let top = (time + chrono::Duration::days(1))
+                                    let top = (entry.datetime() + chrono::Duration::days(1))
                                         .with_hour(0)
                                         .unwrap()
                                         .with_minute(0)
