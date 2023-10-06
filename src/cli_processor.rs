@@ -210,6 +210,10 @@ macro_rules! process_cli {
                                         .unwrap()
                                         .with_minute(0)
                                         .unwrap()
+                                        .with_second(0)
+                                        .unwrap()
+                                        .with_nanosecond(0)
+                                        .unwrap()
                                         - duration;
 
                                     if time - well < top && time + well > top {
