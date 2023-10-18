@@ -5,7 +5,7 @@ macro_rules! do_client {
 
         'end: loop {
             if let Some(expires) = $obj.config.access_token_expires_at() {
-                if expires - chrono::Duration::hours(1) < now().naive_utc() {
+                if expires - chrono::Duration::minutes(1) < now().naive_utc() {
                     $obj.refresh_access_token().await?;
                 }
             }

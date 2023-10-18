@@ -2,6 +2,7 @@ use crate::{
     db::{unixfile::UnixFileLoader, RemoteClient, DB},
     filenames::saturn_db,
     record::{Record, RecurringRecord},
+    time::{now, UPDATE_INTERVAL},
 };
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
@@ -23,6 +24,10 @@ pub struct RemoteDB {
     recurring_id_map: BTreeMap<String, u64>,
     reverse_recurring_id_map: BTreeMap<u64, String>,
     fields: BTreeMap<u64, crate::record::Fields>,
+    cached_records: Vec<Record>,
+    cached_recurring_records: Vec<RecurringRecord>,
+    last_updated: chrono::DateTime<chrono::Local>,
+    update_now: bool,
     calendar_id: String,
 }
 
@@ -47,7 +52,26 @@ impl RemoteDB {
             reverse_recurring_id_map: BTreeMap::default(),
             fields: BTreeMap::default(),
             calendar_id,
+            last_updated: now(),
+            update_now: true,
+            cached_records: Vec::new(),
+            cached_recurring_records: Vec::new(),
         }
+    }
+
+    pub fn force_update(&mut self) {
+        self.update_now = true
+    }
+
+    pub fn updated(&mut self) {
+        self.update_now = false;
+        self.last_updated = now();
+    }
+
+    pub fn needs_update(&self) -> bool {
+        self.cached_records.is_empty()
+            || self.update_now
+            || self.last_updated() + *UPDATE_INTERVAL > now()
     }
 
     pub fn add_internal(&mut self, primary_key: u64, remote_key: String) {
@@ -126,69 +150,89 @@ impl RemoteDB {
         Ok(pk)
     }
 
-    async fn record_updates(&mut self, mut records: Vec<Record>) -> Result<Vec<Record>> {
-        for record in &mut records {
-            if let Some(internal_recurrence_key) = record.internal_recurrence_key() {
-                if record.recurrence_key().is_none() {
-                    let key = self.next_recurrence_key();
-                    record.set_recurrence_key(Some(key));
-                    self.add_recurring(internal_recurrence_key, key);
+    async fn record_updates<T>(&mut self, f: impl FnOnce() -> T) -> Result<Vec<Record>>
+    where
+        T: std::future::Future<Output = Result<Vec<Record>>>,
+    {
+        if self.needs_update() {
+            let mut records = f().await?;
+            for record in &mut records {
+                if let Some(internal_recurrence_key) = record.internal_recurrence_key() {
+                    if record.recurrence_key().is_none() {
+                        let key = self.next_recurrence_key();
+                        record.set_recurrence_key(Some(key));
+                        self.add_recurring(internal_recurrence_key, key);
+                    }
+                }
+
+                if let Some(internal_key) = record.internal_key() {
+                    if record.primary_key() == 0 {
+                        record.set_primary_key(self.record_internal(
+                            internal_key.clone(),
+                            self.lookup_internal(internal_key),
+                        )?);
+                    }
+                }
+
+                if let Some(fields) = self.fields.get(&record.primary_key()) {
+                    record.set_fields(fields.clone());
                 }
             }
 
-            if let Some(internal_key) = record.internal_key() {
-                if record.primary_key() == 0 {
-                    record.set_primary_key(self.record_internal(
-                        internal_key.clone(),
-                        self.lookup_internal(internal_key),
-                    )?);
-                }
-            }
-
-            if let Some(fields) = self.fields.get(&record.primary_key()) {
-                record.set_fields(fields.clone());
-            }
+            self.updated();
+            self.cached_records = records.clone();
+            Ok(records)
+        } else {
+            Ok(self.cached_records.clone())
         }
-
-        Ok(records)
     }
 
-    async fn record_recurring_updates(
+    async fn record_recurring_updates<T>(
         &mut self,
-        mut records: Vec<RecurringRecord>,
-    ) -> Result<Vec<RecurringRecord>> {
-        let mut v = Vec::new();
-        for record in &mut records {
-            if let Some(internal_recurrence_key) = record.internal_key() {
-                if let Some(internal) =
-                    self.recurring_lookup_internal(internal_recurrence_key.clone())
-                {
-                    record.set_recurrence_key(internal);
-                    record.record().set_recurrence_key(Some(internal));
-                    self.add_recurring(internal_recurrence_key.clone(), internal);
-                } else if record.recurrence_key() == 0 {
-                    let key = self.next_recurrence_key();
-                    record.set_recurrence_key(key);
-                    record.record().set_recurrence_key(Some(key));
-                    self.add_recurring(internal_recurrence_key.clone(), key);
-                } else {
-                    record.recurrence_key();
+        f: impl FnOnce() -> T,
+    ) -> Result<Vec<RecurringRecord>>
+    where
+        T: std::future::Future<Output = Result<Vec<RecurringRecord>>>,
+    {
+        if self.needs_update() {
+            let mut v = Vec::new();
+            let mut records = f().await?;
+            for record in &mut records {
+                if let Some(internal_recurrence_key) = record.internal_key() {
+                    if let Some(internal) =
+                        self.recurring_lookup_internal(internal_recurrence_key.clone())
+                    {
+                        record.set_recurrence_key(internal);
+                        record.record().set_recurrence_key(Some(internal));
+                        self.add_recurring(internal_recurrence_key.clone(), internal);
+                    } else if record.recurrence_key() == 0 {
+                        let key = self.next_recurrence_key();
+                        record.set_recurrence_key(key);
+                        record.record().set_recurrence_key(Some(key));
+                        self.add_recurring(internal_recurrence_key.clone(), key);
+                    } else {
+                        record.recurrence_key();
+                    }
                 }
+
+                if let Some(internal_key) = record.record().internal_key() {
+                    if record.record().primary_key() == 0 {
+                        record.record().set_primary_key(self.record_internal(
+                            internal_key.clone(),
+                            self.lookup_internal(internal_key),
+                        )?);
+                    }
+                }
+
+                v.push(record.clone());
             }
 
-            if let Some(internal_key) = record.record().internal_key() {
-                if record.record().primary_key() == 0 {
-                    record.record().set_primary_key(self.record_internal(
-                        internal_key.clone(),
-                        self.lookup_internal(internal_key),
-                    )?);
-                }
-            }
-
-            v.push(record.clone());
+            self.updated();
+            self.cached_recurring_records = v.clone();
+            Ok(v)
+        } else {
+            Ok(self.cached_recurring_records.clone())
         }
-
-        Ok(v)
     }
 }
 
@@ -203,7 +247,19 @@ impl DB for RemoteDB {
         self.recurring_id_map = db.recurring_id_map;
         self.reverse_recurring_id_map = db.reverse_recurring_id_map;
         self.fields = db.fields;
+        self.last_updated = db.last_updated;
+        self.update_now = db.update_now;
+        self.cached_records = db.cached_records;
+        self.cached_recurring_records = db.cached_recurring_records;
         self.update_recurrence().await
+    }
+
+    fn last_updated(&self) -> chrono::DateTime<chrono::Local> {
+        self.last_updated
+    }
+
+    fn set_last_updated(&mut self, time: chrono::DateTime<chrono::Local>) {
+        self.last_updated = time
     }
 
     async fn dump(&self) -> Result<()> {
@@ -309,6 +365,14 @@ impl<T: RemoteClient + Send + Sync + Default + std::fmt::Debug> DB for RemoteDBC
         self.db.dump().await
     }
 
+    fn last_updated(&self) -> chrono::DateTime<chrono::Local> {
+        self.db.last_updated()
+    }
+
+    fn set_last_updated(&mut self, time: chrono::DateTime<chrono::Local>) {
+        self.db.set_last_updated(time)
+    }
+
     fn primary_key(&self) -> u64 {
         self.db.primary_key()
     }
@@ -368,18 +432,20 @@ impl<T: RemoteClient + Send + Sync + Default + std::fmt::Debug> DB for RemoteDBC
 
     async fn record(&mut self, record: Record) -> Result<()> {
         if self.db.lookup(record.primary_key()).is_none() {
-            self.insert_record(record).await
-        } else {
-            Ok(())
+            self.insert_record(record).await?;
+            self.db.force_update();
         }
+
+        Ok(())
     }
 
     async fn record_recurrence(&mut self, record: RecurringRecord) -> Result<()> {
         if self.db.recurring_lookup(record.recurrence_key()).is_none() {
-            self.insert_recurrence(record).await
-        } else {
-            Ok(())
+            self.insert_recurrence(record).await?;
+            self.db.force_update();
         }
+
+        Ok(())
     }
 
     async fn insert_record(&mut self, record: Record) -> Result<()> {
@@ -424,7 +490,7 @@ impl<T: RemoteClient + Send + Sync + Default + std::fmt::Debug> DB for RemoteDBC
         let calendar_id = self.db.calendar_id.clone();
 
         self.db
-            .record_recurring_updates(self.client.list_recurrence(calendar_id).await?)
+            .record_recurring_updates(|| self.client.list_recurrence(calendar_id))
             .await
     }
 
@@ -438,11 +504,7 @@ impl<T: RemoteClient + Send + Sync + Default + std::fmt::Debug> DB for RemoteDBC
         let calendar_id = self.db.calendar_id.clone();
 
         self.db
-            .record_updates(
-                self.client
-                    .list_today(calendar_id, include_completed)
-                    .await?,
-            )
+            .record_updates(|| self.client.list_today(calendar_id, include_completed))
             .await
     }
 
@@ -450,7 +512,7 @@ impl<T: RemoteClient + Send + Sync + Default + std::fmt::Debug> DB for RemoteDBC
         let calendar_id = self.db.calendar_id.clone();
 
         self.db
-            .record_updates(self.client.list_all(calendar_id, include_completed).await?)
+            .record_updates(|| self.client.list_all(calendar_id, include_completed))
             .await
     }
 
@@ -462,11 +524,7 @@ impl<T: RemoteClient + Send + Sync + Default + std::fmt::Debug> DB for RemoteDBC
         let calendar_id = self.db.calendar_id.clone();
 
         self.db
-            .record_updates(
-                self.client
-                    .events_now(calendar_id, last, include_completed)
-                    .await?,
-            )
+            .record_updates(|| self.client.events_now(calendar_id, last, include_completed))
             .await
     }
 
@@ -510,11 +568,13 @@ impl<T: RemoteClient + Send + Sync + Default + std::fmt::Debug> DB for RemoteDBC
     async fn update(&mut self, record: Record) -> Result<()> {
         let calendar_id = self.db.calendar_id.clone();
         self.db.fields.insert(record.primary_key(), record.fields());
+        self.db.force_update();
         self.client.update(calendar_id, record).await
     }
 
     async fn update_recurring(&mut self, record: RecurringRecord) -> Result<()> {
         let calendar_id = self.db.calendar_id.clone();
+        self.db.force_update();
         self.client.update_recurring(calendar_id, record).await
     }
 }

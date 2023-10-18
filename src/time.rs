@@ -1,5 +1,9 @@
 use chrono::Timelike;
 
+lazy_static::lazy_static! {
+    pub static ref UPDATE_INTERVAL: chrono::Duration = chrono::Duration::minutes(5);
+}
+
 pub fn now() -> chrono::DateTime<chrono::Local> {
     chrono::Local::now()
 }

@@ -76,6 +76,8 @@ pub trait DB: Send {
         include_completed: bool,
     ) -> Result<Vec<Record>>;
     async fn complete_task(&mut self, primary_key: u64) -> Result<()>;
+    fn last_updated(&self) -> chrono::DateTime<chrono::Local>;
+    fn set_last_updated(&mut self, time: chrono::DateTime<chrono::Local>);
 }
 
 #[async_trait]

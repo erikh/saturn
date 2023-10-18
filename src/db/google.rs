@@ -35,11 +35,13 @@ impl GoogleClient {
             return Err(anyhow!("Must have client information configured"));
         }
 
-        let client = if let Some(access_token) = config.access_token() {
+        let mut client = if let Some(access_token) = config.access_token() {
             Client::new(access_token)?
         } else {
             return Err(anyhow!("You must have an access token to make calls. Use `saturn config get-token` to retrieve one."));
         };
+
+        client.set_debug();
 
         Ok(Self {
             client: Some(client),
@@ -406,7 +408,10 @@ impl GoogleClient {
 }
 
 #[async_trait]
-impl RemoteClient for GoogleClient {
+impl RemoteClient for GoogleClient
+where
+    Self: Send,
+{
     async fn delete(&mut self, calendar_id: String, event_id: String) -> Result<()> {
         let events = EventClient::new(self.client());
         let mut event = Event::default();

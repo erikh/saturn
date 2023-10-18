@@ -36,6 +36,12 @@ impl DB for MemoryDB {
         Ok(())
     }
 
+    fn last_updated(&self) -> chrono::DateTime<chrono::Local> {
+        now()
+    }
+
+    fn set_last_updated(&mut self, _time: chrono::DateTime<chrono::Local>) {}
+
     async fn dump(&self) -> Result<()> {
         UnixFileLoader::new(&saturn_db()).dump(self.clone()).await
     }
