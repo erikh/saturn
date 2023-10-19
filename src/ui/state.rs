@@ -1,6 +1,10 @@
 use crate::{
     config::{Config, DBType},
-    db::{google::GoogleClient, memory::MemoryDB, remote::RemoteDBClient, DB},
+    db::{
+        google::GoogleClient, memory::MemoryDB, remote::RemoteDBClient, unixfile::UnixFileLoader,
+        DB,
+    },
+    filenames::saturn_cache,
     list_ui, map_record, process_ui_command,
     record::{Record, RecurringRecord},
     time::now,
@@ -38,10 +42,15 @@ impl<'a> std::ops::Deref for ProtectedState<'a> {
 }
 
 impl<'a> ProtectedState<'a> {
-    pub fn google_db(&self, config: Config) -> Result<RemoteDBClient<GoogleClient>> {
-        let client = GoogleClient::new(config.clone())?;
+    pub async fn make_client(&self, config: Config) -> Result<GoogleClient> {
+        GoogleClient::new(config, UnixFileLoader::new(&saturn_cache()).load().await?)
+    }
 
-        Ok(RemoteDBClient::new(config.calendar_id(), client.clone()))
+    pub async fn google_db(&self, config: Config) -> Result<RemoteDBClient<GoogleClient>> {
+        Ok(RemoteDBClient::new(
+            config.calendar_id(),
+            self.make_client(config).await?,
+        ))
     }
 
     pub fn memory_db(&self) -> Result<MemoryDB> {
@@ -49,7 +58,7 @@ impl<'a> ProtectedState<'a> {
     }
 
     pub async fn list_google_recurring(&self, config: Config) -> Result<Vec<RecurringRecord>> {
-        let mut db = self.google_db(config)?;
+        let mut db = self.google_db(config).await?;
         db.load().await?;
         let res = db.list_recurrence().await?;
         db.dump().await?;
@@ -69,7 +78,7 @@ impl<'a> ProtectedState<'a> {
         config: Config,
         list_type: super::types::ListType,
     ) -> Result<Vec<Record>> {
-        let mut db = self.google_db(config)?;
+        let mut db = self.google_db(config).await?;
         list_ui!(db, list_type)
     }
 
@@ -79,9 +88,10 @@ impl<'a> ProtectedState<'a> {
     }
 
     pub async fn command_google(&self, config: Config) -> Result<()> {
-        let client = GoogleClient::new(config.clone())?;
-
-        let mut db = RemoteDBClient::new(config.calendar_id(), client.clone());
+        let mut db = RemoteDBClient::new(
+            config.calendar_id(),
+            self.make_client(config.clone()).await?,
+        );
         process_ui_command!(self, db, config);
         Ok(())
     }
@@ -93,9 +103,7 @@ impl<'a> ProtectedState<'a> {
     }
 
     pub async fn get_google(&self, config: Config, id: u64) -> Result<Record> {
-        let client = GoogleClient::new(config.clone())?;
-
-        let mut db = RemoteDBClient::new(config.calendar_id(), client.clone());
+        let mut db = RemoteDBClient::new(config.calendar_id(), self.make_client(config).await?);
         map_record!(db, id)
     }
 
@@ -105,9 +113,7 @@ impl<'a> ProtectedState<'a> {
     }
 
     pub async fn get_recurring_google(&self, config: Config, id: u64) -> Result<RecurringRecord> {
-        let client = GoogleClient::new(config.clone())?;
-
-        let mut db = RemoteDBClient::new(config.calendar_id(), client.clone());
+        let mut db = RemoteDBClient::new(config.calendar_id(), self.make_client(config).await?);
         map_record!(db, id, true)
     }
 

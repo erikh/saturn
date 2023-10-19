@@ -12,7 +12,7 @@ impl<'a> UnixFileLoader<'a> {
 
     pub async fn load<T>(&self) -> Result<T>
     where
-        T: DB + Serialize + for<'de> Deserialize<'de> + Default,
+        T: Serialize + for<'de> Deserialize<'de> + Default,
     {
         unsafe {
             let fd = nix::libc::open(

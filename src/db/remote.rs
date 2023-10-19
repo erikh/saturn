@@ -24,10 +24,7 @@ pub struct RemoteDB {
     recurring_id_map: BTreeMap<String, u64>,
     reverse_recurring_id_map: BTreeMap<u64, String>,
     fields: BTreeMap<u64, crate::record::Fields>,
-    cached_records: Vec<Record>,
-    cached_recurring_records: Vec<RecurringRecord>,
-    last_updated: chrono::DateTime<chrono::Local>,
-    update_now: bool,
+    cache: RemoteCache,
     calendar_id: String,
 }
 
@@ -51,27 +48,13 @@ impl RemoteDB {
             recurring_id_map: BTreeMap::default(),
             reverse_recurring_id_map: BTreeMap::default(),
             fields: BTreeMap::default(),
+            cache: RemoteCache::default(),
             calendar_id,
-            last_updated: now(),
-            update_now: true,
-            cached_records: Vec::new(),
-            cached_recurring_records: Vec::new(),
         }
     }
 
-    pub fn force_update(&mut self) {
-        self.update_now = true
-    }
-
-    pub fn updated(&mut self) {
-        self.update_now = false;
-        self.last_updated = now();
-    }
-
-    pub fn needs_update(&self) -> bool {
-        self.cached_records.is_empty()
-            || self.update_now
-            || self.last_updated() + *UPDATE_INTERVAL > now()
+    pub fn cache(&self) -> RemoteCache {
+        self.cache
     }
 
     pub fn add_internal(&mut self, primary_key: u64, remote_key: String) {
@@ -154,7 +137,7 @@ impl RemoteDB {
     where
         T: std::future::Future<Output = Result<Vec<Record>>>,
     {
-        if self.needs_update() {
+        if self.cache.needs_update() {
             let mut records = f().await?;
             for record in &mut records {
                 if let Some(internal_recurrence_key) = record.internal_recurrence_key() {
@@ -179,11 +162,10 @@ impl RemoteDB {
                 }
             }
 
-            self.updated();
-            self.cached_records = records.clone();
-            Ok(records)
+            self.cache.update(records);
+            Ok(self.cache.records())
         } else {
-            Ok(self.cached_records.clone())
+            Ok(self.cache.records())
         }
     }
 
@@ -194,7 +176,7 @@ impl RemoteDB {
     where
         T: std::future::Future<Output = Result<Vec<RecurringRecord>>>,
     {
-        if self.needs_update() {
+        if self.cache.needs_update() {
             let mut v = Vec::new();
             let mut records = f().await?;
             for record in &mut records {
@@ -227,11 +209,10 @@ impl RemoteDB {
                 v.push(record.clone());
             }
 
-            self.updated();
-            self.cached_recurring_records = v.clone();
-            Ok(v)
+            self.cache.update_recurring(v);
+            Ok(self.cache.recurring_records())
         } else {
-            Ok(self.cached_recurring_records.clone())
+            Ok(self.cache.recurring_records())
         }
     }
 }
@@ -247,19 +228,16 @@ impl DB for RemoteDB {
         self.recurring_id_map = db.recurring_id_map;
         self.reverse_recurring_id_map = db.reverse_recurring_id_map;
         self.fields = db.fields;
-        self.last_updated = db.last_updated;
-        self.update_now = db.update_now;
-        self.cached_records = db.cached_records;
-        self.cached_recurring_records = db.cached_recurring_records;
+        self.cache = db.cache;
         self.update_recurrence().await
     }
 
     fn last_updated(&self) -> chrono::DateTime<chrono::Local> {
-        self.last_updated
+        self.cache.last_updated()
     }
 
     fn set_last_updated(&mut self, time: chrono::DateTime<chrono::Local>) {
-        self.last_updated = time
+        self.cache.set_last_updated(time)
     }
 
     async fn dump(&self) -> Result<()> {
@@ -433,7 +411,7 @@ impl<T: RemoteClient + Send + Sync + Default + std::fmt::Debug> DB for RemoteDBC
     async fn record(&mut self, record: Record) -> Result<()> {
         if self.db.lookup(record.primary_key()).is_none() {
             self.insert_record(record).await?;
-            self.db.force_update();
+            self.db.cache.force_update();
         }
 
         Ok(())
@@ -442,7 +420,7 @@ impl<T: RemoteClient + Send + Sync + Default + std::fmt::Debug> DB for RemoteDBC
     async fn record_recurrence(&mut self, record: RecurringRecord) -> Result<()> {
         if self.db.recurring_lookup(record.recurrence_key()).is_none() {
             self.insert_recurrence(record).await?;
-            self.db.force_update();
+            self.db.cache.force_update();
         }
 
         Ok(())
@@ -568,13 +546,67 @@ impl<T: RemoteClient + Send + Sync + Default + std::fmt::Debug> DB for RemoteDBC
     async fn update(&mut self, record: Record) -> Result<()> {
         let calendar_id = self.db.calendar_id.clone();
         self.db.fields.insert(record.primary_key(), record.fields());
-        self.db.force_update();
+        self.db.cache.force_update();
         self.client.update(calendar_id, record).await
     }
 
     async fn update_recurring(&mut self, record: RecurringRecord) -> Result<()> {
         let calendar_id = self.db.calendar_id.clone();
-        self.db.force_update();
+        self.db.cache.force_update();
         self.client.update_recurring(calendar_id, record).await
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct RemoteCache {
+    records: Vec<Record>,
+    recurring_records: Vec<RecurringRecord>,
+    last_updated: chrono::DateTime<chrono::Local>,
+    #[serde(skip, default = "Default::default")] // I'm not sure this matters
+    update_now: bool,
+}
+
+impl RemoteCache {
+    pub fn newer(&self, other: Self) -> bool {
+        self.last_updated > other.last_updated
+    }
+
+    pub fn last_updated(&self) -> chrono::DateTime<chrono::Local> {
+        self.last_updated
+    }
+
+    pub fn set_last_updated(&mut self, time: chrono::DateTime<chrono::Local>) {
+        self.last_updated = time
+    }
+
+    pub fn records(&self) -> Vec<Record> {
+        self.records
+    }
+
+    pub fn recurring_records(&self) -> Vec<RecurringRecord> {
+        self.recurring_records
+    }
+
+    pub fn update(&mut self, updated: Vec<Record>) {
+        self.records = updated;
+        self.mark_updated()
+    }
+
+    pub fn update_recurring(&mut self, updated: Vec<RecurringRecord>) {
+        self.recurring_records = updated;
+        self.mark_updated()
+    }
+
+    pub fn needs_update(&self) -> bool {
+        self.records.is_empty() || self.update_now || self.last_updated() + *UPDATE_INTERVAL > now()
+    }
+
+    pub fn force_update(&mut self) {
+        self.update_now = true;
+    }
+
+    pub fn mark_updated(&mut self) {
+        self.last_updated = now();
+        self.update_now = false;
     }
 }

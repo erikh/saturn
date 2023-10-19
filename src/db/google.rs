@@ -1,6 +1,6 @@
 use crate::{
     config::{Config, DBType},
-    db::RemoteClient,
+    db::{remote::RemoteCache, RemoteClient},
     do_client,
     record::{Record, RecordType, RecurringRecord},
     time::{now, window},
@@ -12,7 +12,7 @@ use gcal::{
     oauth::{request_access_token, AccessToken},
     resources::{
         CalendarListClient, CalendarListItem, DefaultReminder, Event, EventCalendarDate,
-        EventClient, EventReminder, EventStatus,
+        EventClient, EventReminder, EventStatus, Events,
     },
     Client, ClientError,
 };
@@ -23,10 +23,11 @@ pub struct GoogleClient {
     client: Option<Client>,
     config: Config,
     ical_map: BTreeMap<String, u64>,
+    cache: Option<RemoteCache>,
 }
 
 impl GoogleClient {
-    pub fn new(config: Config) -> Result<Self> {
+    pub fn new(config: Config, cache: Option<RemoteCache>) -> Result<Self> {
         if !matches!(config.db_type(), DBType::Google) {
             return Err(anyhow!("DBType must be set to google"));
         }
@@ -47,6 +48,7 @@ impl GoogleClient {
             client: Some(client),
             config,
             ical_map: Default::default(),
+            cache,
         })
     }
 
@@ -193,52 +195,73 @@ impl GoogleClient {
         Ok(())
     }
 
-    async fn perform_list(
-        &mut self,
-        calendar_id: String,
+    async fn convert_recurring_events(
+        &self,
+        instances: Events,
         start: chrono::DateTime<chrono::Local>,
         end: chrono::DateTime<chrono::Local>,
     ) -> Result<Vec<Record>> {
-        let list = EventClient::new(self.client());
+        let mut records = Vec::new();
 
-        let events = do_client!(self, { list.list(calendar_id.clone(), start, end) })?;
+        for new_event in instances.items {
+            if let Some(new_start) = &new_event.start {
+                if let Some(new_start) = &new_start.date {
+                    if let Ok(new_start) = new_start.parse::<chrono::NaiveDate>() {
+                        if new_start > start.date_naive() && new_start < end.date_naive() {
+                            if let Some(status) = new_event.status.clone() {
+                                if !matches!(status, EventStatus::Cancelled) {
+                                    records.push(self.event_to_record(new_event)?);
+                                }
+                            }
+                        }
+                    }
+                } else if let Some(new_start) = &new_start.date_time {
+                    if let Ok(new_start) = new_start.parse::<chrono::DateTime<chrono::Local>>() {
+                        if new_start > start && new_start < end {
+                            if let Some(status) = new_event.status.clone() {
+                                if !matches!(status, EventStatus::Cancelled) {
+                                    records.push(self.event_to_record(new_event)?);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
 
+        Ok(records)
+    }
+
+    async fn convert_events<T>(
+        &self,
+        calendar_id: String,
+        events: Vec<Event>,
+        start: chrono::DateTime<chrono::Local>,
+        end: chrono::DateTime<chrono::Local>,
+        mut recur_lookup: impl FnMut(Event) -> T,
+    ) -> Result<Vec<Record>>
+    where
+        T: std::future::Future<Output = Result<Events, ClientError>> + Send,
+    {
         let mut records = Vec::new();
 
         for mut event in events {
             if event.recurrence.is_some() {
                 event.calendar_id = Some(calendar_id.clone());
 
-                let instances = EventClient::new(self.client())
-                    .instances(event.clone())
-                    .await?;
+                let recurring_events = if let Some(cache) = &self.cache {
+                    cache
+                        .recurring_records()
+                        .iter()
+                        .map(|x| x.record().clone())
+                        .collect::<Vec<Record>>()
+                } else {
+                    self.convert_recurring_events(recur_lookup(event).await?, start, end)
+                        .await?
+                };
 
-                for new_event in instances.items {
-                    if let Some(new_start) = &new_event.start {
-                        if let Some(new_start) = &new_start.date {
-                            if let Ok(new_start) = new_start.parse::<chrono::NaiveDate>() {
-                                if new_start > start.date_naive() && new_start < end.date_naive() {
-                                    if let Some(status) = new_event.status.clone() {
-                                        if !matches!(status, EventStatus::Cancelled) {
-                                            records.push(self.event_to_record(new_event)?);
-                                        }
-                                    }
-                                }
-                            }
-                        } else if let Some(new_start) = &new_start.date_time {
-                            if let Ok(new_start) =
-                                new_start.parse::<chrono::DateTime<chrono::Local>>()
-                            {
-                                if new_start > start && new_start < end {
-                                    if let Some(status) = new_event.status.clone() {
-                                        if !matches!(status, EventStatus::Cancelled) {
-                                            records.push(self.event_to_record(new_event)?);
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
+                for record in recurring_events {
+                    records.push(record);
                 }
             } else {
                 event.calendar_id = Some(calendar_id.clone());
@@ -255,7 +278,22 @@ impl GoogleClient {
         Ok(records)
     }
 
-    pub fn event_to_record(&mut self, event: Event) -> Result<Record, ClientError> {
+    async fn perform_list(
+        &mut self,
+        calendar_id: String,
+        start: chrono::DateTime<chrono::Local>,
+        end: chrono::DateTime<chrono::Local>,
+    ) -> Result<Vec<Record>> {
+        let list = EventClient::new(self.client());
+
+        let events = do_client!(self, { list.list(calendar_id.clone(), start, end) })?;
+        self.convert_events(calendar_id, events, start, end, |event| {
+            EventClient::new(self.client()).instances(event)
+        })
+        .await
+    }
+
+    pub fn event_to_record(&self, event: Event) -> Result<Record, ClientError> {
         let mut record = Record::default();
 
         record.set_internal_key(event.id.clone());
