@@ -261,28 +261,29 @@ impl GoogleClient {
 
         let original_start = event.original_start_time;
 
-        let start_time = event.start.clone().or(original_start.clone()).map_or_else(
-            || None,
-            |x| {
-                x.date_time.map_or_else(
-                    || None,
-                    |y| {
-                        y.parse::<chrono::DateTime<chrono::Local>>()
-                            .map_or_else(|_| None, |z| Some(z.naive_local()))
-                    },
-                )
-            },
-        );
+        let start_time = event
+            .start
+            .clone()
+            .or(original_start.clone())
+            .map(|x| {
+                x.date_time.map(|y| {
+                    y.parse::<chrono::DateTime<chrono::Local>>()
+                        .map_or_else(|_| None, |z| Some(z.naive_local()))
+                })
+            })
+            .flatten()
+            .flatten();
 
-        let date = event.start.clone().or(original_start.clone()).map_or_else(
-            || None,
-            |x| {
-                x.date.map_or_else(
-                    || None,
-                    |y| y.parse::<chrono::NaiveDate>().map_or_else(|_| None, Some),
-                )
-            },
-        );
+        let date = event
+            .start
+            .clone()
+            .or(original_start.clone())
+            .map(|x| {
+                x.date
+                    .map(|y| y.parse::<chrono::NaiveDate>().map_or_else(|_| None, Some))
+            })
+            .flatten()
+            .flatten();
 
         let has_start_time = start_time.is_some();
 
