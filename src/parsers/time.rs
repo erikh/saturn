@@ -10,9 +10,9 @@ pub fn parse_date(s: String) -> Result<chrono::NaiveDate> {
         "today" => Ok(now().date_naive()),
         "yesterday" => Ok((now() - chrono::Duration::days(1)).date_naive()),
         "tomorrow" => Ok((now() + chrono::Duration::days(1)).date_naive()),
-        "sun" | "sunday" | "mon" | "monday" | "tu" | "tue" | "tues" | "tuesday" | "wed"
-        | "wednesday" | "weds" | "th" | "thu" | "thurs" | "thursday" | "fr" | "fri" | "friday"
-        | "sat" | "saturday" => {
+        "su" | "sun" | "sunday" | "mo" | "mon" | "monday" | "tu" | "tue" | "tues" | "tuesday"
+        | "we" | "wed" | "wednesday" | "weds" | "th" | "thu" | "thurs" | "thursday" | "fr"
+        | "fri" | "friday" | "sa" | "sat" | "saturday" => {
             let period = now().weekday().num_days_from_sunday();
 
             for (x, day) in DAYS_OF_WEEK.iter().enumerate() {
