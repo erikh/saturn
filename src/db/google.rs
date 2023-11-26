@@ -259,23 +259,10 @@ impl GoogleClient {
         record.set_internal_key(event.id.clone());
         record.set_internal_recurrence_key(event.id.clone());
 
-        let start = event.start;
+        let original_start = event.original_start_time;
 
-        let start_time = event.original_start_time.clone().map_or_else(
-            || {
-                start.clone().map_or_else(
-                    || None,
-                    |x| {
-                        x.date_time.map_or_else(
-                            || None,
-                            |y| {
-                                y.parse::<chrono::DateTime<chrono::Local>>()
-                                    .map_or_else(|_| None, |z| Some(z.naive_local()))
-                            },
-                        )
-                    },
-                )
-            },
+        let start_time = event.start.clone().or(original_start.clone()).map_or_else(
+            || None,
             |x| {
                 x.date_time.map_or_else(
                     || None,
@@ -287,18 +274,8 @@ impl GoogleClient {
             },
         );
 
-        let date = event.original_start_time.clone().map_or_else(
-            || {
-                start.map_or_else(
-                    || None,
-                    |x| {
-                        x.date.map_or_else(
-                            || None,
-                            |y| y.parse::<chrono::NaiveDate>().map_or_else(|_| None, Some),
-                        )
-                    },
-                )
-            },
+        let date = event.start.clone().or(original_start.clone()).map_or_else(
+            || None,
             |x| {
                 x.date.map_or_else(
                     || None,
