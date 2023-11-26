@@ -1,3 +1,7 @@
+-   `v0.4.4`:
+    -   Fix an issue where all day events would be spam notified every day.
+    -   Google: recurring tasks always preferred the original start time, not the current time.
+    -   Fix using certain weekdays as time specifiers.
 -   `v0.4.3`:
     -   Fix an issue where notifications for other days at the same time of day would appear in `saturn notify`.
 -   `v0.4.2`:
