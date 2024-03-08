@@ -1,3 +1,5 @@
+-   `v0.4.5`:
+    -   Library updates & fixes to chrono deprecation warnings
 -   `v0.4.4`:
     -   Fix an issue where all day events would be spam notified every day.
     -   Google: recurring tasks always preferred the original start time, not the current time.
