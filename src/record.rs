@@ -255,10 +255,10 @@ impl RecurringRecord {
                     return Ok(Self::new(
                         record,
                         fancy_duration::FancyDuration::new(match freq {
-                            RuleFrequency::Daily => chrono::Duration::days(interval),
-                            RuleFrequency::Yearly => chrono::Duration::weeks(interval) * 52,
-                            RuleFrequency::Weekly => chrono::Duration::weeks(interval),
-                            RuleFrequency::Monthly => chrono::Duration::days(interval) * 30,
+                            RuleFrequency::Daily => chrono::TimeDelta::try_days(interval).unwrap_or_default(),
+                            RuleFrequency::Yearly => chrono::TimeDelta::try_weeks(interval).unwrap_or_default() * 52,
+                            RuleFrequency::Weekly => chrono::TimeDelta::try_weeks(interval).unwrap_or_default(),
+                            RuleFrequency::Monthly => chrono::TimeDelta::try_days(interval).unwrap_or_default() * 30,
                         }),
                     ));
                 }
@@ -271,9 +271,9 @@ impl RecurringRecord {
     pub fn to_rrule(&self) -> String {
         let recur = self.recurrence.duration();
 
-        let freq = if recur < chrono::Duration::days(30) {
+        let freq = if recur < chrono::TimeDelta::try_days(30).unwrap_or_default() {
             ("DAILY", recur.num_days())
-        } else if recur < chrono::Duration::weeks(52) {
+        } else if recur < chrono::TimeDelta::try_weeks(52).unwrap_or_default() {
             ("MONTHLY", recur.num_days() / 30)
         } else {
             ("YEARLY", recur.num_weeks() * 52)

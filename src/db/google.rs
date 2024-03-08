@@ -90,7 +90,9 @@ impl GoogleClient {
                 })
             }
             RecordType::AllDay => Some(EventCalendarDate {
-                date_time: Some((utc + chrono::Duration::days(1)).to_rfc3339()),
+                date_time: Some(
+                    (utc + chrono::TimeDelta::try_days(1).unwrap_or_default()).to_rfc3339(),
+                ),
                 time_zone: Some(utc.timezone().to_string()),
                 ..Default::default()
             }),
@@ -136,7 +138,8 @@ impl GoogleClient {
             let mut reminders = EventReminder::default();
 
             for notification in notifications {
-                if notification.duration() == chrono::Duration::minutes(10) {
+                if notification.duration() == chrono::TimeDelta::try_minutes(10).unwrap_or_default()
+                {
                     reminders.use_default = true;
                 } else {
                     let mut overrides = Vec::new();
@@ -171,18 +174,20 @@ impl GoogleClient {
         let token = res?;
         self.config.set_access_token(Some(token.access_token));
         self.config.set_access_token_expires_at(Some(
-            now().naive_utc() + chrono::Duration::seconds(token.expires_in),
+            now().naive_utc()
+                + chrono::TimeDelta::try_seconds(token.expires_in).unwrap_or_default(),
         ));
 
         if let Some(refresh_token) = token.refresh_token {
             self.config.set_refresh_token(Some(refresh_token));
             if let Some(expires_in) = token.refresh_token_expires_in {
                 self.config.set_refresh_token_expires_at(Some(
-                    now().naive_utc() + chrono::Duration::seconds(expires_in),
+                    now().naive_utc()
+                        + chrono::TimeDelta::try_seconds(expires_in).unwrap_or_default(),
                 ));
             } else {
                 self.config.set_refresh_token_expires_at(Some(
-                    now().naive_utc() + chrono::Duration::seconds(3600),
+                    now().naive_utc() + chrono::TimeDelta::try_seconds(3600).unwrap_or_default(),
                 ));
             }
         }
@@ -305,7 +310,7 @@ impl GoogleClient {
                 Err(_) => return Err(anyhow!("Couldn't parse time").into()),
             };
 
-            if (start_time.unwrap() + chrono::Duration::days(1)) == local {
+            if (start_time.unwrap() + chrono::TimeDelta::try_days(1).unwrap_or_default()) == local {
                 RecordType::AllDay
             } else {
                 RecordType::Schedule
@@ -324,16 +329,17 @@ impl GoogleClient {
 
         if let Some(reminders) = event.reminders {
             if reminders.use_default {
-                record.add_notification(chrono::Duration::minutes(10));
+                record.add_notification(chrono::TimeDelta::try_minutes(10).unwrap_or_default());
             }
 
             if let Some(overrides) = reminders.overrides {
                 for notification in overrides {
                     match notification.method {
                         gcal::ReminderMethod::PopUp => {
-                            record.add_notification(chrono::Duration::minutes(
-                                notification.minutes.into(),
-                            ));
+                            record.add_notification(
+                                chrono::TimeDelta::try_minutes(notification.minutes.into())
+                                    .unwrap_or_default(),
+                            );
                         }
                         _ => {}
                     }
@@ -442,7 +448,7 @@ impl RemoteClient for GoogleClient {
         calendar_id: String,
         mut record: RecurringRecord,
     ) -> Result<(String, String)> {
-        if record.recurrence().duration() < chrono::Duration::days(1) {
+        if record.recurrence().duration() < chrono::TimeDelta::try_days(1).unwrap_or_default() {
             return Err(anyhow!(
                 "Google Calendar supports a minimum granularity of 1 day"
             ));
@@ -518,8 +524,8 @@ impl RemoteClient for GoogleClient {
     ) -> Result<Vec<Record>> {
         self.perform_list(
             calendar_id,
-            now() - chrono::Duration::days(1),
-            now() + chrono::Duration::days(1),
+            now() - chrono::TimeDelta::try_days(1).unwrap_or_default(),
+            now() + chrono::TimeDelta::try_days(1).unwrap_or_default(),
         )
         .await
     }

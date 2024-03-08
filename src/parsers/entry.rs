@@ -138,7 +138,7 @@ mod tests {
     fn test_parse_entry() {
         use super::parse_entry;
         use crate::{record::Record, time::now};
-        use chrono::{Datelike, Duration, Timelike};
+        use chrono::{Datelike, TimeDelta, Timelike};
 
         let pm = now().hour() >= 12;
         let record = Record::build();
@@ -149,7 +149,7 @@ mod tests {
             .set_at(Some(
                 chrono::NaiveTime::from_hms_opt(if pm { 20 } else { 8 }, 0, 0).unwrap(),
             ))
-            .add_notification(chrono::Duration::minutes(5))
+            .add_notification(chrono::TimeDelta::try_minutes(5).unwrap_or_default())
             .set_detail("Test Today".to_string());
 
         let mut soda = record.clone();
@@ -157,12 +157,12 @@ mod tests {
             .set_at(Some(
                 chrono::NaiveTime::from_hms_opt(if pm { 20 } else { 8 }, 0, 0).unwrap(),
             ))
-            .add_notification(chrono::Duration::minutes(5))
+            .add_notification(chrono::TimeDelta::try_minutes(5).unwrap_or_default())
             .set_detail("Get a Soda".to_string());
 
         let mut relax = record.clone();
         relax
-            .set_date((now() + Duration::days(1)).date_naive())
+            .set_date((now() + TimeDelta::try_days(1).unwrap_or_default()).date_naive())
             .set_at(Some(chrono::NaiveTime::from_hms_opt(16, 0, 0).unwrap()))
             .set_detail("Relax".to_string());
 
@@ -170,7 +170,7 @@ mod tests {
         birthday
             .set_date(chrono::NaiveDate::from_ymd_opt(now().year(), 10, 23).unwrap())
             .set_at(Some(chrono::NaiveTime::from_hms_opt(7, 30, 0).unwrap()))
-            .add_notification(chrono::Duration::hours(1))
+            .add_notification(chrono::TimeDelta::try_hours(1).unwrap_or_default())
             .set_detail("Tell my daughter 'happy birthday'".to_string());
 
         let mut new_year = record.clone();

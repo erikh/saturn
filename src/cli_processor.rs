@@ -186,7 +186,7 @@ macro_rules! process_cli {
                 notification.summary("Calendar Event");
                 notification.timeout(timeout);
                 let well = well.map_or_else(
-                    || chrono::Duration::minutes(1),
+                    || chrono::TimeDelta::try_minutes(1).unwrap_or_default(),
                     |x| {
                         FancyDuration::<chrono::Duration>::parse(&x)
                             .expect("Invalid duration")
@@ -205,7 +205,7 @@ macro_rules! process_cli {
                         for duration in notifications.iter().map(FancyDuration::duration) {
                             let notify = match entry.record_type() {
                                 $crate::record::RecordType::AllDay => {
-                                    let top = (entry.datetime() + chrono::Duration::days(1))
+                                    let top = (entry.datetime() + chrono::TimeDelta::try_days(1).unwrap_or_default())
                                         .with_hour(0)
                                         .unwrap()
                                         .with_minute(0)

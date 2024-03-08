@@ -8,8 +8,10 @@ const DATE_ENDINGS: [&str; 4] = ["th", "st", "rd", "nd"];
 pub fn parse_date(s: String) -> Result<chrono::NaiveDate> {
     match s.to_lowercase().as_str() {
         "today" => Ok(now().date_naive()),
-        "yesterday" => Ok((now() - chrono::Duration::days(1)).date_naive()),
-        "tomorrow" => Ok((now() + chrono::Duration::days(1)).date_naive()),
+        "yesterday" => {
+            Ok((now() - chrono::TimeDelta::try_days(1).unwrap_or_default()).date_naive())
+        }
+        "tomorrow" => Ok((now() + chrono::TimeDelta::try_days(1).unwrap_or_default()).date_naive()),
         "su" | "sun" | "sunday" | "mo" | "mon" | "monday" | "tu" | "tue" | "tues" | "tuesday"
         | "we" | "wed" | "wednesday" | "weds" | "th" | "thu" | "thurs" | "thursday" | "fr"
         | "fri" | "friday" | "sa" | "sat" | "saturday" => {
@@ -22,7 +24,9 @@ pub fn parse_date(s: String) -> Result<chrono::NaiveDate> {
                     } else {
                         x - period as usize
                     };
-                    return Ok((now() + chrono::Duration::days(index.try_into()?)).date_naive());
+                    return Ok((now()
+                        + chrono::TimeDelta::try_days(index.try_into()?).unwrap_or_default())
+                    .date_naive());
                 }
             }
 

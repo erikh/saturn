@@ -102,7 +102,7 @@ impl DB for MemoryDB {
             let mut seen: Option<&Record> = None;
 
             let mut begin = recur.record().datetime();
-            let tomorrow = (now() + chrono::Duration::days(1)).date_naive();
+            let tomorrow = (now() + chrono::TimeDelta::try_days(1).unwrap_or_default()).date_naive();
 
             while begin.date_naive() <= tomorrow {
                 for (_, record) in &records {
@@ -178,7 +178,7 @@ impl DB for MemoryDB {
             records.push(record);
         }
 
-        let n = n + chrono::Duration::days(1);
+        let n = n + chrono::TimeDelta::try_days(1).unwrap_or_default();
 
         let mut next_day = self.records.iter().filter(|(_, v)| v.date() == n).collect();
 
@@ -198,7 +198,7 @@ impl DB for MemoryDB {
                     ret.push(item.clone())
                 }
             } else if item.all_day()
-                && item.date() - chrono::Duration::days(1) == now().date_naive()
+                && item.date() - chrono::TimeDelta::try_days(1).unwrap_or_default() == now().date_naive()
                 && now().time() > chrono::NaiveTime::from_hms_opt(23, 59, 0).unwrap() - last
             {
                 ret.push(item.clone())

@@ -290,7 +290,7 @@ mod tests {
                 vec![
                     SearchParserAction::FromDate(
                         chrono::Local::now().date_naive(),
-                        (chrono::Local::now() + chrono::Duration::days(1)).date_naive(),
+                        (chrono::Local::now() + chrono::TimeDelta::try_days(1).unwrap_or_default()).date_naive(),
                     ),
                     SearchParserAction::FromTime(
                         chrono::NaiveTime::from_hms_opt(20, 0, 0).unwrap(),

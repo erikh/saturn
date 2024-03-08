@@ -31,7 +31,7 @@ pub async fn draw_loop<'a>(
     let s2 = state.clone();
     std::thread::spawn(move || sit(read_input(s2, s)));
     let mut last_line = String::from("placeholder");
-    let mut last_draw = now() - chrono::Duration::minutes(1);
+    let mut last_draw = now() - chrono::TimeDelta::try_minutes(1).unwrap_or_default();
 
     loop {
         let mut lock = state.lock().await;
@@ -49,7 +49,10 @@ pub async fn draw_loop<'a>(
             let line = lock.line_buf.clone();
             drop(lock);
 
-            if redraw || line != last_line || last_draw + chrono::Duration::seconds(5) < now() {
+            if redraw
+                || line != last_line
+                || last_draw + chrono::TimeDelta::try_seconds(5).unwrap_or_default() < now()
+            {
                 let lock = state.lock().await;
                 let show = lock.show.clone();
                 let show_recurring = lock.show_recurring.clone();
@@ -420,7 +423,9 @@ pub fn render_app(
                 let ret = lock.notification.clone();
 
                 if let Some(ret) = &ret {
-                    if now().naive_local() >= ret.1 + chrono::Duration::seconds(1) {
+                    if now().naive_local()
+                        >= ret.1 + chrono::TimeDelta::try_seconds(1).unwrap_or_default()
+                    {
                         lock.notification = None;
                     }
                 }
@@ -645,7 +650,8 @@ pub async fn build_show_event<'a>(
 }
 pub async fn build_calendar<'a>(state: ProtectedState<'static>) -> Result<Arc<Table<'a>>> {
     if let Some(calendar) = state.lock().await.calendar.clone() {
-        if calendar.1 + chrono::Duration::seconds(1) > now().naive_local() {
+        if calendar.1 + chrono::TimeDelta::try_seconds(1).unwrap_or_default() > now().naive_local()
+        {
             return Ok(calendar.0);
         }
     }
@@ -668,8 +674,10 @@ pub async fn build_calendar<'a>(state: ProtectedState<'static>) -> Result<Arc<Ta
         chrono::NaiveDate::from_ymd_opt(
             date.year_ce().1 as i32,
             date.month0() + 1,
-            (date - chrono::Duration::days(datetime.weekday().num_days_from_sunday().into()))
-                .day0()
+            (date
+                - chrono::TimeDelta::try_days(datetime.weekday().num_days_from_sunday().into())
+                    .unwrap_or_default())
+            .day0()
                 + 1,
         )
         .unwrap(),
@@ -698,7 +706,7 @@ pub async fn build_calendar<'a>(state: ProtectedState<'static>) -> Result<Arc<Ta
         }
 
         last_row.push(build_data(&mut lock, begin).await);
-        begin += chrono::Duration::days(1);
+        begin += chrono::TimeDelta::try_days(1).unwrap_or_default();
     }
     drop(lock);
     last_row.push((Cell::from("".to_string()), 0));
@@ -745,7 +753,7 @@ pub async fn build_calendar<'a>(state: ProtectedState<'static>) -> Result<Arc<Ta
 
 pub async fn build_events<'a>(state: ProtectedState<'static>) -> Result<Arc<Table<'a>>> {
     if let Some(events) = state.lock().await.events.clone() {
-        if events.1 + chrono::Duration::seconds(1) > now().naive_local() {
+        if events.1 + chrono::TimeDelta::try_seconds(1).unwrap_or_default() > now().naive_local() {
             return Ok(events.0);
         }
     }
@@ -756,8 +764,10 @@ pub async fn build_events<'a>(state: ProtectedState<'static>) -> Result<Arc<Tabl
         chrono::NaiveDate::from_ymd_opt(
             date.year_ce().1 as i32,
             date.month0() + 1,
-            (date - chrono::Duration::days(datetime.weekday().num_days_from_sunday().into()))
-                .day0()
+            (date
+                - chrono::TimeDelta::try_days(datetime.weekday().num_days_from_sunday().into())
+                    .unwrap_or_default())
+            .day0()
                 + 1,
         )
         .unwrap(),
@@ -804,8 +814,11 @@ pub async fn build_events<'a>(state: ProtectedState<'static>) -> Result<Arc<Tabl
                     }
 
                     if (r.all_day() && r.date() == now().date_naive())
-                        || (datetime > r.datetime() - chrono::Duration::hours(1)
-                            && datetime < r.datetime() + chrono::Duration::hours(1))
+                        || (datetime
+                            > r.datetime() - chrono::TimeDelta::try_hours(1).unwrap_or_default()
+                            && datetime
+                                < r.datetime()
+                                    + chrono::TimeDelta::try_hours(1).unwrap_or_default())
                     {
                         row = row.style(Style::default().fg(Color::LightGreen))
                     }

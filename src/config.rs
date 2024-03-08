@@ -46,7 +46,7 @@ impl From<Config> for ClientParameters {
 impl Default for Config {
     fn default() -> Self {
         Self {
-            query_window: Some(FancyDuration::new(chrono::Duration::days(30))),
+            query_window: Some(FancyDuration::new(chrono::TimeDelta::try_days(30).unwrap_or_default())),
             use_24h_time: Some(false),
             db_type: DBType::UnixFile,
             access_token: None,
@@ -133,7 +133,7 @@ impl Config {
         if let Some(duration) = &self.default_duration {
             duration.clone()
         } else {
-            FancyDuration(chrono::Duration::minutes(15))
+            FancyDuration(chrono::TimeDelta::try_minutes(15).unwrap_or_default())
         }
     }
 
@@ -164,7 +164,7 @@ impl Config {
     pub fn query_window(&self) -> chrono::Duration {
         self.query_window
             .clone()
-            .map_or_else(|| chrono::Duration::days(30), |x| x.duration())
+            .map_or_else(|| chrono::TimeDelta::try_days(30).unwrap_or_default(), |x| x.duration())
     }
 
     pub fn set_query_window(&mut self, window: chrono::Duration) {

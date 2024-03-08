@@ -155,7 +155,7 @@ fn get_well(well: Option<String>) -> Result<chrono::Duration> {
     if let Some(well) = well {
         Ok(fancy_duration::FancyDuration::<chrono::Duration>::parse(&well)?.duration())
     } else {
-        Ok(chrono::Duration::seconds(60))
+        Ok(chrono::TimeDelta::try_seconds(60).unwrap_or_default())
     }
 }
 
